@@ -18,16 +18,10 @@ import httpx
 from dotenv import load_dotenv
 
 from presets import COMMUNITIES
-from render import H, W
+from render import H, W, _run
 
 load_dotenv()
 UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}  # Wikimedia refuses generic agents
-
-
-def _run(cmd, cwd=None):
-    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-    if r.returncode:
-        raise RuntimeError(f"ffmpeg: {r.stderr.strip()[-400:]}")
 
 
 def duration(path):

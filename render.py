@@ -1,5 +1,6 @@
 """Stages 4-5: word-pop ASS captions and ffmpeg composition.
 W, H is the single aspect-ratio knob for the whole project."""
+import os
 import subprocess
 from pathlib import Path
 
@@ -7,12 +8,18 @@ from presets import COMMUNITIES
 
 W, H = 1080, 1920  # ponytail: one knob; set 1080, 1080 for a square feed variant
 FONT = "Noto Sans"  # fontconfig substitutes (DejaVu Sans) when absent; Docker installs fonts-noto-core
+# x264 sizes its thread pool from the host's cores, which on a shared cloud box can be dozens; each thread
+# holds 1080x1920 frames, so uncapped it blows a 1 GB container. Raise on a big laptop for faster renders.
+THREADS = os.environ.get("FFMPEG_THREADS", "2")
 
 
 def _run(cmd, cwd=None):
+    """Every ffmpeg call ends with its output path; -threads goes just before it so it applies to the encoder."""
+    cmd = [*cmd[:-1], "-threads", THREADS, cmd[-1]]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     if r.returncode:
-        raise RuntimeError(f"ffmpeg: {r.stderr.strip()[-400:]}")
+        # a negative code is a signal: -9 with empty stderr means the kernel OOM-killed ffmpeg
+        raise RuntimeError(f"ffmpeg exit {r.returncode}: {r.stderr.strip()[-400:]}")
 
 
 def ass_time(sec):
