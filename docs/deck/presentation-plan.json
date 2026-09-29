@@ -1,0 +1,30 @@
+{
+  "title": "Qoneqt Video Factory",
+  "style": "glassmorphism",
+  "style_guidelines": {
+    "color_palette": "Deep violet-to-magenta-to-cyan mesh gradient background (#667eea → #f093fb → #00d4ff) fading to near-black (#0b0416) at the edges, frosted white glass panels at 12-18% opacity with 1px white border, pure white titles, lavender (#c4b5fd) accents, electric yellow (#ffe500) for key numbers",
+    "typography": "Bold 700-weight sans-serif titles with subtle shadow, clean 400-weight body, dramatic size contrast, left-aligned body text",
+    "imagery": "Floating translucent 3D glass spheres and abstract shapes with light refraction, soft luminous orbs, depth through layered transparency, no text baked into imagery",
+    "layout": "Frosted glass cards with 24px rounded corners floating above the gradient, one focal point per slide, 40% negative space",
+    "effects": "Backdrop blur on glass panels, soft white border glow, colored soft shadows, light particles",
+    "visual_language": "Apple Vision Pro / visionOS aesthetic, premium depth through transparency, futuristic yet approachable"
+  },
+  "aspect_ratio": "16:9",
+  "image_backend": "pollinations (free, no key); reference chaining approximated with a fixed seed and identical style prefix, because Gemini image models returned 429 on the free tier",
+  "slides": [
+    {"slide_number": 1, "type": "title", "title": "Qoneqt Video Factory", "subtitle": "Topic in. Global Feed short out.",
+     "visual_description": "Hero gradient at full vibrancy, a large luminous glass sphere right of centre refracting violet and cyan light, smaller floating glass shards and light particles, dark vignette on the left third to hold the title card."},
+    {"slide_number": 2, "type": "content", "title": "The Global Feed is hungry. Video is slow.", "key_points": ["Feeds need fresh video daily", "A hand-made short takes 2-4 hours", "No Qoneqt-native topic-to-video tool"],
+     "visual_description": "Same gradient, calmer and darker; a cluster of small frosted glass tiles drifting apart on the right like an empty feed, subtle grain, left side kept dark and open for text."},
+    {"slide_number": 3, "type": "content", "title": "A video factory, not a video button", "key_points": ["Plan", "Produce", "Publish"],
+     "visual_description": "Same gradient; three translucent glass panels stacked in perspective across the lower half suggesting an assembly line, soft cyan glow along their edges, light trails linking them."},
+    {"slide_number": 4, "type": "content", "title": "Input → Process → Output", "key_points": ["Five stages with fallbacks", "FastAPI + one worker", "Docker on Hugging Face"],
+     "visual_description": "Same gradient, darkest variant; abstract glass conduit or pipeline running left to right with glowing nodes, a lot of dark negative space above and below for the flow diagram."},
+    {"slide_number": 5, "type": "content", "title": "Five things that make it work", "key_points": ["Community presets", "Self-scored hooks", "Word-pop captions", "Batch and fallbacks", "Post-ready output"],
+     "visual_description": "Same gradient; five small glass spheres of different sizes floating in a loose arc near the top-right, subtle refraction, dark lower two-thirds for a grid of cards."},
+    {"slide_number": 6, "type": "content", "title": "Impact and feasibility", "key_points": ["₹0 API cost", "About 1 minute per video", "10 topics per click", "6 community presets"],
+     "visual_description": "Same gradient with a rising cyan glow from the bottom edge; a few rising glass bubbles, dark upper half reserved for stat cards."},
+    {"slide_number": 7, "type": "conclusion", "title": "Built and running tonight", "subtitle": "Qoneqt doesn't need one AI video. It needs a factory. We built the factory.",
+     "visual_description": "Finale: gradient at highest vibrancy, burst of soft light rays from the centre-right, many floating glass particles, celebratory but restrained, left half dark for the screenshot."}
+  ]
+}

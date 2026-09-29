@@ -1,0 +1,7 @@
+.env
+.venv/
+out/
+.git/
+.playwright-mcp/
+docs/
+__pycache__/

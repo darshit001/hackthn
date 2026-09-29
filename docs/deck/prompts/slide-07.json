@@ -1,0 +1,26 @@
+{
+ "prompt": "Glassmorphism presentation slide background. Mesh gradient deep violet #667eea to magenta #f093fb to cyan #00d4ff on near-black #0b0416, floating frosted glass spheres with light refraction, soft glow, light particles, visionOS aesthetic, no text. Finale, highest vibrancy, burst of light from centre-right, many particles; left half dark for the screenshot. Continuing EXACT visual style from the reference image: SAME gradient, SAME glass treatment.",
+ "style": "Glassmorphism, visionOS aesthetic",
+ "color_palette": "#667eea #f093fb #00d4ff on #0b0416",
+ "vibrancy": 1.3,
+ "dark_side": "right",
+ "orbs": [
+  [
+   0.55,
+   0.93,
+   0.06
+  ],
+  [
+   0.95,
+   0.08,
+   0.045
+  ],
+  [
+   0.47,
+   0.14,
+   0.03
+  ]
+ ],
+ "particles": 80,
+ "consistency_note": "Must look like the same presentation as the reference image."
+}

@@ -1,0 +1,296 @@
+"""Stages 2-4 helpers.
+tts:        ElevenLabs -> edge-tts -> Gemini TTS, normalised to 44.1 kHz mono wav (+0.2 s pad)
+duration:   ffprobe seconds
+gen_image:  Pollinations FLUX (POLLINATIONS_API_KEY) -> Hugging Face Inference (HF_TOKEN) -> None
+stock_clip: AI image if given -> Pexels -> Pixabay -> Wikimedia Commons photo -> None; stills get a pan-zoom clip
+words:      Groq Whisper word timings"""
+import asyncio
+import base64
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.parse
+from pathlib import Path
+
+import httpx
+from dotenv import load_dotenv
+
+from presets import COMMUNITIES
+from render import H, W
+
+load_dotenv()
+UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}  # Wikimedia refuses generic agents
+
+
+def _run(cmd, cwd=None):
+    r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+    if r.returncode:
+        raise RuntimeError(f"ffmpeg: {r.stderr.strip()[-400:]}")
+
+
+def duration(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+                         check=True, capture_output=True, text=True).stdout
+    return float(out.strip())
+
+
+def _normalize(src, dst):
+    """Any audio -> 44.1 kHz mono s16 wav with 0.2 s trailing silence so scenes breathe."""
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-af", "apad=pad_dur=0.2",
+          "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le", str(dst)])
+
+
+# ---------- voice ----------
+
+def _tts_eleven(text, preset, tmp):
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise RuntimeError("no ELEVENLABS_API_KEY")
+    r = httpx.post(f"https://api.elevenlabs.io/v1/text-to-speech/{preset['voice_eleven']}",
+                   params={"output_format": "mp3_44100_128"}, headers={"xi-api-key": key},
+                   json={"text": text, "model_id": "eleven_flash_v2_5"}, timeout=90)
+    r.raise_for_status()  # 401/402/429 (quota, blocked voice) -> next engine
+    tmp.write_bytes(r.content)
+
+
+def _tts_gemini(text, preset, tmp):
+    r = httpx.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent",
+                   params={"key": os.environ["GEMINI_API_KEY"]}, timeout=90,
+                   json={"contents": [{"parts": [{"text": text}]}],
+                         "generationConfig": {"responseModalities": ["AUDIO"],
+                                              "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": preset["voice_gemini"]}}}}})
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code} {' '.join(r.text.split())[:200]}")
+    part = r.json()["candidates"][0]["content"]["parts"][0]["inlineData"]
+    data = base64.b64decode(part["data"])
+    if "wav" in part["mimeType"]:
+        tmp.write_bytes(data)
+    else:  # audio/L16;codec=pcm;rate=24000 -> wrap raw PCM
+        raw = tmp.with_suffix(".pcm")
+        raw.write_bytes(data)
+        _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", str(raw), "-f", "wav", str(tmp)])
+
+
+def _tts_edge(text, preset, tmp):
+    import edge_tts
+    asyncio.run(edge_tts.Communicate(text, preset["voice_edge"]).save(str(tmp)))
+
+
+# ponytail: Gemini TTS free tier is a handful of requests/day, so unlimited edge-tts goes before it
+TTS_CHAIN = [("elevenlabs", _tts_eleven), ("edge", _tts_edge), ("gemini", _tts_gemini)]
+
+
+def tts(text, community, out_wav):
+    """Synthesise text into a normalised wav at out_wav. Returns the engine name that spoke."""
+    preset = COMMUNITIES[community]
+    out_wav = Path(out_wav)
+    errors = []
+    for name, fn in TTS_CHAIN:
+        tmp = out_wav.with_suffix(f".{name}.raw")
+        try:
+            fn(text, preset, tmp)
+            _normalize(tmp, out_wav)
+            return name
+        except Exception as e:  # ponytail: any failure -> next engine; the job json records which engine spoke
+            errors.append(f"{name}: {str(e)[:160]}")
+    raise RuntimeError("all TTS engines failed: " + " | ".join(errors))
+
+
+# ---------- visuals ----------
+
+def _download(url, dst):
+    with httpx.stream("GET", url, timeout=120, follow_redirects=True, headers=UA) as r:
+        r.raise_for_status()
+        with open(dst, "wb") as f:
+            for chunk in r.iter_bytes(1 << 16):
+                f.write(chunk)
+
+
+def _pexels(query, min_sec):
+    key = os.environ.get("PEXELS_API_KEY")
+    if not key:
+        raise RuntimeError("no PEXELS_API_KEY")
+    r = httpx.get("https://api.pexels.com/videos/search", headers={"Authorization": key}, timeout=30,
+                  params={"query": query, "orientation": "portrait", "size": "medium", "per_page": 8})
+    r.raise_for_status()
+    vids = r.json().get("videos", [])
+    if not vids:
+        raise LookupError(f"pexels: nothing for {query!r}")
+    vids.sort(key=lambda v: (v["duration"] < min_sec, v["duration"]))  # long enough first, then shortest
+    files = vids[0]["video_files"]
+    tall = [f for f in files if (f.get("height") or 0) >= 1080]
+    best = min(tall, key=lambda f: f["height"]) if tall else max(files, key=lambda f: f.get("height") or 0)
+    return best["link"]
+
+
+def _pixabay(query, min_sec):
+    key = os.environ.get("PIXABAY_API_KEY")
+    if not key:
+        raise RuntimeError("no PIXABAY_API_KEY")
+    r = httpx.get("https://pixabay.com/api/videos/", timeout=30,
+                  params={"key": key, "q": query, "per_page": 8, "safesearch": "true"})
+    r.raise_for_status()
+    hits = r.json().get("hits", [])
+    if not hits:
+        raise LookupError(f"pixabay: nothing for {query!r}")
+    hits.sort(key=lambda h: (h["duration"] < min_sec, h["duration"]))
+    v = hits[0]["videos"]
+    return (v.get("large") or v.get("medium") or v["small"])["url"]
+
+
+HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
+IMAGE_SUFFIX = ". Vertical 9:16 composition, photographic, cinematic soft light, no text, no watermark, no logo"
+_image_down = set()  # ponytail: a provider that answers 401/402/403/429 is skipped for the rest of the process
+
+
+def _img_pollinations(prompt, out_png):
+    key = os.environ.get("POLLINATIONS_API_KEY")
+    if not key:
+        raise RuntimeError("no POLLINATIONS_API_KEY")
+    r = httpx.get(f"https://gen.pollinations.ai/image/{urllib.parse.quote(prompt)}",
+                  params={"model": "flux", "width": 720, "height": 1280, "nologo": "true", "seed": sum(map(ord, prompt)) % 100000},
+                  headers={"Authorization": f"Bearer {key}", **UA}, timeout=120, follow_redirects=True)
+    r.raise_for_status()
+    if not r.content[:3] == b"\xff\xd8\xff" and not r.content[:8] == b"\x89PNG\r\n\x1a\n":
+        raise RuntimeError(f"not an image: {r.content[:60]!r}")
+    Path(out_png).write_bytes(r.content)
+    return "AI image, FLUX via Pollinations"
+
+
+def _img_hf(prompt, out_png):
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        raise RuntimeError("no HF_TOKEN")
+    from huggingface_hub import InferenceClient
+    InferenceClient(token=token, timeout=120).text_to_image(prompt, model=HF_IMAGE_MODEL, width=768, height=1344).save(out_png)
+    return f"AI image, {HF_IMAGE_MODEL} via Hugging Face"
+
+
+IMAGE_CHAIN = [("pollinations", _img_pollinations), ("huggingface", _img_hf)]
+
+
+def gen_image(prompt, out_png):
+    """AI still for a scene. Pollinations FLUX (keyed) first, Hugging Face Inference second.
+    Returns a credit line, or None when no provider is available. Never raises."""
+    for name, fn in IMAGE_CHAIN:
+        if name in _image_down:
+            continue
+        try:
+            return fn(prompt + IMAGE_SUFFIX, out_png)
+        except Exception as e:
+            msg = " ".join(str(e).split())
+            if any(code in msg for code in ("401", "402", "403", "429", "no POLLINATIONS", "no HF_TOKEN")):
+                _image_down.add(name)
+            print(f"image[{name}] {prompt[:40]!r}: {type(e).__name__}: {msg[:140]}", file=sys.stderr)
+    return None
+
+
+WM_API = "https://commons.wikimedia.org/w/api.php"
+NOT_PHOTO = ("internet archive", "scan", "illustration", "drawing", "engraving", "painting", "advertis", "poster", "map", "diagram", "logo", "clipart")
+
+
+def _wikimedia(query, min_sec):
+    """Wikimedia Commons photo search, no key. Tries the CC0 Unsplash mirror first, then the plain query,
+    then relaxes it word by word. Returns (image url, credit line)."""
+    words = query.split()
+    # LLM queries end in the noun ("hand journal coffee"), so relax toward the tail; Unsplash mirror first at every step
+    forms = [query] + ([" ".join(words[-2:])] if len(words) > 2 else []) + ([words[-1]] if len(words) > 1 else [])
+    tries = [f"{f} unsplash" for f in forms] + forms[:1]
+    for q in dict.fromkeys(tries):
+        for attempt in range(2):
+            r = httpx.get(WM_API, headers=UA, timeout=30, params={
+                "action": "query", "generator": "search", "gsrsearch": f"filetype:bitmap {q}", "gsrnamespace": 6,
+                "gsrlimit": 8, "prop": "imageinfo", "iiprop": "url|size|mime|extmetadata", "iiurlwidth": 1600, "format": "json"})
+            if r.status_code == 429 and attempt == 0:
+                time.sleep(6)  # Commons rate limit: back off once
+                continue
+            break
+        r.raise_for_status()
+        pages = sorted(r.json().get("query", {}).get("pages", {}).values(), key=lambda p: p.get("index", 99))
+        for p in pages:
+            ii = p["imageinfo"][0]
+            if ii.get("mime") != "image/jpeg" or ii["width"] < 1000 or ii["height"] < 700:
+                continue  # skip diagrams, icons, tiny scans
+            em = ii.get("extmetadata", {})
+            blob = " ".join(em.get(k, {}).get("value", "") for k in ("Artist", "Categories", "ObjectName", "ImageDescription")).lower()
+            if any(t in blob for t in NOT_PHOTO):
+                continue  # book scans, drawings, adverts: Commons has millions and they read as clip art
+            artist = re.sub(r"<[^>]+>", "", em.get("Artist", {}).get("value", "")).strip() or "Wikimedia Commons"
+            lic = em.get("LicenseShortName", {}).get("value", "")
+            return ii.get("thumburl") or ii["url"], f"{artist} ({lic}) via Wikimedia Commons"
+    raise LookupError(f"wikimedia: nothing for {query!r}")
+
+
+def _still_to_clip(img, sec, out_mp4, zoom_in=True):
+    """Photo -> W x H clip with a slow Ken Burns zoom so the scene moves."""
+    n = max(2, int(round(sec * 30)))
+    z = f"1+0.12*on/{n}" if zoom_in else f"1.12-0.12*on/{n}"
+    big_w, big_h = int(W * 1.25), int(H * 1.25)  # zoom peaks at 1.12x, so 1.25x source stays sharp
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(img), "-vf",
+          f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase,crop={big_w}:{big_h},"
+          f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={n}:s={W}x{H}:fps=30,format=yuv420p",
+          "-frames:v", str(n), "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", str(out_mp4)])
+
+
+def stock_clip(query, min_sec, out_mp4, image=None, credit=None):
+    """Get one visual for the scene as an mp4 at out_mp4. An AI still (image=path) wins when given.
+    Returns {'source': 'ai'|'pexels'|'pixabay'|'wikimedia', 'credit': str}, or None when every source failed."""
+    out_mp4 = Path(out_mp4)
+    if image:
+        try:
+            _still_to_clip(image, min_sec, out_mp4, zoom_in=sum(map(ord, query)) % 2 == 0)
+            return {"source": "ai", "credit": credit or "AI image"}
+        except Exception as e:
+            print(f"ai still -> clip failed for {query!r}: {e}", file=sys.stderr)
+    for name, fn in (("pexels", _pexels), ("pixabay", _pixabay)):
+        try:
+            _download(fn(query, min_sec), out_mp4)
+            return {"source": name, "credit": f"{name} stock video"}
+        except Exception:
+            continue
+    for attempt in range(2):  # Commons occasionally times out; one retry rescues most scenes
+        try:
+            url, credit = _wikimedia(query, min_sec)
+            img = out_mp4.with_suffix(".jpg")
+            _download(url, img)
+            _still_to_clip(img, min_sec, out_mp4, zoom_in=sum(map(ord, query)) % 2 == 0)
+            return {"source": "wikimedia", "credit": credit}
+        except Exception as e:
+            print(f"wikimedia {query!r} attempt {attempt + 1}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
+            time.sleep(2)
+    return None  # ponytail: Commons video derivatives would be the next source to add
+
+
+# ---------- captions ----------
+
+def words(wav):
+    """Word timings via Groq Whisper: [{'word','start','end'}, ...] in seconds."""
+    with open(wav, "rb") as f:
+        r = httpx.post("https://api.groq.com/openai/v1/audio/transcriptions", timeout=120,
+                       headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
+                       data={"model": "whisper-large-v3-turbo", "response_format": "verbose_json",
+                             "timestamp_granularities[]": "word"},
+                       files={"file": ("voice.wav", f, "audio/wav")})
+    r.raise_for_status()
+    return [{"word": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
+            for w in r.json().get("words", []) if w["word"].strip()]
+
+
+if __name__ == "__main__":
+    d = Path("out/_selfcheck")
+    d.mkdir(parents=True, exist_ok=True)
+    community = sys.argv[1] if len(sys.argv) > 1 else "general"
+    eng = tts("Hello from the Qoneqt video factory. This is a voice check.", community, d / "voice.wav")
+    sec = duration(d / "voice.wav")
+    print(f"tts engine={eng} duration={sec:.2f}s")
+    assert 2 < sec < 8, sec
+    src = stock_clip("city traffic night", sec, d / "clip.mp4")
+    print(f"stock={src}" + ("" if src else " (every source failed -> pipeline will draw a card)"))
+    if src:
+        print(f"clip duration={duration(d / 'clip.mp4'):.1f}s")
+    ws = words(d / "voice.wav")
+    print(f"whisper words={len(ws)} first={ws[:3]}")
+    assert len(ws) >= 6, ws
+    print("MEDIA OK")
