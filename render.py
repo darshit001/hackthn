@@ -8,14 +8,20 @@ from presets import COMMUNITIES
 
 W, H = 1080, 1920  # ponytail: one knob; set 1080, 1080 for a square feed variant
 FONT = "Noto Sans"  # fontconfig substitutes (DejaVu Sans) when absent; Docker installs fonts-noto-core
-# x264 sizes its thread pool from the host's cores, which on a shared cloud box can be dozens; each thread
-# holds 1080x1920 frames, so uncapped it blows a 1 GB container. Raise on a big laptop for faster renders.
+# ffmpeg sizes its decoder, filter and x264 thread pools from the host's cores, which on a shared cloud box can
+# be dozens; each thread holds 1080x1920 frames, so uncapped it blows a 1 GB container. Raise on a big laptop.
 THREADS = os.environ.get("FFMPEG_THREADS", "2")
 
 
 def _run(cmd, cwd=None):
-    """Every ffmpeg call ends with its output path; -threads goes just before it so it applies to the encoder."""
-    cmd = [*cmd[:-1], "-threads", THREADS, cmd[-1]]
+    """Caps every thread pool: -filter_threads is global, -threads before each -i caps that input's decoder,
+    and -threads before the output path (every call ends with it) caps the encoder."""
+    capped = [cmd[0], "-filter_threads", THREADS]
+    for arg in cmd[1:-1]:
+        if arg == "-i":
+            capped += ["-threads", THREADS]
+        capped.append(arg)
+    cmd = [*capped, "-threads", THREADS, cmd[-1]]
     r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
     if r.returncode:
         # a negative code is a signal: -9 with empty stderr means the kernel OOM-killed ffmpeg

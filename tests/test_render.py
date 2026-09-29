@@ -40,3 +40,14 @@ def test_align_falls_back_to_whisper_words_on_big_mismatch():
     timed = [w(f"w{i}", i * 0.2, i * 0.2 + 0.2) for i in range(10)]
     got = align(["just two"], [(0.0, 2.0)], timed)
     assert len(got) == 10
+
+
+def test_run_caps_every_ffmpeg_thread_pool(monkeypatch):
+    import subprocess
+    import render
+    seen = {}
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: seen.setdefault("cmd", cmd) and type("R", (), {"returncode": 0})())
+    render._run(["ffmpeg", "-y", "-i", "a.mp4", "-i", "b.wav", "-c:v", "libx264", "out.mp4"])
+    t = render.THREADS
+    assert seen["cmd"] == ["ffmpeg", "-filter_threads", t, "-y", "-threads", t, "-i", "a.mp4",
+                           "-threads", t, "-i", "b.wav", "-c:v", "libx264", "-threads", t, "out.mp4"]
