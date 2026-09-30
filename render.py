@@ -127,7 +127,10 @@ def compose(scene_clips, voice_wav, ass, job_dir, out_id):
     mp4, jpg = job_dir / f"{out_id}.mp4", job_dir / f"{out_id}.jpg"
     _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-i", str(Path(voice_wav).resolve()),
           "-vf", f"subtitles={Path(ass).name}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
-          "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", mp4.name], cwd=job_dir)
+          # -shortest makes ffmpeg 7 queue raw frames to line streams up, default 10 s (~930 MB at 1080x1920,
+          # the Railway OOM kill); voice and scenes are cut to the same length, so 1 s gives identical output
+          "-c:a", "aac", "-b:a", "128k", "-shortest", "-shortest_buf_duration", "1", "-movflags", "+faststart",
+          mp4.name], cwd=job_dir)
     _run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1", "-i", mp4.name, "-frames:v", "1", "-q:v", "3", jpg.name], cwd=job_dir)
     return mp4, jpg
 

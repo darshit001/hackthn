@@ -51,3 +51,13 @@ def test_run_caps_every_ffmpeg_thread_pool(monkeypatch):
     t = render.THREADS
     assert seen["cmd"] == ["ffmpeg", "-filter_threads", t, "-y", "-threads", t, "-i", "a.mp4",
                            "-threads", t, "-i", "b.wav", "-c:v", "libx264", "-threads", t, "out.mp4"]
+
+
+def test_compose_bounds_shortest_buffer(monkeypatch, tmp_path):
+    # ffmpeg 7 buffers up to 10 s of raw 1080x1920 frames for -shortest (~930 MB): the Railway OOM kill
+    import render
+    cmds = []
+    monkeypatch.setattr(render, "_run", lambda cmd, cwd=None: cmds.append(cmd))
+    render.compose([(None, 1.0)], tmp_path / "voice.wav", tmp_path / "captions.ass", tmp_path, "x")
+    final = next(c for c in cmds if "-shortest" in c)
+    assert final[final.index("-shortest_buf_duration") + 1] == "1"
