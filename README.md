@@ -89,7 +89,11 @@ flowchart LR
 
 **Key features**
 
-- 🧠 **Hook-first scripting**: the LLM writes 3 hooks, scores them, and builds the video on the best one
+- 🧠 **Hook formulas**: 3 openers (question, bold claim, number, myth, story, warning), each scored with a one-line "why it works"; the video is built on the best
+- 🎬 **Retention beats**: hook → context → rehook → twist → payoff; openers like "Did you know" are rejected by the validator before anything is rendered
+- ✂️ **Crossfades and mid-scene cuts**: scenes crossfade into each other and the end card; scenes over 4 s cut between two AI shots halfway through the sentence
+- 📷 **A different shot per scene**: wide, close-up, portrait, action, aftermath, so AI stills never look alike
+- 📋 **Post text for three platforms**: Qoneqt caption, YouTube Shorts title + description, Instagram caption
 - 🌐 **4 languages**: English, हिन्दी (Devanagari), Hinglish (Roman script) and ગુજરાતી
 - 👥 **6 community presets**: General, Tech & AI, Fitness & Health, Motivation, Money & Finance, Hinglish Fun
 - ⏱️ **4 lengths**: 15 / 30 / 45 / 60 s; the scene count and word budget scale with the length
@@ -97,7 +101,7 @@ flowchart LR
 - 👀 **Script preview**: see the 3 scored hooks and every scene before rendering, pick the opening line, then make the video
 - 🎵 **Music bed**: a mood-matched track per community, ducked under the narration with `sidechaincompress`
 - 🔁 **Redo a scene**: regenerate one scene's visual on a finished video and re-render in seconds
-- 🗣️ **Word-pop karaoke captions**: each word lights up as it is spoken (Whisper word timestamps)
+- 🗣️ **Word-pop karaoke captions**: each word lights up as it is spoken (Whisper per scene, with the script as its prompt)
 - 📦 **Batch mode**: queue up to 10 topics in one click
 - 🛡️ **Fallbacks at every stage**: a flaky free API never kills a job
 - 🧾 **Credits recorded**: every scene's image or stock source is stored in the job JSON
@@ -120,11 +124,11 @@ flowchart TD
     IN(["📝 topic + community + language + length"]) --> P
 
     P["<b>1. PLAN</b><br/>Groq gpt-oss-120b<br/>3 scored hooks → best hook<br/>3–9 scenes: narration, title,<br/>stock query, image prompt<br/>caption + hashtags"]
-    P --> I["<b>2. IMAGES</b><br/>Cloudflare Workers AI FLUX.1-schnell<br/>→ Together → HF<br/>one 9:16 still per scene<br/>3 in parallel, 2 passes"]
+    P --> I["<b>2. IMAGES</b><br/>Cloudflare Workers AI FLUX.1-schnell<br/>→ Together → HF<br/>two 9:16 stills per scene (shot A, shot B)<br/>3 in parallel, every A before any B"]
     I --> V["<b>3. VOICE</b><br/>ElevenLabs → edge-tts → Gemini TTS<br/>one WAV per scene, 2 in parallel"]
     V --> VI["<b>4. VISUALS</b><br/>AI still → Ken Burns clip<br/>else Pexels / Pixabay video<br/>else Wikimedia photo<br/>else titled card"]
-    VI --> C["<b>5. CAPTIONS</b><br/>Groq Whisper word timestamps<br/>→ ASS karaoke subtitles"]
-    C --> R["<b>6. RENDER</b><br/>ffmpeg: crop 1080×1920, concat,<br/>+2 s Qoneqt end card, voice,<br/>burn captions + hook title, thumbnail"]
+    VI --> C["<b>5. CAPTIONS</b><br/>Groq Whisper per scene,<br/>script as prompt<br/>→ ASS karaoke subtitles"]
+    C --> R["<b>6. RENDER</b><br/>ffmpeg: crop 1080×1920, xfade crossfades,<br/>A/B cut in long scenes, +2 s Qoneqt end card,<br/>voice + ducked music, captions + hook title, thumbnail"]
     R --> OUT(["📦 out/&lt;id&gt;/&lt;id&gt;.mp4 · .jpg · .json"])
 
     style P fill:#ede9fe,stroke:#7c3aed,color:#1e1b4b
@@ -139,12 +143,12 @@ flowchart TD
 
 | # | Stage | What happens | Output |
 |---|---|---|---|
-| 1 | **Plan** | The LLM returns strict JSON: 3 hooks with scores, scenes sized to the length (word budget = length × the language's measured speaking pace), caption and hashtags. The JSON is validated, and bad JSON gets one guided retry before the next model is tried. | `plan` dict |
-| 2 | **Images** | One FLUX still per scene from that scene's `image_prompt`, 3 at a time. If every provider is down this stage is skipped and stage 4 uses stock. | `gen<i>.png` |
+| 1 | **Plan** | The LLM returns strict JSON: 3 hooks with scores, scenes sized to the length (word budget = length × the language's measured speaking pace), caption and hashtags. The JSON is validated, and bad JSON gets one guided retry before the next model is tried. Three hooks with a formula, a score and a why; a beat per scene; two image prompts per scene from different shots; YouTube and Instagram post text. | `plan` dict |
+| 2 | **Images** | Two FLUX stills per scene (`image_prompt`, then `image_prompt_b`), 3 at a time, every scene's first picture before any second one. If every provider is down this stage is skipped and stage 4 uses stock. | `gen<i>.png` |
 | 3 | **Voice** | Each scene's narration becomes speech. The voice is chosen by community (gender) and language, then normalised. | `voice<i>.wav`, `voice.wav` |
-| 4 | **Visuals** | Each scene becomes a clip exactly as long as its voice line: a Ken Burns zoom on the AI still, else real stock footage, else a CC-licensed photo. | `clip<i>.mp4` |
-| 5 | **Captions** | Whisper returns per-word timings. They become ASS karaoke lines with the active word in the community's accent colour. | `captions.ass` |
-| 6 | **Render** | ffmpeg composes clips, the end card, voice, the ducked music bed, captions and the hook title into the final short, plus a thumbnail. | `<id>.mp4`, `<id>.jpg`, `<id>.json` |
+| 4 | **Visuals** | Each scene becomes a clip exactly as long as its voice line: a Ken Burns zoom on the AI still, else real stock footage, else a CC-licensed photo. Scenes of 4 s or more cut from shot A to shot B halfway; every clip runs 0.35 s past its voice line for the crossfade. | `clip<i>.mp4` |
+| 5 | **Captions** | Whisper runs once per scene with that scene's narration as its prompt, so timings land on the right words. They become ASS karaoke lines with the active word in the community's accent colour. | `captions.ass` |
+| 6 | **Render** | ffmpeg crossfades the clips into each other and the end card, mixes voice and the ducked music bed, burns captions and the hook title, and writes the thumbnail. | `<id>.mp4`, `<id>.jpg`, `<id>.json` |
 
 ---
 
@@ -221,9 +225,9 @@ sequenceDiagram
     P->>AI: plan → images → voice → visuals → Whisper
     AI-->>P: JSON, PNGs, WAVs, clips, word timings
     P->>P: ffmpeg render
-    P-->>W: meta (hook, caption, hashtags, credits)
+    P-->>W: meta (hook + formula/score/why, caption, hashtags, posts, per-scene beat/split, credits)
     W->>API: status = done
-    UI->>U: Phone preview, Download MP4, Copy post text
+    UI->>U: Phone preview, Download MP4, Copy post text (Qoneqt / YouTube Shorts / Instagram)
 ```
 
 ### Job states
@@ -266,7 +270,7 @@ stateDiagram-v2
 |---|---|
 | Backend | **Python 3.11**, **FastAPI**, **Uvicorn** |
 | HTTP | **httpx** |
-| Video / audio | **ffmpeg** (concat, cover-crop, Ken Burns zoom, libass subtitle burn-in, thumbnail) |
+| Video / audio | **ffmpeg** (xfade crossfades, cover-crop, Ken Burns zoom, libass subtitle burn-in, thumbnail) |
 | Captions | **ASS** subtitle format with karaoke tags, **Noto** fonts (Latin, Devanagari, Gujarati) |
 | Music | 4 tracks by Kevin MacLeod (incompetech.com, CC BY 4.0) in `assets/music/`, 75 s, mono 64 kbps |
 | Frontend | One `static/index.html`: plain HTML, CSS and JS, no build step |
@@ -454,7 +458,7 @@ flowchart LR
 | `GET` | `/` | | Studio UI |
 | `GET` | `/presets` | | communities, languages, durations |
 | `GET` | `/suggest` | `?community=tech&language=hi&trends_only=1` | 6 topic ideas (trend-aware; `trends_only` makes them all trend-led) |
-| `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks, scenes, caption, hashtags |
+| `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks with formula and why, scenes with beats, caption, hashtags, YouTube and Instagram post text |
 | `POST` | `/generate` | `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "plan": {...}}` (1–10 topics; `plan` optional, from `/plan`) | `{"job_ids": [...]}` |
 | `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual and re-renders |
 | `GET` | `/jobs` | | every job with status and stage |
