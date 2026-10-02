@@ -30,7 +30,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     p = plan or llm.plan(topic, community, language, duration)
     scenes = p["scenes"]
 
-    progress("images")  # AI still per scene, 3 at a time (Pollinations takes that on the keyed endpoint); None -> stock later
+    progress("images")  # AI still per scene, 3 at a time (well inside Cloudflare Workers AI limits); None -> stock later
     with ThreadPoolExecutor(3) as pool:
         ai_credits = list(pool.map(lambda a: media.gen_image(a[1].get("image_prompt") or a[1]["query"], d / f"gen{a[0]}.png"), enumerate(scenes)))
     images = [(d / f"gen{i}.png", cr) if cr else None for i, cr in enumerate(ai_credits)]
@@ -102,7 +102,7 @@ def redo_scene(job_id, n, progress=lambda stage: None):
     sc = scenes[n]
     progress("images")
     png = d / f"gen{n}.png"
-    # Pollinations seeds from the prompt text, so a fresh suffix is what makes the picture different
+    # FLUX is deterministic per prompt on some providers, so a fresh suffix is what makes the picture different
     cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {secrets.token_hex(2)})", png)
     progress("visuals")
     clip = d / f"clip{n}.mp4"

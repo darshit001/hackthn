@@ -1,7 +1,7 @@
 """Stages 2-4 helpers.
 tts:        ElevenLabs -> edge-tts -> Gemini TTS, normalised to 44.1 kHz mono wav (+0.2 s pad)
 duration:   ffprobe seconds
-gen_image:  Pollinations FLUX (POLLINATIONS_API_KEY) -> Hugging Face Inference (HF_TOKEN) -> None
+gen_image:  Cloudflare Workers AI FLUX (CF_ACCOUNT_ID, CF_API_TOKEN) -> Together AI -> Hugging Face Inference (HF_TOKEN) -> None
 stock_clip: AI image if given -> Pexels -> Pixabay -> Wikimedia Commons photo -> None; stills get a pan-zoom clip
 words:      Groq Whisper word timings"""
 import asyncio
@@ -10,7 +10,6 @@ import os
 import re
 import sys
 import time
-import urllib.parse
 from pathlib import Path
 
 import httpx
@@ -143,20 +142,6 @@ _image_down = {}  # provider -> time it answered 401/402/403; skipped for DOWN_F
 DOWN_FOR = 600
 
 
-def _img_pollinations(prompt, out_png):
-    key = os.environ.get("POLLINATIONS_API_KEY")
-    if not key:
-        raise RuntimeError("no POLLINATIONS_API_KEY")
-    r = httpx.get(f"https://gen.pollinations.ai/image/{urllib.parse.quote(prompt)}",
-                  params={"model": "flux", "width": 720, "height": 1280, "nologo": "true", "seed": sum(map(ord, prompt)) % 100000},
-                  headers={"Authorization": f"Bearer {key}", **UA}, timeout=120, follow_redirects=True)
-    r.raise_for_status()
-    if not r.content[:3] == b"\xff\xd8\xff" and not r.content[:8] == b"\x89PNG\r\n\x1a\n":
-        raise RuntimeError(f"not an image: {r.content[:60]!r}")
-    Path(out_png).write_bytes(r.content)
-    return "AI image, FLUX via Pollinations"
-
-
 def _img_hf(prompt, out_png):
     token = os.environ.get("HF_TOKEN")
     if not token:
@@ -181,8 +166,8 @@ def _img_together(prompt, out_png):
 
 
 def _img_cloudflare(prompt, out_png):
-    """Cloudflare Workers AI FLUX.1-schnell (free daily allowance). Square output; the Ken Burns crop makes it 9:16.
-    Untested here: no account on this machine."""
+    """Cloudflare Workers AI FLUX.1-schnell (free 10k neurons/day, ~2-3 s an image, verified 2 Oct 2026).
+    Square 1024 output; the Ken Burns cover-crop makes it 9:16."""
     acct, token = os.environ.get("CF_ACCOUNT_ID"), os.environ.get("CF_API_TOKEN")
     if not (acct and token):
         raise RuntimeError("no CF_ACCOUNT_ID/CF_API_TOKEN")
@@ -193,12 +178,12 @@ def _img_cloudflare(prompt, out_png):
     return "AI image, FLUX.1-schnell via Cloudflare Workers AI"
 
 
-# ponytail: order = quality then quota. Pollinations 402s once its free credits run out, so two more keyed free tiers sit before HF.
-IMAGE_CHAIN = [("pollinations", _img_pollinations), ("together", _img_together), ("cloudflare", _img_cloudflare), ("huggingface", _img_hf)]
+# ponytail: Cloudflare is the only keyed free tier verified working; the others are fallbacks that skip themselves without a key.
+IMAGE_CHAIN = [("cloudflare", _img_cloudflare), ("together", _img_together), ("huggingface", _img_hf)]
 
 
 def gen_image(prompt, out_png):
-    """AI still for a scene. Pollinations FLUX (keyed) first, Hugging Face Inference second, and the whole chain
+    """AI still for a scene. Cloudflare Workers AI FLUX first, then Together AI, then Hugging Face, and the whole chain
     a second time after a pause: most failures seen are transient 500s. Returns a credit line, or None. Never raises."""
     for attempt in range(2):
         for name, fn in IMAGE_CHAIN:
@@ -209,7 +194,7 @@ def gen_image(prompt, out_png):
             except Exception as e:
                 msg = " ".join(str(e).split())
                 # auth/quota trouble: rest the provider; a 429 from parallel scenes is left for the second pass
-                if any(code in msg for code in ("401", "402", "403", "no POLLINATIONS", "no HF_TOKEN", "no TOGETHER", "no CF_")):
+                if any(code in msg for code in ("401", "402", "403", "no HF_TOKEN", "no TOGETHER", "no CF_")):
                     _image_down[name] = time.time()
                 print(f"image[{name}] try {attempt + 1} {prompt[:40]!r}: {type(e).__name__}: {msg[:140]}", file=sys.stderr)
         if all(time.time() - _image_down.get(n, 0) < DOWN_FOR for n, _ in IMAGE_CHAIN):
