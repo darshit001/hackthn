@@ -82,3 +82,23 @@ in git history (`c9e6e7e`) if a dark mode is wanted later; the tokens are alread
 
 Also fixed while verifying: the page now keeps polling every 8 s when idle, so a job started from another
 tab or the API appears without a reload.
+
+## Revision 2, same day: "make it not look AI-generated"
+
+The user rejected the violet/purple as the generic "AI purple" and asked, strictly, for a page that does not
+read as generated. The move is from landing page to software: the page now looks like a tool a real team ships.
+
+- **Chrome:** white ground, `#F7F7F7` form panel, `#E3E3E3` hairline borders, `#141414` text, `#5C5C5C`
+  secondary. No gradients, glass, glow or shadows. Radius 6 px on controls, 8 px on thumbnails.
+- **Colour only where it means something:** black primary button; amber "Making", grey "Queued", green
+  "Ready", red "Failed" badges; the 22 px brand mark keeps Qoneqt's own purple-to-pink (their logo), nowhere else.
+- **Type:** Instrument Sans, one family, 13-15 px, tabular numerals. Headings are labels ("New video",
+  "In progress", "Ready to post"), not marketing lines.
+- **Controls:** native `<select>` for Community and Language, a segmented control for Length, a plain list
+  with "Add" buttons for suggested topics instead of chips.
+- **Rows, not cards:** each video is a list row with a 9:16 thumbnail, title, status badge, one meta line,
+  a determinate progress bar with "Images, step 2 of 6" while making, and the post text plus Copy / Download /
+  Delete when ready. Photo credits are no longer shown (still recorded in the job JSON).
+- **App bar:** wordmark, live tally, and an "Open Global Feed" link so posting is one click away in the demo.
+
+Earlier looks stay in git history: dark glass (`c9e6e7e`), Vibrant & Block-based (`7a24006`).

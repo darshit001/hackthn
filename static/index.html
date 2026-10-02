@@ -4,249 +4,210 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Qoneqt Video Factory</title>
-<meta name="color-scheme" content="light">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%237C3AED%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23EC4899%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23141414%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23fff%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Design system (ui-ux-pro-max recommendation for this product): Vibrant & Block-based,
-   AI purple + generation pink on a light lavender ground, Space Grotesk / DM Sans, large type, bold hover shifts. */
 :root{
-  --bg:#FAF5FF; --fg:#0F172A; --muted-bg:#F7F3FD; --border:#EFE7FC; --sub:#5B5478;
-  --primary:#7C3AED; --primary-deep:#6D28D9; --on-primary:#FFFFFF; --secondary:#6366F1; --accent:#EC4899; --accent-deep:#DB2777;
-  --destructive:#DC2626; --ring:#7C3AED; --phone:#0F172A;
-  --display:"Space Grotesk",system-ui,sans-serif; --text:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --r-block:20px; --r-ctl:12px; --r-phone:28px; --dur:220ms; --ease:cubic-bezier(.16,1,.3,1);
+  --bg:#FFFFFF; --panel:#F7F7F7; --border:#E3E3E3; --border-2:#CFCFCF;
+  --fg:#141414; --fg-2:#5C5C5C; --fg-3:#8A8A8A;
+  --amber:#B45309; --amber-bg:#FFF7ED; --green:#15803D; --green-bg:#F0FDF4; --red:#B91C1C; --red-bg:#FEF2F2;
+  --font:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:6px; --r-lg:8px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);font:400 16px/1.5 var(--text)}
-button,input,textarea{font:inherit;color:inherit}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 14px/1.5 var(--font);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:3px solid var(--ring);outline-offset:3px;border-radius:6px}
-a{color:var(--fg);transition:color var(--dur)}
-a:hover{color:var(--primary)}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:var(--r)}
+a{color:var(--fg)}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 
-.wrap{max-width:1240px;margin:0 auto;padding:20px 20px 96px}
+/* app bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;height:52px;padding:0 24px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;text-decoration:none}
+.brand .mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8B5CF6,#EC4899);flex:none}
+.top nav{display:flex;align-items:center;gap:18px;color:var(--fg-2);font-size:13px}
+.top nav a{color:var(--fg);text-decoration:none;font-weight:500;padding:6px 10px;border:1px solid var(--border-2);border-radius:var(--r)}
+.top nav a:hover{background:var(--panel)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--fg-3);margin-right:7px;vertical-align:1px}
+.dot.on{background:var(--amber)}
 
-/* top bar */
-.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 16px;padding:8px 0 32px}
-.mark{display:flex;align-items:center;gap:12px;font:700 18px/1 var(--display);letter-spacing:-.01em;white-space:nowrap}
-.mark i{width:34px;height:34px;border-radius:10px;background:var(--primary);display:grid;place-items:center;flex:none}
-.mark i::after{content:"";width:0;height:0;border-left:12px solid var(--accent);border-top:8px solid transparent;border-bottom:8px solid transparent;margin-left:3px}
-.tally{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:#fff;border:1px solid var(--border);color:var(--sub);font-size:15px}
-.tally b{color:var(--fg);font-weight:600}
-.tally .live{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(236,72,153,.2)}
-.tally .live.idle{background:var(--border);box-shadow:none}
+/* layout */
+.layout{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 52px)}
+.new{padding:24px;border-right:1px solid var(--border);background:var(--panel)}
+.videos{padding:24px 28px 64px;min-width:0}
 
-/* two blocks */
-.grid{display:grid;grid-template-columns:440px 1fr;gap:40px;align-items:start}
-
-/* control panel: one solid primary block */
-.panel{position:sticky;top:20px;background:var(--primary);color:var(--on-primary);border-radius:var(--r-block);padding:32px 28px 28px}
-.panel h1{margin:0 0 10px;font:700 clamp(28px,2.6vw,34px)/1.1 var(--display);letter-spacing:-.02em}
-.panel .lede{margin:0 0 24px;color:rgba(255,255,255,.82);font-size:16px;max-width:40ch}
-label.field{display:block;font-size:14px;font-weight:500;color:rgba(255,255,255,.85);margin-bottom:8px}
-.topics{width:100%;min-height:116px;resize:vertical;padding:14px 16px;background:#fff;border:2px solid transparent;border-radius:var(--r-ctl);color:var(--fg);font-size:17px;line-height:1.45;transition:border-color var(--dur)}
-.topics::placeholder{color:#9A93B5}
-.topics:focus{outline:none;border-color:var(--accent)}
-.suggest{margin:14px 0 22px;display:grid;gap:10px}
-.suggest .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.ghost{background:transparent;border:2px solid rgba(255,255,255,.6);color:#fff;padding:9px 16px;border-radius:999px;font-weight:600;font-size:14px;transition:background var(--dur),color var(--dur),border-color var(--dur)}
-.ghost:hover{background:#fff;color:var(--primary);border-color:#fff}
-.ghost:disabled{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.3);cursor:progress;background:transparent}
-.note{color:rgba(255,255,255,.8);font-size:14px;margin:0}
-.ideas{display:flex;flex-wrap:wrap;gap:8px}
+/* form */
+.new h1{font-size:18px;margin-bottom:18px}
+.field{display:block;margin-bottom:16px}
+.field > span{display:block;font-weight:500;font-size:13px;margin-bottom:6px}
+.field small{display:block;color:var(--fg-2);font-weight:400;margin-top:-4px;margin-bottom:6px}
+.topics{width:100%;min-height:104px;resize:vertical;padding:9px 10px;background:#fff;border:1px solid var(--border-2);border-radius:var(--r);line-height:1.45}
+.topics::placeholder{color:var(--fg-3)}
+.topics:focus,.sel:focus{outline:none;border-color:var(--fg);box-shadow:0 0 0 2px rgba(20,20,20,.12)}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-6px 0 14px}
+.hint{color:var(--fg-2);font-size:13px;margin:0}
+.btn{padding:6px 11px;border:1px solid var(--border-2);border-radius:var(--r);background:#fff;font-weight:500;font-size:13px;line-height:1.3}
+.btn:hover{border-color:var(--fg)}
+.btn:disabled{color:var(--fg-3);border-color:var(--border);cursor:default}
+.ideas{list-style:none;margin:0 0 16px;padding:0;border:1px solid var(--border);border-radius:var(--r);background:#fff;overflow:hidden}
 .ideas:empty{display:none}
-.idea{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:500;text-align:left;line-height:1.3;transition:background var(--dur),color var(--dur)}
-.idea:hover{background:var(--accent)}
-.idea:disabled{background:transparent;color:rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);cursor:default}
+.ideas li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-top:1px solid var(--border);font-size:13px}
+.ideas li:first-child{border-top:0}
+.ideas li button{flex:none;padding:3px 9px;font-size:12px}
+.sel{width:100%;appearance:none;-webkit-appearance:none;padding:8px 32px 8px 10px;background:#fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.5 4.5l3.5 3.5 3.5-3.5%27 fill=%27none%27 stroke=%27%23141414%27 stroke-width=%271.5%27/%3E%3C/svg%3E") no-repeat right 10px center;border:1px solid var(--border-2);border-radius:var(--r)}
+.seg{display:flex;border:1px solid var(--border-2);border-radius:var(--r);background:#fff;overflow:hidden}
+.seg label{flex:1;position:relative;text-align:center;border-left:1px solid var(--border);font-size:13px}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.seg span{display:block;padding:7px 0}
+.seg input:checked+span{background:var(--fg);color:#fff;font-weight:500}
+.seg input:focus-visible+span{outline:2px solid var(--fg);outline-offset:-2px}
+.primary{width:100%;padding:10px 14px;border:1px solid var(--fg);border-radius:var(--r);background:var(--fg);color:#fff;font-weight:500;font-size:14px;margin-top:4px}
+.primary:hover{background:#000}
+.primary:disabled{background:var(--border);border-color:var(--border);color:var(--fg-3);cursor:default}
+.after{margin-top:10px}
+kbd{font:inherit;font-size:12px;border:1px solid var(--border-2);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:#fff}
 
-.opt{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:start;margin:0;padding:14px 0;border:0;border-top:1px solid rgba(255,255,255,.22);min-width:0}
-.opt legend{display:contents}
-.opt .name{font-size:14px;font-weight:500;color:rgba(255,255,255,.85);padding-top:8px}
-.pills{display:flex;flex-wrap:wrap;gap:6px}
-.pill{position:relative}
-.pill input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
-.pill span{display:inline-block;padding:7px 13px;border-radius:999px;border:2px solid rgba(255,255,255,.35);color:#fff;font-size:14px;font-weight:500;transition:background var(--dur),color var(--dur),border-color var(--dur)}
-.pill:hover span{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.7)}
-.pill input:checked+span{background:#fff;border-color:#fff;color:var(--primary);font-weight:700}
-.pill input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
-
-.go{margin-top:20px;display:grid;gap:10px}
-.make{width:100%;padding:17px 20px;border:0;border-radius:var(--r-ctl);background:var(--accent);color:#fff;font:700 18px/1 var(--display);letter-spacing:-.01em;transition:background var(--dur),transform var(--dur) var(--ease)}
-.make:hover{background:var(--accent-deep)}
-.make:active{transform:scale(.985)}
-.make:disabled{background:rgba(255,255,255,.18);color:rgba(255,255,255,.55);cursor:not-allowed}
-.go .note kbd{font:inherit;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:5px;padding:0 5px}
-
-/* output column on the light ground */
-.out{display:grid;gap:56px;min-width:0}
-.out h2{margin:0 0 6px;font:700 clamp(26px,2.4vw,32px)/1.1 var(--display);letter-spacing:-.02em}
-.out .sub{margin:0 0 22px;color:var(--sub);font-size:16px;max-width:60ch}
-.empty{background:var(--muted-bg);border:1px solid var(--border);border-radius:var(--r-block);padding:44px 28px;text-align:center;color:var(--sub);font-size:16px}
-.empty b{display:block;color:var(--fg);font:700 20px/1.3 var(--display);margin-bottom:6px}
-
-/* phones: dark blocks, the fill rises one step per finished stage */
-.phones{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:24px}
-.phone{position:relative;aspect-ratio:9/16;border-radius:var(--r-phone);background:var(--phone);overflow:hidden;isolation:isolate;color:#fff}
-.phone::after{content:"";position:absolute;top:12px;left:50%;width:34%;height:7px;margin-left:-17%;border-radius:999px;background:rgba(255,255,255,.18)}
-.phone .fill{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:var(--primary);transition:height .9s var(--ease);z-index:0}
-.phone .fill::before{content:"";position:absolute;left:0;right:0;top:-2px;height:4px;background:var(--accent)}
-.phone .screen{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;justify-content:space-between;padding:32px 16px 18px;text-align:center}
-.phone .topic{margin:0;font-weight:600;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-.phone .stage{margin:0;font:700 20px/1.1 var(--display);letter-spacing:-.01em}
-.phone .stage small{display:block;margin-top:6px;font:500 12px/1.2 var(--text);color:rgba(255,255,255,.75)}
-.phone .opts{margin:0;font-size:12px;color:rgba(255,255,255,.7)}
-.phone.queued .stage{color:rgba(255,255,255,.6)}
-.phone.failed{box-shadow:inset 0 0 0 3px var(--destructive)}
-.phone.failed .fill{background:rgba(220,38,38,.3)}
-.phone.failed .fill::before{display:none}
-.phone.failed .stage{color:#FCA5A5;font-size:15px}
-.phone .err{margin:8px 0 0;font-size:12px;color:rgba(255,255,255,.75);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.phone .retry{margin-top:10px;background:#fff;color:var(--fg);border:0;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600;transition:background var(--dur),color var(--dur)}
-.phone .retry:hover{background:var(--accent);color:#fff}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
-.phone.running .stage{color:#fff;animation:pulse 1.6s ease-in-out infinite}
-
-/* ready cards: white blocks */
-.ready{display:grid;gap:24px}
-.short{display:grid;grid-template-columns:200px minmax(0,1fr);gap:24px;align-items:start;background:#fff;border:1px solid var(--border);border-radius:var(--r-block);padding:20px}
-.short .phone::after{display:none}
-.short video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
-.short h3{margin:2px 0 4px;font:700 22px/1.2 var(--display);letter-spacing:-.015em}
-.short .meta{margin:0 0 16px;color:var(--sub);font-size:15px}
-.post{margin:0;white-space:pre-wrap;background:var(--muted-bg);border-left:4px solid var(--accent);padding:14px 16px;border-radius:0 var(--r-ctl) var(--r-ctl) 0;font-size:15px;line-height:1.55;max-width:62ch}
-.post .tags{color:var(--secondary);font-weight:500}
-.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px;max-width:62ch}
-.actions .ghost{border-color:var(--fg);color:var(--fg)}
-.actions .ghost:hover{background:var(--primary);border-color:var(--primary);color:#fff}
-.actions a{font-weight:600;font-size:14px;text-underline-offset:3px}
-.del{margin-left:auto;background:none;border:0;padding:8px 0;color:var(--destructive);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
-.del:disabled{color:var(--sub);cursor:wait;text-decoration:none}
-.credits{margin-top:12px;font-size:13px;color:var(--sub)}.credits summary{cursor:pointer;font-weight:600}.credits p{margin:6px 0 0;line-height:1.5}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--fg);color:#fff;padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;transition:opacity .25s,transform .35s var(--ease);pointer-events:none;z-index:9}
+/* videos */
+.sec{margin-bottom:36px}
+.sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.sec-head h2{font-size:15px}
+.sec-head span{color:var(--fg-2);font-size:13px}
+.empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:36px 20px;text-align:center;color:var(--fg-2)}
+.empty b{display:block;color:var(--fg);font-weight:500;margin-bottom:2px}
+.item{display:grid;grid-template-columns:72px minmax(0,1fr);gap:18px;padding:16px 0;border-top:1px solid var(--border)}
+.item:last-child{border-bottom:1px solid var(--border)}
+.thumb{position:relative;width:72px;aspect-ratio:9/16;border-radius:var(--r);background:#EDEDED;overflow:hidden;border:1px solid var(--border)}
+.thumb .fill{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:#D4D4D4;transition:height .8s ease}
+.thumb video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.ready .thumb{width:168px;border:0;border-radius:var(--r-lg)}
+.ready{grid-template-columns:168px minmax(0,1fr)}
+.item h3{font-size:15px;line-height:1.35}
+.meta{margin:3px 0 0;color:var(--fg-2);font-size:13px}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:1px}
+.status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.status.making{color:var(--amber);background:var(--amber-bg)}
+.status.queued{color:var(--fg-2);background:#F0F0F0}
+.status.failed{color:var(--red);background:var(--red-bg)}
+.status.ready{color:var(--green);background:var(--green-bg)}
+.prog{height:4px;background:#E6E6E6;border-radius:2px;overflow:hidden;margin:12px 0 6px;max-width:420px}
+.prog i{display:block;height:100%;width:var(--w,0%);background:var(--fg);transition:width .8s ease}
+.step{margin:0;font-size:13px;color:var(--fg-2)}
+.err{margin:10px 0 0;font-size:13px;color:var(--red)}
+.post{margin:12px 0 0;white-space:pre-wrap;font:inherit;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;max-width:62ch;line-height:1.5}
+.post .tags{color:var(--fg-2)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;max-width:62ch}
+.actions a{text-decoration:none}
+.danger{margin-left:auto;background:none;border:0;padding:6px 0;color:var(--red);font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:3px}
+.danger:disabled{color:var(--fg-3);text-decoration:none;cursor:wait}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);opacity:0;background:var(--fg);color:#fff;padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:500;transition:opacity .2s,transform .2s;pointer-events:none;z-index:9}
 .toast.show{opacity:1;transform:translateX(-50%)}
 
-@media (max-width:960px){
-  .grid{grid-template-columns:1fr;gap:48px}
-  .panel{position:static}
-  .phones{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
-  .short{grid-template-columns:1fr}
-  .short .phone{width:min(240px,70vw);margin:0 auto}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .new{border-right:0;border-bottom:1px solid var(--border)}
+  .videos{padding:20px 16px 56px}
+  .top{padding:0 16px}
+  .top nav span{display:none}
 }
-@media (max-width:480px){
-  .wrap{padding:16px 16px 72px}
-  .panel{padding:24px 20px 20px}
-  .opt{grid-template-columns:1fr;gap:6px}
-  .opt .name{padding-top:0}
-  .short{padding:16px}
+@media (max-width:520px){
+  .ready{grid-template-columns:1fr}
+  .ready .thumb{width:min(200px,60vw)}
 }
-@media (prefers-reduced-motion:reduce){.phone .fill{transition:none}.phone.running .stage{animation:none}.make,.pill span,.ghost,.idea{transition:none}}
+@media (prefers-reduced-motion:reduce){.thumb .fill,.prog i,.toast{transition:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="bar">
-    <div class="mark"><i aria-hidden="true"></i>Qoneqt Video Factory</div>
-    <div class="tally" id="tally"><span class="live idle" aria-hidden="true"></span><span>Nothing in progress</span></div>
-  </header>
+<header class="top">
+  <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Qoneqt Video Factory</a>
+  <nav><span id="tally"><i class="dot" aria-hidden="true"></i>Idle</span><a href="https://qoneqt.com/networks/global-feed" target="_blank" rel="noopener">Open Global Feed</a></nav>
+</header>
 
-  <div class="grid">
-    <form id="intake" class="panel" aria-labelledby="intake-title">
-      <h1 id="intake-title">Type a topic. Get a Global Feed short.</h1>
-      <p class="lede">A script, a voice, visuals, word-by-word captions and the post text. About a minute per video.</p>
+<main class="layout">
+  <form id="intake" class="new" aria-labelledby="new-title">
+    <h1 id="new-title">New video</h1>
 
-      <label class="field" for="topics">Topics, one per line. Each line becomes a video.</label>
+    <label class="field" for="topics"><span>Topics</span><small>One per line. Each line becomes a video.</small>
       <textarea id="topics" class="topics" rows="4" placeholder="why sleep matters&#10;5 AI tools every student should know&#10;chai vs coffee"></textarea>
-
-      <div class="suggest">
-        <div class="row">
-          <button type="button" class="ghost" id="suggest">Suggest topics</button>
-          <p class="note" id="suggest-status">Ideas for this community and language, some from what India is searching today.</p>
-        </div>
-        <div class="ideas" id="ideas"></div>
-      </div>
-
-      <fieldset class="opt" id="communities"><legend><span class="name">Community</span></legend><div class="pills"></div></fieldset>
-      <fieldset class="opt" id="languages"><legend><span class="name">Language</span></legend><div class="pills"></div></fieldset>
-      <fieldset class="opt" id="durations"><legend><span class="name">Length</span></legend><div class="pills"></div></fieldset>
-
-      <div class="go">
-        <button type="submit" class="make" id="start" disabled>Make a video</button>
-        <p class="note" id="intake-status"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> also starts it.</p>
-      </div>
-    </form>
-
-    <div class="out">
-      <section aria-labelledby="line-title">
-        <h2 id="line-title">Making now</h2>
-        <p class="sub">Each phone fills as its video passes the six stages: plan, images, voice, visuals, captions, render.</p>
-        <div id="line" class="phones" aria-live="polite"></div>
-      </section>
-
-      <section aria-labelledby="done-title" id="done-section" hidden>
-        <h2 id="done-title">Ready to post</h2>
-        <p class="sub">Download the video, copy the post text, upload both to the Global Feed.</p>
-        <div id="done" class="ready"></div>
-      </section>
+    </label>
+    <div class="row">
+      <button type="button" class="btn" id="suggest">Suggest topics</button>
+      <p class="hint" id="suggest-status">Uses what India is searching today.</p>
     </div>
-  </div>
-</div>
+    <ul class="ideas" id="ideas"></ul>
+
+    <label class="field"><span>Community</span><select class="sel" name="community" id="community"></select></label>
+    <label class="field"><span>Language</span><select class="sel" name="language" id="language"></select></label>
+    <div class="field"><span>Length</span><div class="seg" id="durations"></div></div>
+
+    <button type="submit" class="primary" id="start" disabled>Make video</button>
+    <p class="hint after" id="intake-status"><kbd>Ctrl</kbd> <kbd>Enter</kbd> also starts it. About a minute per video.</p>
+  </form>
+
+  <section class="videos">
+    <div class="sec" id="making-sec" hidden>
+      <div class="sec-head"><h2>In progress</h2><span id="making-count"></span></div>
+      <div id="making" aria-live="polite"></div>
+    </div>
+    <div class="sec" id="ready-sec" hidden>
+      <div class="sec-head"><h2>Ready to post</h2><span id="ready-count"></span></div>
+      <div id="ready"></div>
+    </div>
+    <div class="empty" id="empty"><b>No videos yet</b>Add a topic on the left and make one. It appears here while it is being made.</div>
+  </section>
+</main>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
 const $ = s => document.querySelector(s);
 const STAGES = ["plan", "images", "voice", "visuals", "captions", "render"];
-const LABEL = {general: "General", tech: "Tech", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun"};
+const LABEL = {general: "General", tech: "Tech & AI", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun"};
 const posts = {};
-let timer = null, labels = {}, lineKey = "", doneKey = "";
+let timer = null, labels = {}, makingKey = "", readyKey = "";
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
 function lines() { return $("#topics").value.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 10); }
 function label(slug) { return labels[slug] || LABEL[slug] || slug; }
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
-
-function pills(el, name, items, checked) {
-  el.querySelector(".pills").innerHTML = items.map(x =>
-    `<label class="pill"><input type="radio" name="${name}" value="${x.slug}"${String(x.slug) === String(checked) ? " checked" : ""}${x.language ? ` data-language="${x.language}"` : ""}><span>${esc(x.label)}</span></label>`).join("");
-}
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 fetch("/presets").then(r => r.json()).then(p => {
   p.communities.forEach(x => labels[x.slug] = LABEL[x.slug] || x.label);
   p.languages.forEach(x => labels[x.slug] = x.label);
-  pills($("#communities"), "community", p.communities.map(x => ({...x, label: label(x.slug)})), p.communities[0].slug);
-  pills($("#languages"), "language", p.languages, "en");
-  pills($("#durations"), "duration", p.durations.map(d => ({slug: d, label: `${d} s`})), 30);
+  $("#community").innerHTML = p.communities.map(x => `<option value="${x.slug}" data-language="${x.language}">${esc(label(x.slug))}</option>`).join("");
+  $("#language").innerHTML = p.languages.map(x => `<option value="${x.slug}"${x.slug === "en" ? " selected" : ""}>${esc(x.label)}</option>`).join("");
+  $("#durations").innerHTML = p.durations.map(d => `<label><input type="radio" name="duration" value="${d}"${d === 30 ? " checked" : ""}><span>${d} s</span></label>`).join("");
 });
 
-// a community with a non-English default (Hinglish Fun) pulls the language along; any change clears stale ideas
-$("#intake").addEventListener("change", e => {
-  if (e.target.name === "community" && e.target.dataset.language && e.target.dataset.language !== "en") {
-    const l = document.querySelector(`input[name=language][value="${e.target.dataset.language}"]`);
-    if (l) l.checked = true;
-  }
-  if (e.target.name === "community" || e.target.name === "language") $("#ideas").innerHTML = "";
+// a community with a non-English default (Hinglish Fun) switches the language; any change drops stale ideas
+$("#community").addEventListener("change", e => {
+  const l = e.target.selectedOptions[0].dataset.language;
+  if (l && l !== "en") $("#language").value = l;
+  $("#ideas").innerHTML = "";
 });
+$("#language").addEventListener("change", () => { $("#ideas").innerHTML = ""; });
 
 $("#suggest").onclick = async () => {
-  const fd = new FormData($("#intake")), b = $("#suggest"), st = $("#suggest-status");
+  const b = $("#suggest"), st = $("#suggest-status");
   b.disabled = true; b.textContent = "Thinking…"; st.textContent = "";
   try {
-    const r = await fetch(`/suggest?community=${encodeURIComponent(fd.get("community") || "general")}&language=${encodeURIComponent(fd.get("language") || "en")}`);
+    const r = await fetch(`/suggest?community=${encodeURIComponent($("#community").value)}&language=${encodeURIComponent($("#language").value)}`);
     if (!r.ok) throw new Error(await r.text());
     const s = await r.json();
-    $("#ideas").innerHTML = s.topics.map(t => `<button type="button" class="idea" data-idea="${esc(t)}">${esc(t)}</button>`).join("");
-    st.textContent = s.trends.length ? "Click one to add it. Some ride today's Google Trends India." : "Click one to add it.";
-  } catch (_) { st.textContent = "Could not fetch suggestions. Type a topic instead."; }
+    $("#ideas").innerHTML = s.topics.map(t => `<li><span>${esc(t)}</span><button type="button" class="btn" data-idea="${esc(t)}">Add</button></li>`).join("");
+    st.textContent = s.trends.length ? `${s.topics.length} ideas, some from today's Google Trends India.` : `${s.topics.length} ideas.`;
+  } catch (_) { st.textContent = "Suggestions are unavailable right now. Type a topic instead."; }
   b.disabled = false; b.textContent = "Suggest topics";
 };
 
 $("#topics").addEventListener("input", () => {
   const n = lines().length, b = $("#start");
   b.disabled = n === 0;
-  b.textContent = n === 0 ? "Make a video" : n === 1 ? "Make 1 video" : `Make ${n} videos`;
+  b.textContent = n <= 1 ? "Make video" : `Make ${n} videos`;
 });
 $("#topics").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") $("#intake").requestSubmit(); });
 
@@ -259,9 +220,9 @@ $("#intake").onsubmit = async e => {
   $("#start").disabled = true;
   const r = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   if (!r.ok) { $("#intake-status").textContent = "Could not start: " + (await r.text()); $("#start").disabled = false; return; }
-  toast(topics.length === 1 ? "Making your video" : `Making ${topics.length} videos`);
+  toast(topics.length === 1 ? "Making 1 video" : `Making ${topics.length} videos`);
   $("#topics").value = "";
-  $("#start").textContent = "Make a video";
+  $("#start").textContent = "Make video";
   poll();
 };
 
@@ -270,7 +231,7 @@ document.addEventListener("click", async e => {
   if (idea) {
     const cur = lines();
     if (!cur.includes(idea.dataset.idea)) { $("#topics").value = [...cur, idea.dataset.idea].join("\n"); $("#topics").dispatchEvent(new Event("input")); }
-    idea.disabled = true;
+    idea.disabled = true; idea.textContent = "Added";
     return;
   }
   const copy = e.target.closest("button[data-copy]");
@@ -304,59 +265,62 @@ async function poll() {
 
 function opts(j) { return `${esc(label(j.community))}, ${esc(label(j.language))}, ${j.duration} s`; }
 
-function phone(j) {
+function makingItem(j) {
   const idx = STAGES.indexOf(j.stage);
-  let cls = j.status, fill = 4, stage = "", extra = "";
-  if (j.status === "running") { fill = Math.round(((idx + 0.5) / STAGES.length) * 100); stage = `${j.stage}<small>stage ${idx + 1} of ${STAGES.length}</small>`; }
-  else if (j.status === "queued") { stage = `waiting<small>next in line</small>`; }
-  else {
-    const at = (j.error || "").split(":")[0] || "an unknown step";
-    fill = Math.max(4, Math.round((STAGES.indexOf(at) / STAGES.length) * 100));
-    stage = `stopped at ${esc(at)}`;
-    extra = `<p class="err">${esc((j.error || "").split(":").slice(1).join(":").trim() || "Something went wrong.")}</p>
-             <button type="button" class="retry" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button>`;
+  if (j.status === "failed") {
+    const at = (j.error || "").split(":")[0] || "an unknown step", why = (j.error || "").split(":").slice(1).join(":").trim() || "Something went wrong.";
+    return `<article class="item"><div class="thumb"></div><div>
+      <h3>${esc(j.topic)}<span class="status failed">Failed</span></h3>
+      <p class="meta">${opts(j)}. Stopped at ${esc(at)}.</p>
+      <p class="err">${esc(why)}</p>
+      <div class="actions"><button type="button" class="btn" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button></div>
+    </div></article>`;
   }
-  return `<div class="phone ${cls}" style="--fill:${fill}%"><div class="fill"></div>
-    <div class="screen"><p class="topic">${esc(j.topic)}</p><div><p class="stage">${stage}</p>${extra}</div><p class="opts">${opts(j)}</p></div></div>`;
+  const running = j.status === "running", pct = running ? Math.round(((idx + 0.5) / STAGES.length) * 100) : 0;
+  return `<article class="item"><div class="thumb"><div class="fill" style="--fill:${pct}%"></div></div><div>
+    <h3>${esc(j.topic)}<span class="status ${running ? "making" : "queued"}">${running ? "Making" : "Queued"}</span></h3>
+    <p class="meta">${opts(j)}</p>
+    <div class="prog"><i style="--w:${pct}%"></i></div>
+    <p class="step">${running ? `${cap(j.stage)}, step ${idx + 1} of ${STAGES.length}` : "Waiting for the previous video to finish"}</p>
+  </div></article>`;
+}
+
+function readyItem(j) {
+  const m = j.result;
+  posts[j.id] = `${m.hook}\n\n${m.caption}\n\n${m.hashtags.join(" ")}`;
+  const voice = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"}[m.scenes[0].voice] || m.scenes[0].voice;
+  return `<article class="item ready">
+    <div class="thumb"><video controls playsinline preload="metadata" poster="${m.thumb}" src="${m.video}"></video></div>
+    <div>
+      <h3>${esc(j.topic)}<span class="status ready">Ready</span></h3>
+      <p class="meta">${opts(j)}. ${Math.round(m.duration)} s of speech, made in ${Math.round(m.seconds_to_make)} s, ${esc(voice)} voice.</p>
+      <pre class="post">${esc(m.hook)}\n\n${esc(m.caption)}\n\n<span class="tags">${esc(m.hashtags.join(" "))}</span></pre>
+      <div class="actions">
+        <button type="button" class="btn" data-copy="${j.id}">Copy post text</button>
+        <a class="btn" href="${m.video}" download="${esc(j.topic).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4">Download MP4</a>
+        <button type="button" class="danger" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete</button>
+      </div>
+    </div>
+  </article>`;
 }
 
 function render(jobs) {
-  const active = jobs.filter(j => j.status !== "done").sort((a, b) => a.created - b.created);  // the line runs oldest first
-  const done = jobs.filter(j => j.status === "done");
-  const making = active.filter(j => j.status !== "failed").length;
-  $("#tally").innerHTML = `<span class="live${making ? "" : " idle"}" aria-hidden="true"></span><span>${making ? `<b>${making}</b> in progress` : "Nothing in progress"}${done.length ? `, <b>${done.length}</b> ready` : ""}</span>`;
+  const making = jobs.filter(j => j.status !== "done").sort((a, b) => a.created - b.created);  // the line runs oldest first
+  const ready = jobs.filter(j => j.status === "done");
+  const live = making.filter(j => j.status !== "failed").length;
+  $("#tally").innerHTML = `<i class="dot${live ? " on" : ""}" aria-hidden="true"></i>${live ? `${live} in progress` : "Idle"}${ready.length ? `, ${ready.length} ready` : ""}`;
+  $("#empty").hidden = jobs.length > 0;
 
-  // repaint only on change: every repaint restarts the fill transition and any playing video
-  const lk = JSON.stringify(active.map(j => [j.id, j.status, j.stage, j.error])), dk = done.map(j => j.id).join();
-  if (lk !== lineKey) {
-    $("#line").className = active.length ? "phones" : "";
-    $("#line").innerHTML = active.length ? active.map(phone).join("")
-      : `<div class="empty"><b>No videos yet</b>Type a topic on the left, or ask for suggestions, and make one. It shows up here while it is being made.</div>`;
-  }
-  lineKey = lk;
+  // repaint a section only when it changed: a repaint restarts transitions and any playing video
+  const mk = JSON.stringify(making.map(j => [j.id, j.status, j.stage, j.error]));
+  $("#making-sec").hidden = making.length === 0;
+  if (mk !== makingKey) { $("#making").innerHTML = making.map(makingItem).join(""); $("#making-count").textContent = making.length; }
+  makingKey = mk;
 
-  $("#done-section").hidden = done.length === 0;
-  if (dk === doneKey) return;
-  doneKey = dk;
-  $("#done").innerHTML = done.map(j => {
-    const m = j.result;
-    posts[j.id] = `${m.hook}\n\n${m.caption}\n\n${m.hashtags.join(" ")}`;
-    const voice = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"}[m.scenes[0].voice] || m.scenes[0].voice;
-    return `<article class="short">
-      <div class="phone"><video controls playsinline preload="metadata" poster="${m.thumb}" src="${m.video}"></video></div>
-      <div>
-        <h3>${esc(j.topic)}</h3>
-        <p class="meta">${opts(j)}. Spoke ${Math.round(m.duration)} s, made in ${Math.round(m.seconds_to_make)} s with the ${esc(voice)} voice.</p>
-        <p class="post">${esc(m.hook)}\n\n${esc(m.caption)}\n\n<span class="tags">${esc(m.hashtags.join(" "))}</span></p>
-        <div class="actions">
-          <button type="button" class="ghost" data-copy="${j.id}">Copy post text</button>
-          <a href="${m.video}" download="${esc(j.topic).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4">Download mp4</a>
-          <button type="button" class="del" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete video</button>
-        </div>
-        ${(m.credits || []).length ? `<details class="credits"><summary>Photo credits</summary><p>${m.credits.map(esc).join("<br>")}</p></details>` : ""}
-      </div>
-    </article>`;
-  }).join("");
+  const rk = ready.map(j => j.id).join();
+  $("#ready-sec").hidden = ready.length === 0;
+  if (rk !== readyKey) { $("#ready").innerHTML = ready.map(readyItem).join(""); $("#ready-count").textContent = ready.length; }
+  readyKey = rk;
 }
 poll();
 </script>
