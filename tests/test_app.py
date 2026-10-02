@@ -60,8 +60,8 @@ def test_load_done_jobs_rebuilds_gallery(monkeypatch, tmp_path):
 
 
 def good_plan():
-    return {"hook": "Hook here.", "caption": "cap", "hashtags": ["#a", "#b", "#c"], "model": "test",
-            "scenes": [{"narration": f"Hook here. Line {i}.", "title": f"T{i}", "query": "city night"} for i in range(3)]}
+    from tests.test_llm import good  # one schema fixture for the whole suite
+    return dict(good(), model="test")
 
 
 def test_plan_endpoint_and_plan_passthrough(monkeypatch):
@@ -74,7 +74,7 @@ def test_plan_endpoint_and_plan_passthrough(monkeypatch):
     assert client.post("/generate", json={"topics": ["chai"], "plan": bad}).status_code == 400
     r = client.post("/generate", json={"topics": ["chai"], "plan": good_plan()})
     jid = r.json()["job_ids"][0]
-    assert appmod.JOBS[jid]["plan"]["hook"] == "Hook here." and queued[-1] == (jid, None)
+    assert appmod.JOBS[jid]["plan"]["hook"] == good_plan()["hook"] and queued[-1] == (jid, None)
     assert "plan" not in client.get("/jobs").json()[0]  # polling does not ship the plan blob
     r = client.post("/generate", json={"topics": ["a", "b"], "plan": good_plan()})  # batches ignore a plan
     assert all(appmod.JOBS[j]["plan"] is None for j in r.json()["job_ids"])

@@ -19,27 +19,50 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
 CHAIN = [("groq", "openai/gpt-oss-120b"), ("groq", "qwen/qwen3.8-27b"), ("gemini", "gemini-3.5-flash-lite")]
 UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}
+FORMULAS = ("question", "bold_claim", "number", "myth", "story", "warning")
+BEATS = ("hook", "context", "rehook", "twist", "payoff")
+POSTS = ("youtube_title", "youtube_description", "instagram")
+BANNED_OPENERS = ("did you know", "in this video", "today we", "have you ever wondered", "welcome to",
+                  "kya aap jaante", "kya aapko pata", "क्या आप जानते", "क्या आपको पता")
 
 SYSTEM = """You write scripts for {duration} second vertical short videos for the Qoneqt Global Feed.
 Return ONLY a JSON object with exactly these keys:
 {{
- "hooks": [{{"text": "...", "score": 1-10}}, ...]   (exactly 3 candidate opening lines, scored for scroll-stopping power)
- "hook": "..."                                     (the text of the highest-scoring hook)
- "scenes": [{{"narration": "...", "title": "...", "query": "...", "image_prompt": "..."}}, ...]   ({scenes_lo} to {scenes_hi} scenes)
- "caption": "..."                                  (1-3 lines of post text, no hashtags inside)
+ "hooks": [{{"text": "...", "formula": "...", "score": 1-10, "why": "..."}}, ...]   (exactly 3 candidate opening lines)
+ "hook": "..."                                     (the text of the highest-scoring hook, copied exactly)
+ "scenes": [{{"beat": "...", "narration": "...", "title": "...", "query": "...", "image_prompt": "...", "image_prompt_b": "..."}}, ...]   ({scenes_lo} to {scenes_hi} scenes)
+ "caption": "..."                                  (1-3 lines of post text for Qoneqt, no hashtags inside)
  "hashtags": ["#...", ...]                         (3 to 8 items, each starting with #)
+ "posts": {{"youtube_title": "...", "youtube_description": "...", "instagram": "..."}}
 }}
-Rules:
+Hooks:
+- The three hooks use three different formulas, from: question (a question the viewer needs answered), bold_claim
+  (a surprising statement), number (a specific figure), myth (a belief everyone holds that is wrong), story (drop the
+  viewer into a moment), warning (what goes wrong if they scroll past). score is 1-10 for scroll-stopping power.
+  why is one sentence, at most 20 words, on why that opener stops this community's scroll.
+- Never open with "Did you know", "In this video", "Today we", "Have you ever wondered", "Welcome to",
+  or their Hindi or Hinglish equivalents.
+Scenes:
 - Scene 1 narration must begin with the hook, word for word.
+- beat is the scene's job, in this order: hook (scene 1: the hook line, then one sentence of stakes), context (what is
+  going on), rehook (a line that promises the best part is still coming, like "but the real reason is stranger"),
+  twist (the surprising turn or the real answer), payoff (the takeaway, then a last line that loops back to the hook
+  or asks for comments). With fewer than five scenes drop rehook, then context. With more than five, repeat context
+  or twist, never hook or payoff.
 - Each narration is 1-2 spoken sentences, at most 25 words. Total across all scenes: {words_lo}-{words_hi} words.
 - Each title is a 2-5 word on-screen headline for its scene, in the same language as the narration.
 - Write numbers as spoken words (say "two thousand", not "2000").
 - Each query is 2-4 plain English words naming something visual and generic that a stock-video site has,
   e.g. "city traffic night", "woman laptop cafe", "runner sunrise road". Never brand names, never abstract nouns.
   Always English, even when the narration is not.
-- Each image_prompt is 15-40 English words describing ONE photographic vertical image for the scene: subject, setting,
-  light, mood. Concrete and literal, no text or words inside the image, no brand names.
-- The last scene ends with a one-line takeaway or an invitation to comment.
+- Each image_prompt is 15-40 English words describing ONE photographic vertical image for the scene and starts with a
+  shot type: "Wide shot:", "Close-up:", "Portrait:", "Action shot:" or "Aftermath:". Consecutive scenes use different
+  shot types. Concrete and literal: subject, setting, light, mood. No text inside the image, no brand names.
+- image_prompt_b is the same moment from a different shot type, 15-40 English words, so the video can cut between the
+  two pictures mid-sentence.
+Posts:
+- youtube_title: at most 70 characters, no hashtags. youtube_description: 1-3 lines ending with three hashtags.
+  instagram: 1-3 lines in the narration's language, emoji welcome, no hashtags.
 """
 
 SUGGEST_SYSTEM = """You suggest topics for 15-60 second vertical videos on the Qoneqt Global Feed, a community-first Indian social app.
@@ -74,6 +97,23 @@ def validate_plan(p, scenes=(5, 7)):
         bad("plan must be a JSON object")
     if not isinstance(p.get("hook"), str) or not p["hook"].strip():
         bad("hook missing")
+    hooks = p.get("hooks")
+    if not isinstance(hooks, list) or len(hooks) != 3:
+        bad("need exactly 3 hooks")
+    for i, h in enumerate(hooks, 1):
+        text = h.get("text") if isinstance(h, dict) else None
+        if not isinstance(text, str) or not text.strip():
+            bad(f"hook {i}: text missing")
+        if any(text.strip().lower().startswith(o) for o in BANNED_OPENERS):
+            bad(f"hook {i}: starts with a banned opener")
+        if h.get("formula") not in FORMULAS:
+            bad(f"hook {i}: formula must be one of {', '.join(FORMULAS)}")
+        if not isinstance(h.get("score"), (int, float)) or not 1 <= h["score"] <= 10:
+            bad(f"hook {i}: score must be a number from 1 to 10")
+        if not isinstance(h.get("why"), str) or not 1 <= len(h["why"].split()) <= 30:
+            bad(f"hook {i}: why must be 1-30 words")
+    if p["hook"].strip() not in [h["text"].strip() for h in hooks]:
+        bad("hook must be the text of one of the three hooks")
     sc = p.get("scenes")
     if not isinstance(sc, list) or not lo <= len(sc) <= hi:
         bad(f"need {lo}-{hi} scenes")
@@ -91,9 +131,16 @@ def validate_plan(p, scenes=(5, 7)):
             bad(f"scene {i}: query must be 1-4 words")
         if not q.isascii():
             bad(f"scene {i}: query must be ASCII English")
-        ip = s.get("image_prompt")
-        if ip is not None and (not isinstance(ip, str) or len(ip.split()) > 60):
-            bad(f"scene {i}: image_prompt must be a string under 60 words")
+        if s.get("beat") not in BEATS:
+            bad(f"scene {i}: beat must be one of {', '.join(BEATS)}")
+        for key in ("image_prompt", "image_prompt_b"):
+            ip = s.get(key)
+            if ip is not None and (not isinstance(ip, str) or len(ip.split()) > 60):
+                bad(f"scene {i}: {key} must be a string under 60 words")
+    if sc[0]["beat"] != "hook":
+        bad("scene 1 beat must be hook")
+    if sc[-1]["beat"] != "payoff":
+        bad("last scene beat must be payoff")
     if not isinstance(p.get("caption"), str) or not p["caption"].strip():
         bad("caption missing")
     tags = p.get("hashtags")
@@ -101,6 +148,11 @@ def validate_plan(p, scenes=(5, 7)):
         bad("need 3-10 hashtags")
     if any(not isinstance(t, str) or not t.strip().startswith("#") or " " in t.strip() for t in tags):
         bad("hashtags must start with # and contain no spaces")
+    posts = p.get("posts")
+    if not isinstance(posts, dict) or any(not isinstance(posts.get(k), str) or not posts[k].strip() for k in POSTS):
+        bad(f"posts must have {', '.join(POSTS)}")
+    if len(posts["youtube_title"]) > 100:
+        bad("youtube_title over 100 characters")
 
 
 def validate_topics(p):
@@ -122,7 +174,7 @@ def _parse(text):
 def _call_groq(model, messages, temperature):
     r = httpx.post(GROQ_URL, timeout=60,
                    headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
-                   json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": 2000,
+                   json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": 4000,
                          "reasoning_effort": "low", "response_format": {"type": "json_object"}})
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]

@@ -5,11 +5,16 @@ from presets import COMMUNITIES, LANGUAGES
 
 def good():
     return {
-        "hooks": [{"text": "a", "score": 5}, {"text": "b", "score": 6}, {"text": "c", "score": 7}],
+        "hooks": [{"text": "Ever wonder why you feel tired?", "formula": "question", "score": 8, "why": "Everyone is tired and wants the reason."},
+                  {"text": "Sleep debt is a real bill.", "formula": "bold_claim", "score": 6, "why": "Money framing makes sleep feel urgent."},
+                  {"text": "Eight hours is a myth.", "formula": "myth", "score": 7, "why": "Contradicts what every viewer was told."}],
         "hook": "Ever wonder why you feel tired?",
-        "scenes": [{"narration": f"Sentence number {i} goes here.", "title": f"Point {i}", "query": "city night"} for i in range(5)],
+        "scenes": [{"beat": b, "narration": f"Sentence number {i} goes here.", "title": f"Point {i}", "query": "city night"}
+                   for i, b in enumerate(["hook", "context", "rehook", "twist", "payoff"])],
         "caption": "Sleep more.",
         "hashtags": ["#sleep", "#health", "#Qoneqt"],
+        "posts": {"youtube_title": "Why you feel tired all day", "youtube_description": "Sleep debt, explained in thirty seconds.\n#sleep #health #shorts",
+                  "instagram": "Tired all the time? Here is the real reason."},
     }
 
 
@@ -33,6 +38,21 @@ def test_good_plan_passes():
     (lambda p: p.update(caption=""), "caption missing"),
     (lambda p: p["scenes"][0].update(image_prompt=42), "image_prompt"),
     (lambda p: p["scenes"][0].update(image_prompt=" ".join(["w"] * 61)), "image_prompt"),
+    (lambda p: p.update(hook="Did you know sleep matters?", hooks=[dict(p["hooks"][0], text="Did you know sleep matters?")] + p["hooks"][1:]), "banned opener"),
+    (lambda p: p.update(hook="Kya aap jaante hain neend kyun zaroori hai?", hooks=[dict(p["hooks"][0], text="Kya aap jaante hain neend kyun zaroori hai?")] + p["hooks"][1:]), "banned opener"),
+    (lambda p: p.update(hooks=p["hooks"] + [p["hooks"][0]]), "exactly 3 hooks"),
+    (lambda p: p["hooks"][0].update(formula="riddle"), "formula"),
+    (lambda p: p["hooks"][0].update(score=11), "score"),
+    (lambda p: p["hooks"][0].update(why=""), "why"),
+    (lambda p: p.update(hook="Something else entirely"), "one of the three hooks"),
+    (lambda p: p["scenes"][0].update(beat="context"), "scene 1 beat"),
+    (lambda p: p["scenes"][-1].update(beat="twist"), "last scene beat"),
+    (lambda p: p["scenes"][1].update(beat="intro"), "beat must be"),
+    (lambda p: p["scenes"][1].pop("beat"), "beat must be"),
+    (lambda p: p.pop("posts"), "posts"),
+    (lambda p: p["posts"].update(instagram=""), "posts"),
+    (lambda p: p["posts"].update(youtube_title="x" * 101), "youtube_title"),
+    (lambda p: p["scenes"][0].update(image_prompt_b=" ".join(["w"] * 61)), "image_prompt_b"),
 ])
 def test_bad_plan_rejected(mutate, msg):
     p = good()
@@ -80,3 +100,16 @@ def test_suggest_prompt_trends_only_rule():
     assert "Every topic must be inspired" in _suggest_prompt(*args, trends_only=True)
     assert "Every topic must be inspired" not in _suggest_prompt(*args)
     assert "Every topic must be inspired" not in _suggest_prompt(COMMUNITIES["tech"], LANGUAGES["en"], [], trends_only=True)  # feed down
+
+
+def test_image_prompt_b_is_optional():
+    p = good()
+    p["scenes"][0]["image_prompt_b"] = "Close-up: the same woman's hands around the warm cup, steam rising, soft window light"
+    validate_plan(p)
+
+
+def test_system_prompt_carries_the_retention_rules():
+    from llm import SYSTEM, FORMULAS, BEATS
+    text = SYSTEM.format(duration=30, scenes_lo=4, scenes_hi=6, words_lo=61, words_hi=83)
+    assert all(f in text for f in FORMULAS) and all(b in text for b in BEATS)
+    assert "Wide shot:" in text and "image_prompt_b" in text and "youtube_title" in text and "Did you know" in text
