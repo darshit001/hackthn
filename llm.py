@@ -24,6 +24,8 @@ BEATS = ("hook", "context", "rehook", "twist", "payoff")
 POSTS = ("youtube_title", "youtube_description", "instagram")
 BANNED_OPENERS = ("did you know", "in this video", "today we", "have you ever wondered", "welcome to",
                   "kya aap jaante", "kya aapko pata", "क्या आप जानते", "क्या आपको पता")
+# (?!\w) not \b: the Hindi openers end in combining vowel signs, which \w does not match, so \b never fires there
+_BANNED = re.compile("|".join(re.escape(o) + r"(?!\w)" for o in BANNED_OPENERS), re.I)
 
 SYSTEM = """You write scripts for {duration} second vertical short videos for the Qoneqt Global Feed.
 Return ONLY a JSON object with exactly these keys:
@@ -104,11 +106,11 @@ def validate_plan(p, scenes=(5, 7)):
         text = h.get("text") if isinstance(h, dict) else None
         if not isinstance(text, str) or not text.strip():
             bad(f"hook {i}: text missing")
-        if any(text.strip().lower().startswith(o) for o in BANNED_OPENERS):
+        if _BANNED.match(text.strip()):
             bad(f"hook {i}: starts with a banned opener")
         if h.get("formula") not in FORMULAS:
             bad(f"hook {i}: formula must be one of {', '.join(FORMULAS)}")
-        if not isinstance(h.get("score"), (int, float)) or not 1 <= h["score"] <= 10:
+        if type(h.get("score")) not in (int, float) or not 1 <= h["score"] <= 10:  # type(), not isinstance: bool is an int
             bad(f"hook {i}: score must be a number from 1 to 10")
         if not isinstance(h.get("why"), str) or not 1 <= len(h["why"].split()) <= 30:
             bad(f"hook {i}: why must be 1-30 words")
@@ -123,8 +125,9 @@ def validate_plan(p, scenes=(5, 7)):
         t = s.get("title") if isinstance(s, dict) else None
         if not isinstance(n, str) or not n.strip():
             bad(f"scene {i}: narration missing")
-        if len(n.split()) > 25:
-            bad(f"scene {i}: narration over 25 words")
+        cap = 40 if i == 1 else 25  # scene 1 may carry a swapped-in longer hook
+        if len(n.split()) > cap:
+            bad(f"scene {i}: narration over {cap} words")
         if not isinstance(t, str) or not 1 <= len(t.split()) <= 8:
             bad(f"scene {i}: title must be 1-8 words")
         if not isinstance(q, str) or not 1 <= len(q.split()) <= 4:
@@ -222,6 +225,7 @@ def plan(topic, community="general", language="en", duration=30):
     system = SYSTEM.format(duration=duration, scenes_lo=lo, scenes_hi=hi, words_lo=wlo, words_hi=whi)
     base = [{"role": "system", "content": system}, {"role": "user", "content": _user_prompt(topic, preset, lang)}]
     p = _ask(base, lambda q: validate_plan(q, (lo, hi)))
+    p["hook"] = p["hook"].strip()  # the UI picks the chosen hook by exact text match
     p["hashtags"] = list(dict.fromkeys(t.strip() for t in p["hashtags"] + preset["hashtags"]))
     return p
 

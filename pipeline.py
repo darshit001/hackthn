@@ -77,7 +77,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         credits.append(f"Music: {mtitle}, {MUSIC_CREDIT}")
     render.compose(clips, d / "voice.wav", ass, d, job_id, music=track if track.exists() else None)
 
-    chosen = next((h for h in p.get("hooks", []) if isinstance(h, dict) and h.get("text", "").strip() == p["hook"].strip()), {})
+    chosen = next((h for h in p["hooks"] if h["text"].strip() == p["hook"].strip()), {})
     meta = {
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),

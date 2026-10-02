@@ -70,8 +70,9 @@ def test_plan_endpoint_and_plan_passthrough(monkeypatch):
     assert client.post("/plan", json={"topic": "chai", "duration": 20}).status_code == 400
     queued = []
     monkeypatch.setattr(appmod.Q, "put", lambda item: queued.append(item))
-    bad = good_plan(); bad["scenes"] = bad["scenes"][:1]
-    assert client.post("/generate", json={"topics": ["chai"], "plan": bad}).status_code == 400
+    bad = good_plan(); bad.pop("posts")
+    r = client.post("/generate", json={"topics": ["chai"], "plan": bad})
+    assert r.status_code == 400 and "posts" in r.text
     r = client.post("/generate", json={"topics": ["chai"], "plan": good_plan()})
     jid = r.json()["job_ids"][0]
     assert appmod.JOBS[jid]["plan"]["hook"] == good_plan()["hook"] and queued[-1] == (jid, None)

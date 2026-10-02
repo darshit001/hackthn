@@ -25,7 +25,8 @@ def test_good_plan_passes():
 @pytest.mark.parametrize("mutate,msg", [
     (lambda p: p.update(scenes=p["scenes"][:4]), "5-7 scenes"),
     (lambda p: p.update(scenes=p["scenes"] * 2), "5-7 scenes"),
-    (lambda p: p["scenes"][0].update(narration=" ".join(["word"] * 26)), "over 25 words"),
+    (lambda p: p["scenes"][1].update(narration=" ".join(["word"] * 26)), "over 25 words"),
+    (lambda p: p["scenes"][0].update(narration=" ".join(["word"] * 41)), "over 40 words"),
     (lambda p: p["scenes"][0].update(narration="   "), "narration missing"),
     (lambda p: p["scenes"][0].update(title=""), "title"),
     (lambda p: p["scenes"][0].pop("title"), "title"),
@@ -43,7 +44,9 @@ def test_good_plan_passes():
     (lambda p: p.update(hooks=p["hooks"] + [p["hooks"][0]]), "exactly 3 hooks"),
     (lambda p: p["hooks"][0].update(formula="riddle"), "formula"),
     (lambda p: p["hooks"][0].update(score=11), "score"),
+    (lambda p: p["hooks"][0].update(score=True), "score"),
     (lambda p: p["hooks"][0].update(why=""), "why"),
+    (lambda p: p["hooks"][0].update(why=" ".join(["w"] * 31)), "why"),
     (lambda p: p.update(hook="Something else entirely"), "one of the three hooks"),
     (lambda p: p["scenes"][0].update(beat="context"), "scene 1 beat"),
     (lambda p: p["scenes"][-1].update(beat="twist"), "last scene beat"),
@@ -53,12 +56,25 @@ def test_good_plan_passes():
     (lambda p: p["posts"].update(instagram=""), "posts"),
     (lambda p: p["posts"].update(youtube_title="x" * 101), "youtube_title"),
     (lambda p: p["scenes"][0].update(image_prompt_b=" ".join(["w"] * 61)), "image_prompt_b"),
+    (lambda p: p["scenes"][0].update(image_prompt_b=42), "image_prompt_b"),
 ])
 def test_bad_plan_rejected(mutate, msg):
     p = good()
     mutate(p)
     with pytest.raises(ValueError, match=msg):
         validate_plan(p)
+
+
+def test_scene_one_may_carry_a_long_hook():
+    p = good()
+    p["scenes"][0]["narration"] = " ".join(["word"] * 30)  # UI swaps a story/warning hook into scene 1
+    validate_plan(p)
+
+
+def test_opener_check_stops_at_word_boundaries():
+    p = good()
+    p["hooks"][0]["text"] = p["hook"] = "Today weekend plans are sorted."  # "today we" is banned, "Today weekend" is not
+    validate_plan(p)
 
 
 def test_image_prompt_is_optional():
