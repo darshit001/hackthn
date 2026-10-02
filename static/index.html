@@ -76,6 +76,10 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 .scenes{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2)}
 .scenes li{margin-bottom:4px}
 .scenes b{color:var(--fg);font-weight:500}
+.hooks .text{flex:1}
+.hooks .why{display:block;color:var(--fg-2);font-size:12px;font-style:normal;margin-top:2px}
+.hooks .tag{flex:none;align-self:center}
+.beat{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);font-weight:600}
 .primary.small{width:auto;padding:7px 12px;font-size:13px;margin:0}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 6px 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12.5px;line-height:1.2;color:var(--fg-2);cursor:pointer;text-align:center;transition:border-color .15s,background .15s,color .15s}
@@ -207,6 +211,7 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m-5-4 5 5 5-5M4 20h16"/></symbol>
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></symbol>
@@ -280,6 +285,7 @@ const STAGES = ["plan", "images", "voice", "visuals", "captions", "render"];
 const LABEL = {general: "General", tech: "Tech & AI", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun"};
 const ICON = {general: "globe", tech: "cpu", fitness: "dumbbell", motivation: "flame", finance: "rupee", hinglish_fun: "smile"};
 const VOICE = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"};
+const FORMULA = {question: "Question", bold_claim: "Bold claim", number: "Number", myth: "Myth", story: "Story", warning: "Warning"};
 const RTF = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
 const posts = {}, videos = {};
 let timer = null, labels = {}, listKey = "", tab = "all", q = "", allJobs = [];
@@ -370,8 +376,8 @@ $("#preview").onclick = async () => {
     if (!hooks.some(h => h.text === previewPlan.hook)) hooks.unshift({text: previewPlan.hook});
     $("#preview-box").innerHTML = `<h2>Script for “${esc(topic)}”</h2>
       <p class="hint">Pick the opening line. The scenes below stay as written.</p>
-      <div class="hooks">${hooks.map(h => `<label><input type="radio" name="hook" value="${esc(h.text)}"${h.text === previewPlan.hook ? " checked" : ""}><span>${esc(h.text)}</span>${h.score ? `<small>${esc(h.score)}/10</small>` : ""}</label>`).join("")}</div>
-      <ol class="scenes">${previewPlan.scenes.map(sc => `<li><b>${esc(sc.title || "")}</b> ${esc(sc.narration)}</li>`).join("")}</ol>
+      <div class="hooks">${hooks.map(h => `<label><input type="radio" name="hook" value="${esc(h.text)}"${h.text === previewPlan.hook ? " checked" : ""}><span class="text">${esc(h.text)}${h.why ? `<em class="why">${esc(h.why)}</em>` : ""}</span>${h.formula ? `<span class="tag">${esc(FORMULA[h.formula] || h.formula)}</span>` : ""}${h.score ? `<small>${esc(h.score)}/10</small>` : ""}</label>`).join("")}</div>
+      <ol class="scenes">${previewPlan.scenes.map(sc => `<li>${sc.beat ? `<span class="beat">${esc(sc.beat)}</span> ` : ""}<b>${esc(sc.title || "")}</b> ${esc(sc.narration)}</li>`).join("")}</ol>
       <div class="actions" style="justify-content:flex-start"><button type="button" class="primary small" id="make-preview">Generate with this hook</button><button type="button" class="btn" id="close-preview">Close</button></div>`;
     $("#preview-box").hidden = false;
   } catch (_) { $("#suggest-status").textContent = "Could not write the script right now. Try again or just generate the video."; }
@@ -439,7 +445,13 @@ document.addEventListener("click", async e => {
     return;
   }
   const copy = e.target.closest("button[data-copy]");
-  if (copy) { await navigator.clipboard.writeText(posts[copy.dataset.copy]); toast("Post text copied"); return; }
+  if (copy) {
+    await navigator.clipboard.writeText(posts[copy.dataset.copy]);
+    const k = copy.dataset.copy;
+    toast(k.endsWith(":yt") ? "YouTube text copied" : k.endsWith(":ig") ? "Instagram text copied" : "Post text copied");
+    copy.closest("details")?.removeAttribute("open");
+    return;
+  }
   const redo = e.target.closest("button[data-redo]");
   if (redo) {
     const n = +redo.dataset.scene; redo.disabled = true;
@@ -507,6 +519,10 @@ function card(j) {
 function readyCard(j) {
   const m = j.result, v = m.updated || 0;
   posts[j.id] = `${m.hook}\n\n${m.caption}\n\n${m.hashtags.join(" ")}`;
+  if (m.posts) {
+    posts[`${j.id}:yt`] = `${m.posts.youtube_title}\n\n${m.posts.youtube_description}`;
+    posts[`${j.id}:ig`] = `${m.posts.instagram}\n\n${m.hashtags.join(" ")}`;
+  }
   videos[j.id] = {video: `${m.video}?v=${v}`, thumb: `${m.thumb}?v=${v}`, topic: j.topic};
   const voice = VOICE[m.scenes[0].voice] || m.scenes[0].voice;
   return `<article class="card">
@@ -515,7 +531,7 @@ function readyCard(j) {
       <span class="status ready">Ready</span>
       <h3>${esc(j.topic)}</h3>
       <p class="desc">${esc(m.hook)} ${esc(m.caption)}</p>
-      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>`)}
+      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>${m.hook_formula ? `<li>${icon("bolt")}${esc(FORMULA[m.hook_formula] || m.hook_formula)} hook, ${esc(m.hook_score)}/10</li>` : ""}`)}
       <div class="tags">${m.hashtags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
     </div>
     <div class="side">
@@ -524,6 +540,7 @@ function readyCard(j) {
         <button type="button" class="btn" data-copy="${j.id}">${icon("copy")}Copy text</button>
         <a class="btn" href="${m.video}" download="${esc(j.topic).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4">${icon("download")}Download MP4</a>
         <details class="menu"><summary class="btn icon" aria-label="More actions">${icon("more", "i fill")}</summary><div class="pop">
+          ${m.posts ? `<button type="button" data-copy="${j.id}:yt">Copy for YouTube</button><button type="button" data-copy="${j.id}:ig">Copy for Instagram</button><hr>` : ""}
           ${m.scenes.map((sc, i) => `<button type="button" data-redo="${j.id}" data-scene="${i}">Redo scene ${i + 1}: ${esc(sc.title || sc.query)}</button>`).join("")}
           <hr><button type="button" class="del" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete video</button>
         </div></details>
