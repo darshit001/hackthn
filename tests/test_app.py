@@ -91,3 +91,30 @@ def test_redo_scene_queues_on_finished_job(monkeypatch):
     assert client.post(f"/jobs/{jid}/redo/2").status_code == 400
     assert client.post(f"/jobs/{jid}/redo/1").json() == {"job_id": jid, "scene": 1}
     assert appmod.JOBS[jid]["status"] == "queued" and queued[-1] == (jid, 1)
+
+
+def test_delete_stops_a_job_on_the_line(monkeypatch, tmp_path):
+    import queue, threading, time
+    monkeypatch.setattr(appmod.pipeline, "OUT", tmp_path)
+    monkeypatch.setattr(appmod, "Q", queue.Queue())
+    reached = []
+
+    def make_video(topic, community, progress, job_id, **k):  # user deletes mid-run; the next stage boundary stops it
+        (tmp_path / job_id).mkdir()
+        progress("plan")
+        assert client.delete(f"/jobs/{job_id}").json() == {"deleted": job_id}
+        assert (tmp_path / job_id).exists()  # a running job's files are left to the worker
+        progress("images")
+        reached.append("past cancel")
+    monkeypatch.setattr(appmod.pipeline, "make_video", make_video)
+    running, queued = (client.post("/generate", json={"topics": [t]}).json()["job_ids"][0] for t in ("a", "b"))
+    (tmp_path / queued).mkdir()
+    assert client.delete(f"/jobs/{queued}").status_code == 200  # deleted while queued: the worker skips it
+    threading.Thread(target=appmod._worker, daemon=True).start()
+    for _ in range(100):
+        if appmod.Q.empty() and not (tmp_path / running).exists() and not (tmp_path / queued).exists():
+            break
+        time.sleep(0.02)
+    assert not reached and not (tmp_path / running).exists() and not (tmp_path / queued).exists()
+    assert running not in appmod.JOBS and queued not in appmod.JOBS
+    assert client.delete(f"/jobs/{running}").status_code == 404

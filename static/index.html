@@ -163,8 +163,14 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .pop button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;background:none;border-radius:var(--r);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pop button:hover{background:var(--soft)}
 .pop button:disabled{color:var(--fg-3);cursor:wait}
-.pop .del{color:var(--red)}
+.pop .del,.btn.del{color:var(--red)}
 .pop hr{border:0;border-top:1px solid var(--border);margin:6px 0}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:4px;font-size:13px;color:var(--fg-2)}
+.pager:empty{display:none}
+.pager nav{display:flex;gap:4px;align-items:center}
+.pager .btn{min-width:32px;justify-content:center}
+.pager .btn[aria-current=page]{background:var(--fg);border-color:var(--fg);color:#fff}
+.pager .gap{padding:0 4px;color:var(--fg-3)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);opacity:0;background:var(--fg);color:#fff;padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:500;transition:opacity .2s,transform .2s;pointer-events:none;z-index:9}
 .toast.show{opacity:1;transform:translateX(-50%)}
 
@@ -217,6 +223,8 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
   <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
 </svg>
 
@@ -267,6 +275,7 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
       <button type="button" role="tab" data-tab="failed" aria-selected="false">Failed <span>0</span></button>
     </div>
     <div id="list" aria-live="polite"></div>
+    <div class="pager" id="pager"></div>
     <div class="empty" id="empty"><b>No videos yet</b>Add a topic on the left and generate one. It appears here while it is being made.</div>
     <div class="empty" id="none" hidden><b>Nothing here</b>No videos match this filter.</div>
   </section>
@@ -288,7 +297,8 @@ const VOICE = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"};
 const FORMULA = {question: "Question", bold_claim: "Bold claim", number: "Number", myth: "Myth", story: "Story", warning: "Warning"};
 const RTF = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
 const posts = {}, videos = {};
-let timer = null, labels = {}, listKey = "", tab = "all", q = "", allJobs = [];
+const PER_PAGE = 10;
+let timer = null, labels = {}, listKey = "", tab = "all", q = "", page = 1, allJobs = [];
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
 function lines() { return $("#topics").value.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 10); }
@@ -402,11 +412,17 @@ $("#intake").onsubmit = async e => {
 $("#tabs").addEventListener("click", e => {
   const b = e.target.closest("button[data-tab]");
   if (!b) return;
-  tab = b.dataset.tab;
+  tab = b.dataset.tab; page = 1;
   document.querySelectorAll("#tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
   render(allJobs);
 });
-$("#search").addEventListener("input", e => { q = e.target.value.trim().toLowerCase(); render(allJobs); });
+$("#search").addEventListener("input", e => { q = e.target.value.trim().toLowerCase(); page = 1; render(allJobs); });
+$("#pager").addEventListener("click", e => {
+  const b = e.target.closest("button[data-page]");
+  if (!b || b.disabled) return;
+  page = +b.dataset.page; render(allJobs);
+  $(".videos").scrollIntoView({block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+});
 
 // player: one dialog for every card
 const player = $("#player"), pv = player.querySelector("video");
@@ -463,11 +479,12 @@ document.addEventListener("click", async e => {
   }
   const del = e.target.closest("button[data-del]");
   if (del) {
-    if (!confirm(`Delete "${del.dataset.topic}"? The video and its post text are removed from the server.`)) return;
+    const busy = "busy" in del.dataset;
+    if (!confirm(busy ? `Stop and delete "${del.dataset.topic}"?` : `Delete "${del.dataset.topic}"? The video and its post text are removed from the server.`)) return;
     del.disabled = true; del.textContent = "Deleting…";
     const r = await fetch(`/jobs/${del.dataset.del}`, {method: "DELETE"});
     if (!r.ok) { del.disabled = false; del.textContent = "Delete failed, try again"; return; }
-    toast("Video deleted");
+    toast(busy ? "Video stopped and deleted" : "Video deleted");
     poll();
     return;
   }
@@ -503,7 +520,7 @@ function card(j) {
       <p class="err">${esc(why)}</p>
       ${facts(j)}
     </div><div class="side"><time>Started ${ago(j.created)}</time>
-      <div class="actions"><button type="button" class="btn" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button></div>
+      <div class="actions"><button type="button" class="btn" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button><button type="button" class="btn del" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete</button></div>
     </div></article>`;
   }
   const running = j.status === "running", pct = running ? Math.round(((idx + 0.5) / STAGES.length) * 100) : 0;
@@ -513,7 +530,9 @@ function card(j) {
     <div class="prog"><i style="--w:${pct}%"></i></div>
     <p class="step">${running ? `${cap(j.stage)}, step ${idx + 1} of ${STAGES.length}` : "Waiting for the previous video to finish"}</p>
     ${facts(j)}
-  </div><div class="side"><time>Started ${ago(j.created)}</time></div></article>`;
+  </div><div class="side"><time>Started ${ago(j.created)}</time>
+    <div class="actions"><button type="button" class="btn del" data-del="${j.id}" data-busy data-topic="${esc(j.topic)}">${running ? "Stop and delete" : "Delete"}</button></div>
+  </div></article>`;
 }
 
 function readyCard(j) {
@@ -563,10 +582,26 @@ function render(jobs) {
   $("#empty").hidden = jobs.length > 0;
   $("#none").hidden = !(jobs.length && !list.length);
 
+  const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+  page = Math.min(page, pages);  // deletes can leave us past the last page
+  const from = (page - 1) * PER_PAGE, total = list.length;
+  list = list.slice(from, from + PER_PAGE);
+  $("#pager").innerHTML = pages < 2 ? "" : pager(pages, from, total);
+
   // repaint only when something visible changed: a repaint restarts transitions and closes an open menu
-  const key = JSON.stringify([tab, q, Math.floor(Date.now() / 60000), list.map(j => [j.id, j.status, j.stage, j.error, j.result && j.result.updated])]);
+  const key = JSON.stringify([tab, q, page, Math.floor(Date.now() / 60000), list.map(j => [j.id, j.status, j.stage, j.error, j.result && j.result.updated])]);
   if (key !== listKey) $("#list").innerHTML = list.map(card).join("");
   listKey = key;
+}
+// 1 … 4 5 6 … 12: first, last and the neighbours of the current page
+function pager(pages, from, total) {
+  const nums = [...new Set([1, page - 1, page, page + 1, pages])].filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+  const btns = nums.map((n, i) => (i && n - nums[i - 1] > 1 ? `<span class="gap" aria-hidden="true">…</span>` : "")
+    + `<button type="button" class="btn" data-page="${n}"${n === page ? ' aria-current="page"' : ""} aria-label="Page ${n}">${n}</button>`).join("");
+  return `<span>Showing ${from + 1}–${Math.min(from + PER_PAGE, total)} of ${total}</span><nav aria-label="Video pages">
+    <button type="button" class="btn icon" data-page="${page - 1}" aria-label="Previous page"${page === 1 ? " disabled" : ""}>${icon("left")}</button>
+    ${btns}
+    <button type="button" class="btn icon" data-page="${page + 1}" aria-label="Next page"${page === pages ? " disabled" : ""}>${icon("right")}</button></nav>`;
 }
 poll();
 </script>

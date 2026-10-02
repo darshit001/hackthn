@@ -23,13 +23,23 @@ pipeline.OUT.mkdir(exist_ok=True)
 JOBS, LOCK, Q = {}, threading.Lock(), queue.Queue()
 
 
+class Cancelled(Exception):
+    pass
+
+
 def _worker():
     while True:
         jid, scene = Q.get()  # scene is None for a new video, or the index of a scene to redo on a finished one
-        job = JOBS[jid]
+        with LOCK:
+            job = JOBS.get(jid)
+        if job is None:  # deleted while queued
+            shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
+            continue
 
         def progress(stage):
             with LOCK:
+                if jid not in JOBS:  # ponytail: deleted mid-run stops at the next stage boundary, not mid-ffmpeg
+                    raise Cancelled
                 job["status"], job["stage"] = "running", stage
 
         try:
@@ -43,6 +53,10 @@ def _worker():
         except Exception as e:  # one bad job never kills the worker
             with LOCK:
                 job.update(status="failed", error=f"{job['stage']}: {e}"[:500])
+        with LOCK:
+            gone = jid not in JOBS
+        if gone:  # the worker owns out/<id>/ while a job is on the line, so it cleans up a deleted one
+            shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
 
 
 def load_done_jobs():
@@ -179,11 +193,9 @@ def redo(jid: str, scene: int):
 @app.delete("/jobs/{jid}")
 def delete_job(jid: str):
     with LOCK:
-        j = JOBS.get(jid)  # only ids we minted reach rmtree, so no path traversal
+        j = JOBS.pop(jid, None)  # only ids we minted reach rmtree, so no path traversal
         if not j:
             raise HTTPException(404, "no such job")
-        if j["status"] in ("queued", "running"):
-            raise HTTPException(409, "job still on the line")
-        del JOBS[jid]
-    shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
+    if j["status"] not in ("queued", "running"):  # a job on the line is stopped and cleaned up by the worker
+        shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
     return {"deleted": jid}
