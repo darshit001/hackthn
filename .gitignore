@@ -5,3 +5,17 @@ __pycache__/
 .venv/
 .playwright-mcp/
 .pytest_cache/
+
+# tool output, not part of the project
+.archify/
+docs/superpowers/
+graphify-out/
+.claude/
+
+# editor / OS / logs
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.swp

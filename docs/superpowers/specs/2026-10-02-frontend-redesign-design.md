@@ -102,3 +102,33 @@ read as generated. The move is from landing page to software: the page now looks
 - **App bar:** wordmark, live tally, and an "Open Global Feed" link so posting is one click away in the demo.
 
 Earlier looks stay in git history: dark glass (`c9e6e7e`), Vibrant & Block-based (`7a24006`).
+
+## Revision 3, same day: structured like a video tool (reference screenshot)
+
+The user brought a GPT-made mockup of the page and asked for its structure, minus the invented features
+(credits, Upgrade, bell, avatar, nav tabs, Video style, Tone, Voice, Subtitles). API unchanged.
+
+**Taken from the reference**
+
+- Light grey page (`#F4F5F7`) with white panels and cards, hairline borders, 12 px card radius.
+- Form steps are numbered (1 Topics, 2 Community, 3 Language, 4 Length) because they are a sequence.
+- Community is a 3×2 grid of icon tiles (globe, cpu, dumbbell, flame, rupee, smile); Language is a native
+  select with a globe prefix; Length is four bordered pills. Selection = blue `#2563EB` border on `#EEF3FF`.
+- Black full-width "Generate video" button with a play glyph; under it "About a minute per video" and the
+  Ctrl+Enter hint.
+- Right column: "Your videos" heading, search box, tabs All / Ready / In progress / Failed with counts.
+- One video = one card: 96 px portrait thumbnail with duration badge (the hook title lives at the top of the
+  frame, so no landscape crop), status pill, topic as title, hook + caption excerpt (2 lines), meta row with
+  icons (community, language, length, voice), hashtag chips, "Created 2 hours ago", Copy text, Download MP4
+  and a ⋮ menu.
+
+**Added**
+
+- Thumbnail click opens the video in a native `<dialog>` at up to 86 vh instead of a tiny inline player.
+- The ⋮ menu (a `<details>`) holds "Redo scene n" per scene and "Delete video".
+- Search filters by topic; tabs filter by status; a single list keeps in-progress videos on top.
+- In-progress cards reuse the layout: grey fill rising in the thumbnail, progress bar, "Images, step 2 of 6".
+
+**Kept** Instrument Sans only, tabular numerals, amber / grey / green / red status pills, brand purple-pink
+only in the 26 px mark, toast for copy/delete/start, reduced-motion switches transitions off. One shadow
+exists, on the floating ⋮ menu.
