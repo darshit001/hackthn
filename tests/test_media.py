@@ -68,14 +68,22 @@ def test_words_sends_the_script_as_whisper_prompt(monkeypatch, tmp_path):
 def test_stock_clip_cuts_between_two_stills_on_long_scenes(monkeypatch, tmp_path):
     made = []
     monkeypatch.setattr(media, "_still_to_clip", lambda img, sec, out, zoom_in=True: made.append((Path(img).name, round(sec, 3), Path(out).name, zoom_in)))
-    monkeypatch.setattr(media, "_run", lambda cmd, cwd=None: made.append(cmd[-1]))
+    monkeypatch.setattr(media, "_run", lambda cmd, cwd=None: made.append((cmd[-1], cwd)))
     zi = sum(map(ord, "city night")) % 2 == 0
     src = media.stock_clip("city night", 6.0, tmp_path / "clip2.mp4", image=tmp_path / "a.png", credit="AI image, test", image_b=tmp_path / "b.png")
     assert src == {"source": "ai", "credit": "AI image, test", "split": True}
     assert made[0] == ("a.png", 3.0, "clip2a.mp4", zi)  # A: first half, one zoom direction
     assert made[1] == ("b.png", round(3.0 + media.XFADE_SEC, 3), "clip2b.mp4", not zi)  # B: the rest plus the crossfade tail
-    assert made[2] == "clip2.mp4"  # the hard-cut join
+    assert made[2] == ("clip2.mp4", tmp_path)  # the hard-cut join, run in the job dir so the list's relative names resolve
     assert (tmp_path / "clip2.txt").read_text() == "file 'clip2a.mp4'\nfile 'clip2b.mp4'\n"
+
+
+def test_stock_clip_falls_back_to_one_still_when_the_split_fails(monkeypatch, tmp_path):
+    made = []
+    monkeypatch.setattr(media, "_split_clip", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("ffmpeg exit 1")))
+    monkeypatch.setattr(media, "_still_to_clip", lambda img, sec, out, zoom_in=True: made.append((Path(img).name, round(sec, 3))))
+    src = media.stock_clip("city night", 6.0, tmp_path / "clip1.mp4", image=tmp_path / "a.png", credit="AI image, test", image_b=tmp_path / "b.png")
+    assert src["split"] is False and made == [("a.png", round(6.0 + media.XFADE_SEC, 3))]  # A alone, full length
 
 
 def test_stock_clip_keeps_one_still_on_short_scenes(monkeypatch, tmp_path):
