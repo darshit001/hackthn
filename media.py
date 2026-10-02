@@ -16,7 +16,7 @@ import httpx
 from dotenv import load_dotenv
 
 from presets import COMMUNITIES, LANGUAGES
-from render import H, W, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
+from render import H, W, XFADE_SEC, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
 
 load_dotenv()
 UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}  # Wikimedia refuses generic agents
@@ -251,27 +251,29 @@ def _still_to_clip(img, sec, out_mp4, zoom_in=True):
 
 
 def stock_clip(query, min_sec, out_mp4, image=None, credit=None):
-    """Get one visual for the scene as an mp4 at out_mp4. An AI still (image=path) wins when given.
-    Returns {'source': 'ai'|'pexels'|'pixabay'|'wikimedia', 'credit': str}, or None when every source failed."""
+    """Get one visual for the scene as an mp4 at out_mp4, min_sec plus the crossfade tail long. An AI still (image=path)
+    wins when given. Returns {'source': 'ai'|'pexels'|'pixabay'|'wikimedia', 'credit': str}, or None when every source failed."""
     out_mp4 = Path(out_mp4)
+    need = min_sec + XFADE_SEC  # the tail is what the crossfade into the next scene eats; a still must not loop back during it
+    zoom_in = sum(map(ord, query)) % 2 == 0
     if image:
         try:
-            _still_to_clip(image, min_sec, out_mp4, zoom_in=sum(map(ord, query)) % 2 == 0)
+            _still_to_clip(image, need, out_mp4, zoom_in=zoom_in)
             return {"source": "ai", "credit": credit or "AI image"}
         except Exception as e:
             print(f"ai still -> clip failed for {query!r}: {e}", file=sys.stderr)
     for name, fn in (("pexels", _pexels), ("pixabay", _pixabay)):
         try:
-            _download(fn(query, min_sec), out_mp4)
+            _download(fn(query, need), out_mp4)
             return {"source": name, "credit": f"{name} stock video"}
         except Exception:
             continue
     for attempt in range(2):  # Commons occasionally times out; one retry rescues most scenes
         try:
-            url, credit = _wikimedia(query, min_sec)
+            url, credit = _wikimedia(query, need)
             img = out_mp4.with_suffix(".jpg")
             _download(url, img)
-            _still_to_clip(img, min_sec, out_mp4, zoom_in=sum(map(ord, query)) % 2 == 0)
+            _still_to_clip(img, need, out_mp4, zoom_in=zoom_in)
             return {"source": "wikimedia", "credit": credit}
         except Exception as e:
             print(f"wikimedia {query!r} attempt {attempt + 1}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)

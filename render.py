@@ -10,6 +10,8 @@ W, H = 1080, 1920  # ponytail: one knob; set 1080, 1080 for a square feed varian
 FONT = "Noto Sans"  # fontconfig substitutes (DejaVu Sans) when absent; Docker installs fonts-noto-core
 OUTRO_SEC = 2.0  # branded end card; pipeline pads the voice track by the same amount so -shortest keeps lengths equal
 VIOLET = "6B3DF0"  # Qoneqt brand violet, used by the outro and the UI
+XFADE = os.environ.get("XFADE", "fade")  # ffmpeg xfade transition between scenes and into the end card; try "smoothleft"
+XFADE_SEC = 0.35  # every scene clip runs this much past its voice line and crossfades over that overlap, so speech never shifts
 # ffmpeg sizes its decoder, filter and x264 thread pools from the host's cores, which on a shared cloud box can
 # be dozens; each thread holds 1080x1920 frames, so uncapped it blows a 1 GB container. Raise on a big laptop.
 THREADS = os.environ.get("FFMPEG_THREADS", "2")
@@ -143,32 +145,49 @@ def _scene_video(src, sec, dst, cwd):
 
 
 def compose(scene_clips, voice_wav, ass, job_dir, out_id, music=None):
-    """scene_clips: [(clip path or None, seconds)] in order. music: optional track path, looped under the voice and
-    ducked while it speaks. Writes <job_dir>/<out_id>.mp4 and .jpg. Returns (mp4, jpg)."""
+    """scene_clips: [(clip path or None, seconds)] in order. Each scene is rendered XFADE_SEC longer than its seconds and
+    crossfades into the next (the last into the end card) over exactly that overlap, so the voice timeline, the captions
+    and the total length (sum of seconds + OUTRO_SEC) are untouched. music: optional track path, looped under the voice
+    and ducked while it speaks. Writes <job_dir>/<out_id>.mp4 and .jpg. Returns (mp4, jpg)."""
     job_dir = Path(job_dir)
-    parts = []
+    parts, offsets, t = [], [], 0.0
     for i, (clip, sec) in enumerate(scene_clips):
         dst = f"scene{i}.mp4"
         if clip is None:
-            card(sec, job_dir / dst)
+            card(sec + XFADE_SEC, job_dir / dst)
         else:
-            _scene_video(clip, sec, dst, job_dir)
+            _scene_video(clip, sec + XFADE_SEC, dst, job_dir)
         parts.append(dst)
+        t += sec
+        offsets.append(t)  # the fade out of this scene starts where the next one's first word does
     card(OUTRO_SEC, job_dir / "outro.mp4")
     parts.append("outro.mp4")
-    (job_dir / "concat.txt").write_text("".join(f"file '{p}'\n" for p in parts))
-    mp4, jpg = job_dir / f"{out_id}.mp4", job_dir / f"{out_id}.jpg"
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-i", str(Path(voice_wav).resolve())]
+    n = len(parts)
+    cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+    for p in parts:
+        cmd += ["-i", p]
+    cmd += ["-i", str(Path(voice_wav).resolve())]
+    # all clips come from the same encoder settings, but xfade insists on identical timebases and rates: say so
+    graph = [f"[{k}:v]settb=AVTB,fps=30[s{k}]" for k in range(n)]
+    prev = "s0"
+    for k in range(1, n):
+        graph.append(f"[{prev}][s{k}]xfade=transition={XFADE}:duration={XFADE_SEC}:offset={offsets[k - 1]:.3f}[x{k}]")
+        prev = f"x{k}"
+    graph.append(f"[{prev}]subtitles={Path(ass).name}[v]")
+    maps = ["-map", "[v]"]
     if music:
         # audio only, so no frame memory: music looped, faded out at the end, compressed with the voice as sidechain, mixed
         total = duration(voice_wav)
-        cmd += ["-stream_loop", "-1", "-i", str(Path(music).resolve()), "-filter_complex",
-                f"[2:a]volume={MUSIC_GAIN},afade=t=out:st={max(0.0, total - 1.5):.2f}:d=1.5[m];"
-                "[1:a]asplit=2[v1][v2];"
-                "[m][v2]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[md];"
-                "[v1][md]amix=inputs=2:duration=first:normalize=0[a]",
-                "-map", "0:v", "-map", "[a]"]
-    cmd += ["-vf", f"subtitles={Path(ass).name}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+        cmd += ["-stream_loop", "-1", "-i", str(Path(music).resolve())]
+        graph += [f"[{n + 1}:a]volume={MUSIC_GAIN},afade=t=out:st={max(0.0, total - 1.5):.2f}:d=1.5[m]",
+                  f"[{n}:a]asplit=2[a1][a2]",
+                  "[m][a2]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[md]",
+                  "[a1][md]amix=inputs=2:duration=first:normalize=0[a]"]
+        maps += ["-map", "[a]"]
+    else:
+        maps += ["-map", f"{n}:a"]
+    mp4, jpg = job_dir / f"{out_id}.mp4", job_dir / f"{out_id}.jpg"
+    cmd += ["-filter_complex", ";".join(graph), *maps, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
             # -shortest makes ffmpeg 7 queue raw frames to line streams up, default 10 s (~930 MB at 1080x1920,
             # the Railway OOM kill); voice and scenes are cut to the same length, so 1 s gives identical output
             "-c:a", "aac", "-b:a", "128k", "-shortest", "-shortest_buf_duration", "1", "-movflags", "+faststart", mp4.name]
@@ -193,4 +212,6 @@ if __name__ == "__main__":
                            capture_output=True, text=True, check=True).stdout
     print(probe.strip())
     assert f"video,{W},{H}" in probe and "audio" in probe, probe
+    total = duration(mp4)
+    assert abs(total - (4 + OUTRO_SEC)) < 0.2, f"xfade changed the length: {total}s"  # overlaps must eat exactly the added tails
     print(f"RENDER OK -> {mp4} {jpg}")
