@@ -42,8 +42,8 @@ Hooks:
   (a surprising statement), number (a specific figure), myth (a belief everyone holds that is wrong), story (drop the
   viewer into a moment), warning (what goes wrong if they scroll past). score is 1-10 for scroll-stopping power.
   why is one sentence, at most 20 words, on why that opener stops this community's scroll.
-- Never open with "Did you know", "In this video", "Today we", "Have you ever wondered", "Welcome to",
-  or their Hindi or Hinglish equivalents.
+- Never open a hook with "Did you know", "In this video", "Today we", "Have you ever wondered", "Welcome to",
+  "Kya aap jaante hain", "Kya aapko pata hai", "क्या आप जानते हैं" or "क्या आपको पता है". Ask something sharper instead.
 Scenes:
 - Scene 1 narration must begin with the hook, word for word.
 - beat is the scene's job, in this order: hook (scene 1: the hook line, then one sentence of stakes), context (what is
@@ -107,7 +107,8 @@ def validate_plan(p, scenes=(5, 7)):
         if not isinstance(text, str) or not text.strip():
             bad(f"hook {i}: text missing")
         if _BANNED.match(text.strip()):
-            bad(f"hook {i}: starts with a banned opener")
+            # the retry has to name the list: without it, models rewrite "क्या आप जानते" into the same opener again
+            bad(f"hook {i}: starts with a banned opener; never begin with {', '.join(BANNED_OPENERS)}")
         if h.get("formula") not in FORMULAS:
             bad(f"hook {i}: formula must be one of {', '.join(FORMULAS)}")
         if type(h.get("score")) not in (int, float) or not 1 <= h["score"] <= 10:  # type(), not isinstance: bool is an int
