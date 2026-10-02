@@ -11,8 +11,10 @@ pinned: false
 # Qoneqt Video Factory
 
 Topic in, Qoneqt Global Feed short out. An LLM-powered pipeline that turns a topic, idea, or trend into a
-publish-ready vertical video with AI script, AI voice, stock visuals, and word-pop captions. Built for the
-Qoneqt × CTRL FREAK 2026 challenge ("Build an LLM-Powered Content Pipeline for Qoneqt").
+publish-ready vertical video with AI script, AI voice, AI or stock visuals, word-pop captions, a hook title
+and a Qoneqt end card. Pick the community, the language (English, Hindi, Hinglish) and the length (15-60 s),
+or let it suggest topics from what India is searching today. Built for the Qoneqt × CTRL FREAK 2026 challenge
+("Build an LLM-Powered Content Pipeline for Qoneqt").
 
 - Live app: _coming soon_
 - Demo video: _coming soon_
@@ -21,22 +23,22 @@ Qoneqt × CTRL FREAK 2026 challenge ("Build an LLM-Powered Content Pipeline for 
 ## How it works
 
 ```
- topic + community preset
+ topic + community + language + length        ("Suggest topics": Google Trends India → Groq → 6 ideas)
         │
         ▼
  ┌─────────────┐   Groq gpt-oss-120b (fallback: qwen, Gemini)
- │ 1. PLAN     │   3 scored hooks → best hook, 5-7 scenes (narration, stock query, image prompt), caption, hashtags
+ │ 1. PLAN     │   3 scored hooks → best hook, 3-9 scenes sized to the length (narration, title, stock query, image prompt), caption, hashtags
  └──────┬──────┘
         ▼
  ┌─────────────┐   Pollinations FLUX (keyed), fallback Hugging Face FLUX.1-schnell, one 9:16 still per scene
- │ 2. IMAGES   │   (skipped when no image provider is available; visuals then use stock photos)
+ │ 2. IMAGES   │   3 scenes at a time; two passes; skipped when no provider is available (visuals then use stock photos)
  └──────┬──────┘
         ▼
- ┌─────────────┐   ElevenLabs (fallback: edge-tts, Gemini TTS), one wav per scene
+ ┌─────────────┐   ElevenLabs (fallback: edge-tts, Gemini TTS), one wav per scene, 2 at a time; voice picked by language
  │ 3. VOICE    │
  └──────┬──────┘
         ▼
- ┌─────────────┐   AI still → Ken Burns clip; else Pexels/Pixabay clip if keyed; else Wikimedia Commons photo; else gradient card
+ ┌─────────────┐   AI still → Ken Burns clip; else Pexels/Pixabay clip if keyed; else Wikimedia Commons photo; else a titled card
  │ 4. VISUALS  │
  └──────┬──────┘
         ▼
@@ -44,7 +46,7 @@ Qoneqt × CTRL FREAK 2026 challenge ("Build an LLM-Powered Content Pipeline for 
  │ 5. CAPTIONS │
  └──────┬──────┘
         ▼
- ┌─────────────┐   ffmpeg: cover-crop to 1080×1920, concat, voice, burn captions, thumbnail
+ ┌─────────────┐   ffmpeg: cover-crop to 1080×1920, concat + 2 s Qoneqt end card, voice, burn captions + hook title, thumbnail
  │ 6. RENDER   │
  └──────┬──────┘
         ▼
@@ -56,9 +58,10 @@ batch mode is simply N queued topics.
 
 ## Community presets
 
-`presets.py` holds six presets (General, Tech & AI, Fitness, Motivation, Finance, Hinglish Fun). A preset
-sets the script tone, language, narrator voice per engine, caption style, base hashtags, and the caption
-accent colour. Adding a community is one dict entry.
+`presets.py` holds six community presets (General, Tech & AI, Fitness, Motivation, Finance, Hinglish Fun): script
+tone, caption style, base hashtags, narrator voice and the caption accent colour. A separate `LANGUAGES` table
+(English, Hindi, Hinglish) holds the prompt wording, edge-tts voices by gender, Whisper code and measured speaking
+pace, and `DURATIONS` lists the length chips. Adding a community or a language is one dict entry.
 
 ## Run locally
 
@@ -66,7 +69,8 @@ accent colour. Adding a community is one dict entry.
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt          # needs ffmpeg on PATH
 cp .env.example .env                     # fill in keys (all free tiers)
-python pipeline.py "why sleep matters" tech   # end-to-end smoke test → out/<id>/<id>.mp4
+python pipeline.py "why sleep matters" tech en 30   # end-to-end smoke test → out/<id>/<id>.mp4
+python llm.py suggest tech hi                       # topic suggestions for a community + language
 uvicorn app:app --reload --port 7860     # UI at http://localhost:7860
 python -m pytest -q                      # unit tests for plan validation and caption logic
 ```
@@ -92,13 +96,13 @@ Qoneqt has no public posting API, so publishing is a manual step: click **Downlo
 
 | File | Role |
 |---|---|
-| `llm.py` | plan stage, JSON validation, Groq → Gemini chain |
+| `llm.py` | plan stage, topic suggestions + Google Trends, JSON validation, Groq → Gemini chain |
 | `media.py` | voice chain, stock clip chain, Whisper word timings |
-| `render.py` | ASS karaoke captions, ffmpeg composition, aspect-ratio knob |
+| `render.py` | ASS karaoke captions and overlays (hook, titles, end card), ffmpeg composition, aspect-ratio knob |
 | `pipeline.py` | orchestration + CLI smoke test |
 | `app.py` | FastAPI job queue and API |
 | `static/index.html` | single-page UI |
-| `presets.py` | community presets |
+| `presets.py` | community presets, languages, durations |
 | `tests/` | unit tests for pure logic |
 
 ## Known limits (deliberate)

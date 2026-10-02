@@ -93,7 +93,8 @@ Each scene gains `"title": "..."`: a 2-5 word on-screen headline in the chosen l
 when a scene has no visual (section 3) and is validated as a non-empty string of at most 8 words.
 
 `validate_plan(p, scenes=(5, 7))` takes the allowed scene range; everything else is unchanged. The word
-total is reported in the retry message when outside the window but not rejected (TTS pacing varies).
+total is not enforced (TTS pacing varies); the smoke test measures real spoken seconds instead, and the
+measured pace lives in `LANGUAGES[lang]["wps"]` (2.4 for English, 1.9 for Hindi and Hinglish on 2 Oct 2026).
 
 Pacing factor 2.4 words/s is a starting point for all three languages. The end-to-end smoke run per
 language measures real spoken seconds; if a language is off by more than 20 % the factor moves into
