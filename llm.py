@@ -197,18 +197,20 @@ def trends():
     return titles
 
 
-def _suggest_prompt(preset, lang, trend_titles):
+def _suggest_prompt(preset, lang, trend_titles, trends_only=False):
     tr = "\n".join(f"- {t}" for t in trend_titles) or "(none available right now)"
-    return (f"Community: {preset['label']}\nTone: {preset['tone']}\n"
+    rule = ("Every topic must be inspired by one of the trending searches below that fits the community; "
+            "if fewer than six fit, fill the rest with evergreen ideas.\n") if trends_only and trend_titles else ""
+    return (f"Community: {preset['label']}\nTone: {preset['tone']}\n{rule}"
             f"Trending searches in India right now:\n{tr}\n"
             f"Language: write every topic in {lang['instruction']}. This is mandatory.\nReturn the JSON now.")
 
 
-def suggest(community="general", language="en"):
-    """{'topics': [6 ideas], 'trends': [titles used]}; 3-4 ideas ride today's trends when the feed is up."""
+def suggest(community="general", language="en", trends_only=False):
+    """{'topics': [6 ideas], 'trends': [titles used]}; 3-4 ideas ride today's trends, or all of them with trends_only."""
     preset, lang = COMMUNITIES[community], LANGUAGES[language]
     tr = trends()
-    base = [{"role": "system", "content": SUGGEST_SYSTEM}, {"role": "user", "content": _suggest_prompt(preset, lang, tr)}]
+    base = [{"role": "system", "content": SUGGEST_SYSTEM}, {"role": "user", "content": _suggest_prompt(preset, lang, tr, trends_only)}]
     p = _ask(base, validate_topics, temperature=1.0)
     return {"topics": [x.strip() for x in p["topics"]][:6], "trends": tr}
 

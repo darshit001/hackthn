@@ -11,20 +11,23 @@ from pathlib import Path
 import llm
 import media
 import render
+from presets import COMMUNITIES, MUSIC, MUSIC_CREDIT
 
 OUT = Path(__file__).parent / "out"
+MUSIC_DIR = Path(__file__).parent / "assets" / "music"
 STAGES = ["plan", "images", "voice", "visuals", "captions", "render"]
 
 
-def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30):
-    """Returns the meta dict that is also written to out/<id>/<id>.json. Raises on unrecoverable failure."""
+def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None):
+    """Returns the meta dict that is also written to out/<id>/<id>.json. Raises on unrecoverable failure.
+    plan: a previewed plan from llm.plan (hook possibly swapped by the user); None plans from scratch."""
     job_id = job_id or secrets.token_hex(4)
     d = OUT / job_id
     d.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
 
     progress("plan")
-    p = llm.plan(topic, community, language, duration)
+    p = plan or llm.plan(topic, community, language, duration)
     scenes = p["scenes"]
 
     progress("images")  # AI still per scene, 3 at a time (Pollinations takes that on the keyed endpoint); None -> stock later
@@ -68,18 +71,49 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     ass = render.subtitles(words, community, d / "captions.ass", overlays)
 
     progress("render")
-    render.compose(clips, d / "voice.wav", ass, d, job_id)
+    mfile, mtitle = MUSIC[COMMUNITIES[community]["mood"]]
+    track = MUSIC_DIR / mfile
+    if track.exists():
+        credits.append(f"Music: {mtitle}, {MUSIC_CREDIT}")
+    render.compose(clips, d / "voice.wav", ass, d, job_id, music=track if track.exists() else None)
 
     meta = {
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
         "hook": p["hook"], "caption": p["caption"], "hashtags": p["hashtags"],
         "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, credit=cr) for sc, s, e, v, cr in zip(scenes, secs, engines, sources, credits)],
-        "credits": [cr for cr in credits if cr],
-        "duration": round(sum(secs), 2), "llm": p["model"], "whisper_words": len(timed),
+        "credits": [cr for cr in credits if cr], "music": mtitle if track.exists() else None,
+        "duration": round(sum(secs), 2), "llm": p.get("model", "preview"), "whisper_words": len(timed),
         "image_model": next((cr.split(", ", 1)[1] for _, cr in filter(None, images)), None),
         "seconds_to_make": round(time.time() - t0, 1),
         "video": f"/out/{job_id}/{job_id}.mp4", "thumb": f"/out/{job_id}/{job_id}.jpg",
     }
+    (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    return meta
+
+
+def redo_scene(job_id, n, progress=lambda stage: None):
+    """New visual for scene n of a finished video, then re-render from the files still in out/<id>/
+    (voice, captions, the other clips). Rewrites and returns the meta dict."""
+    d = OUT / job_id
+    meta = json.loads((d / f"{job_id}.json").read_text())
+    scenes = meta["scenes"]
+    sc = scenes[n]
+    progress("images")
+    png = d / f"gen{n}.png"
+    # Pollinations seeds from the prompt text, so a fresh suffix is what makes the picture different
+    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {secrets.token_hex(2)})", png)
+    progress("visuals")
+    clip = d / f"clip{n}.mp4"
+    src = media.stock_clip(sc["query"], sc["seconds"], clip, image=png if cr else None, credit=cr)
+    sc["visual"], sc["credit"] = (src["source"], src["credit"]) if src else ("card", "")
+    # ponytail: a scene that flips between card and picture keeps the title overlay state baked into captions.ass
+    clips = [(d / f"clip{i}.mp4" if s["visual"] != "card" and (d / f"clip{i}.mp4").exists() else None, s["seconds"]) for i, s in enumerate(scenes)]
+    progress("render")
+    mfile, _ = MUSIC[COMMUNITIES[meta["community"]]["mood"]]
+    track = MUSIC_DIR / mfile
+    render.compose(clips, d / "voice.wav", d / "captions.ass", d, job_id, music=track if track.exists() else None)
+    meta["credits"] = [s["credit"] for s in scenes if s["credit"]] + [c for c in meta.get("credits", []) if c.startswith("Music:")]
+    meta["updated"] = round(time.time())
     (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
     return meta
 

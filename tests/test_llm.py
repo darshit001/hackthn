@@ -1,5 +1,6 @@
 import pytest
-from llm import validate_plan, _parse, budget, validate_topics
+from llm import validate_plan, _parse, budget, validate_topics, _suggest_prompt
+from presets import COMMUNITIES, LANGUAGES
 
 
 def good():
@@ -72,3 +73,10 @@ def test_validate_topics():
     for bad in ({"topics": []}, {"topics": ["a", " ", "c"]}, {"topics": "a"}, [], {"topics": ["x"] * 9}):
         with pytest.raises(ValueError, match="topics"):
             validate_topics(bad)
+
+
+def test_suggest_prompt_trends_only_rule():
+    args = (COMMUNITIES["tech"], LANGUAGES["en"], ["india vs brazil", "forex factory"])
+    assert "Every topic must be inspired" in _suggest_prompt(*args, trends_only=True)
+    assert "Every topic must be inspired" not in _suggest_prompt(*args)
+    assert "Every topic must be inspired" not in _suggest_prompt(COMMUNITIES["tech"], LANGUAGES["en"], [], trends_only=True)  # feed down

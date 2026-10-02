@@ -4,198 +4,322 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Qoneqt Video Factory</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23141414%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23fff%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Cdefs%3E%3ClinearGradient id=%27g%27 x1=%270%27 y1=%270%27 x2=%271%27 y2=%271%27%3E%3Cstop stop-color=%27%237C3AED%27/%3E%3Cstop offset=%271%27 stop-color=%27%23EC4899%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27url(%23g)%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23fff%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#FFFFFF; --panel:#F7F7F7; --border:#E3E3E3; --border-2:#CFCFCF;
-  --fg:#141414; --fg-2:#5C5C5C; --fg-3:#8A8A8A;
+  --bg:#F4F5F7; --card:#FFFFFF; --border:#E4E4E7; --border-2:#CDCDD2; --soft:#F1F1F4;
+  --fg:#141414; --fg-2:#5B5B63; --fg-3:#8B8B93;
+  --acc:#2563EB; --acc-bg:#EEF3FF; --acc-fg:#1D4ED8;
   --amber:#B45309; --amber-bg:#FFF7ED; --green:#15803D; --green-bg:#F0FDF4; --red:#B91C1C; --red-bg:#FEF2F2;
   --font:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --r:6px; --r-lg:8px;
+  --r:6px; --r-md:8px; --r-lg:12px;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:400 14px/1.5 var(--font);font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:var(--r)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:var(--r)}
 a{color:var(--fg)}
 h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i.fill{fill:currentColor;stroke:none}
 
 /* app bar */
-.top{display:flex;align-items:center;justify-content:space-between;gap:16px;height:52px;padding:0 24px;border-bottom:1px solid var(--border)}
-.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;text-decoration:none}
-.brand .mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8B5CF6,#EC4899);flex:none}
-.top nav{display:flex;align-items:center;gap:18px;color:var(--fg-2);font-size:13px}
-.top nav a{color:var(--fg);text-decoration:none;font-weight:500;padding:6px 10px;border:1px solid var(--border-2);border-radius:var(--r)}
-.top nav a:hover{background:var(--panel)}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--fg-3);margin-right:7px;vertical-align:1px}
+.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;height:56px;padding:0 24px;background:var(--card);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap}
+.brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;color:#fff;flex:none}
+.brand .mark .i{width:13px;height:13px}
+.top nav{display:flex;align-items:center;gap:10px}
+.tally{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--fg-2);padding:5px 11px;border:1px solid var(--border);border-radius:999px;background:var(--bg)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--fg-3)}
 .dot.on{background:var(--amber)}
 
 /* layout */
-.layout{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 52px)}
-.new{padding:24px;border-right:1px solid var(--border);background:var(--panel)}
-.videos{padding:24px 28px 64px;min-width:0}
+.layout{display:grid;grid-template-columns:416px minmax(0,1fr);gap:24px;align-items:start;padding:24px;max-width:1480px;margin:0 auto}
+.new{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;position:sticky;top:80px;max-height:calc(100vh - 104px);overflow:auto}
+.videos{min-width:0}
 
 /* form */
-.new h1{font-size:18px;margin-bottom:18px}
+.new h1{font-size:18px}
+.new .sub{margin:2px 0 18px;color:var(--fg-2);font-size:13px}
 .field{display:block;margin-bottom:16px}
-.field > span{display:block;font-weight:500;font-size:13px;margin-bottom:6px}
-.field small{display:block;color:var(--fg-2);font-weight:400;margin-top:-4px;margin-bottom:6px}
-.topics{width:100%;min-height:104px;resize:vertical;padding:9px 10px;background:#fff;border:1px solid var(--border-2);border-radius:var(--r);line-height:1.45}
+.field > span{display:block;font-weight:500;font-size:13px;margin-bottom:8px}
+.ta{position:relative}
+.topics{width:100%;min-height:100px;resize:vertical;padding:10px 12px 26px;background:var(--card);border:1px solid var(--border-2);border-radius:var(--r-md);line-height:1.45;display:block}
 .topics::placeholder{color:var(--fg-3)}
-.topics:focus,.sel:focus{outline:none;border-color:var(--fg);box-shadow:0 0 0 2px rgba(20,20,20,.12)}
-.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-6px 0 14px}
-.hint{color:var(--fg-2);font-size:13px;margin:0}
-.btn{padding:6px 11px;border:1px solid var(--border-2);border-radius:var(--r);background:#fff;font-weight:500;font-size:13px;line-height:1.3}
+.topics:focus,.sel:focus,.search input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99,235,.14)}
+.count{position:absolute;right:10px;bottom:8px;font-size:11px;color:var(--fg-3);pointer-events:none}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 0}
+.hint{color:var(--fg-2);font-size:12.5px;margin:0}
+.row .hint{width:100%;margin-top:2px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card);font-weight:500;font-size:13px;line-height:1.3;color:var(--fg);text-decoration:none;white-space:nowrap}
+.btn .i{width:14px;height:14px}
 .btn:hover{border-color:var(--fg)}
 .btn:disabled{color:var(--fg-3);border-color:var(--border);cursor:default}
-.ideas{list-style:none;margin:0 0 16px;padding:0;border:1px solid var(--border);border-radius:var(--r);background:#fff;overflow:hidden}
+.btn.icon{padding:7px}
+.ideas{list-style:none;margin:12px 0 0;padding:0;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
 .ideas:empty{display:none}
 .ideas li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-top:1px solid var(--border);font-size:13px}
 .ideas li:first-child{border-top:0}
 .ideas li button{flex:none;padding:3px 9px;font-size:12px}
-.sel{width:100%;appearance:none;-webkit-appearance:none;padding:8px 32px 8px 10px;background:#fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.5 4.5l3.5 3.5 3.5-3.5%27 fill=%27none%27 stroke=%27%23141414%27 stroke-width=%271.5%27/%3E%3C/svg%3E") no-repeat right 10px center;border:1px solid var(--border-2);border-radius:var(--r)}
-.seg{display:flex;border:1px solid var(--border-2);border-radius:var(--r);background:#fff;overflow:hidden}
-.seg label{flex:1;position:relative;text-align:center;border-left:1px solid var(--border);font-size:13px}
-.seg label:first-child{border-left:0}
+.preview{border:1px solid var(--border);border-radius:var(--r-md);padding:12px;margin:12px 0 0;background:var(--bg)}
+.preview h2{font-size:14px;margin-bottom:2px}
+.hooks{display:grid;gap:6px;margin:10px 0}
+.hooks label{display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);cursor:pointer}
+.hooks label:has(input:checked){border-color:var(--acc);background:var(--acc-bg)}
+.hooks input{margin:3px 0 0;accent-color:var(--acc)}
+.hooks small{color:var(--fg-2);margin-left:auto;white-space:nowrap;font-size:12px}
+.scenes{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2)}
+.scenes li{margin-bottom:4px}
+.scenes b{color:var(--fg);font-weight:500}
+.primary.small{width:auto;padding:7px 12px;font-size:13px;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 6px 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12.5px;line-height:1.2;color:var(--fg-2);cursor:pointer;text-align:center;transition:border-color .15s,background .15s,color .15s}
+.tile input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.tile .i{width:20px;height:20px}
+.tile:hover{border-color:var(--border-2)}
+.tile:has(input:checked){border-color:var(--acc);background:var(--acc-bg);color:var(--acc-fg);font-weight:500}
+.tile:has(input:focus-visible),.seg label:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
+.iconsel{position:relative}
+.iconsel .i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--fg-2);pointer-events:none}
+.iconsel .sel{padding-left:34px}
+.sel{width:100%;appearance:none;-webkit-appearance:none;padding:9px 32px 9px 11px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.5 4.5l3.5 3.5 3.5-3.5%27 fill=%27none%27 stroke=%27%23141414%27 stroke-width=%271.5%27/%3E%3C/svg%3E") no-repeat right 11px center;border:1px solid var(--border-2);border-radius:var(--r)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.seg label{position:relative;text-align:center;border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--fg-2);cursor:pointer;transition:border-color .15s,background .15s}
 .seg input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
-.seg span{display:block;padding:7px 0}
-.seg input:checked+span{background:var(--fg);color:#fff;font-weight:500}
-.seg input:focus-visible+span{outline:2px solid var(--fg);outline-offset:-2px}
-.primary{width:100%;padding:10px 14px;border:1px solid var(--fg);border-radius:var(--r);background:var(--fg);color:#fff;font-weight:500;font-size:14px;margin-top:4px}
+.seg span{display:block;padding:8px 0}
+.seg label:has(input:checked){border-color:var(--acc);background:var(--acc-bg);color:var(--acc-fg);font-weight:500}
+.go{display:flex;gap:8px;margin-top:4px}
+.go .btn{padding:10px 12px;border-radius:var(--r-md)}
+.primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:11px 14px;border:1px solid var(--fg);border-radius:var(--r-md);background:var(--fg);color:#fff;font-weight:500;font-size:14px}
 .primary:hover{background:#000}
 .primary:disabled{background:var(--border);border-color:var(--border);color:var(--fg-3);cursor:default}
-.after{margin-top:10px}
-kbd{font:inherit;font-size:12px;border:1px solid var(--border-2);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:#fff}
+.after{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;color:var(--fg-2);font-size:12.5px}
+.after span{display:inline-flex;align-items:center;gap:6px}
+.after .i{width:14px;height:14px;color:var(--fg-3)}
+kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--card)}
 
 /* videos */
-.sec{margin-bottom:36px}
-.sec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
-.sec-head h2{font-size:15px}
-.sec-head span{color:var(--fg-2);font-size:13px}
-.empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:36px 20px;text-align:center;color:var(--fg-2)}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.head h2{font-size:22px}
+.head .sub{margin:2px 0 0;color:var(--fg-2);font-size:13px}
+.search{position:relative}
+.search input{width:280px;max-width:100%;padding:8px 10px 8px 33px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card)}
+.search input::placeholder{color:var(--fg-3)}
+.search .i{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--fg-3);pointer-events:none}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:18px 0 16px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;border:0;background:none;font-size:13.5px;color:var(--fg-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:0}
+.tabs button span{font-size:12px;background:var(--soft);border-radius:999px;padding:0 7px;color:var(--fg-2)}
+.tabs button:hover{color:var(--fg)}
+.tabs button[aria-selected=true]{color:var(--fg);font-weight:500;border-bottom-color:var(--fg)}
+.tabs button[aria-selected=true] span{background:var(--fg);color:#fff}
+.empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:44px 20px;text-align:center;color:var(--fg-2);background:var(--card)}
 .empty b{display:block;color:var(--fg);font-weight:500;margin-bottom:2px}
-.item{display:grid;grid-template-columns:72px minmax(0,1fr);gap:18px;padding:16px 0;border-top:1px solid var(--border)}
-.item:last-child{border-bottom:1px solid var(--border)}
-.thumb{position:relative;width:72px;aspect-ratio:9/16;border-radius:var(--r);background:#EDEDED;overflow:hidden;border:1px solid var(--border)}
-.thumb .fill{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:#D4D4D4;transition:height .8s ease}
-.thumb video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-.ready .thumb{width:168px;border:0;border-radius:var(--r-lg)}
-.ready{grid-template-columns:168px minmax(0,1fr)}
-.item h3{font-size:15px;line-height:1.35}
-.meta{margin:3px 0 0;color:var(--fg-2);font-size:13px}
-.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:1px}
+.card{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:18px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:12px}
+.card.failed{border-color:#F3D4D4}
+.thumb{position:relative;width:96px;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:#E9E9EE;border:0;padding:0;display:block;color:#fff}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .play{position:absolute;left:50%;top:50%;width:36px;height:36px;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);border-radius:50%;padding:9px 8px 9px 10px;transition:transform .15s,background .15s}
+button.thumb{cursor:pointer}
+button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50%) scale(1.08)}
+.thumb .dur{position:absolute;right:6px;bottom:6px;font-size:11px;font-weight:500;background:rgba(0,0,0,.72);padding:1px 6px;border-radius:4px;line-height:1.5}
+.thumb .fillbar{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:#D4D4DA;transition:height .8s ease}
+.thumb .stage{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:500;color:var(--fg-2);text-align:center;padding:6px}
+.body{min-width:0}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 9px 2px 8px;border-radius:999px;margin-bottom:7px}
 .status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .status.making{color:var(--amber);background:var(--amber-bg)}
-.status.queued{color:var(--fg-2);background:#F0F0F0}
+.status.queued{color:var(--fg-2);background:var(--soft)}
 .status.failed{color:var(--red);background:var(--red-bg)}
 .status.ready{color:var(--green);background:var(--green-bg)}
-.prog{height:4px;background:#E6E6E6;border-radius:2px;overflow:hidden;margin:12px 0 6px;max-width:420px}
+.card h3{font-size:15px;line-height:1.35}
+.desc{margin:4px 0 0;color:var(--fg-2);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.facts{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--fg-2)}
+.facts li{display:inline-flex;align-items:center;gap:6px}
+.facts .i{width:14px;height:14px;color:var(--fg-3)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
+.tag{font-size:12px;color:var(--fg-2);background:var(--soft);border-radius:999px;padding:2px 9px}
+.prog{height:4px;background:var(--soft);border-radius:2px;overflow:hidden;margin:12px 0 6px;max-width:420px}
 .prog i{display:block;height:100%;width:var(--w,0%);background:var(--fg);transition:width .8s ease}
 .step{margin:0;font-size:13px;color:var(--fg-2)}
-.err{margin:10px 0 0;font-size:13px;color:var(--red)}
-.post{margin:12px 0 0;white-space:pre-wrap;font:inherit;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;max-width:62ch;line-height:1.5}
-.post .tags{color:var(--fg-2)}
-.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;max-width:62ch}
-.actions a{text-decoration:none}
-.danger{margin-left:auto;background:none;border:0;padding:6px 0;color:var(--red);font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:3px}
-.danger:disabled{color:var(--fg-3);text-decoration:none;cursor:wait}
+.err{margin:6px 0 0;font-size:13px;color:var(--red)}
+.side{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.side time{font-size:12px;color:var(--fg-3);white-space:nowrap}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.menu{position:relative}
+.menu summary{list-style:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu[open] summary{border-color:var(--fg)}
+.pop{position:absolute;right:0;top:calc(100% + 6px);min-width:230px;max-width:320px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(20,20,20,.08);padding:6px;z-index:4}
+.pop button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;background:none;border-radius:var(--r);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pop button:hover{background:var(--soft)}
+.pop button:disabled{color:var(--fg-3);cursor:wait}
+.pop .del{color:var(--red)}
+.pop hr{border:0;border-top:1px solid var(--border);margin:6px 0}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);opacity:0;background:var(--fg);color:#fff;padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:500;transition:opacity .2s,transform .2s;pointer-events:none;z-index:9}
 .toast.show{opacity:1;transform:translateX(-50%)}
 
-@media (max-width:900px){
-  .layout{grid-template-columns:1fr}
-  .new{border-right:0;border-bottom:1px solid var(--border)}
-  .videos{padding:20px 16px 56px}
+/* player */
+dialog{border:0;padding:0;background:transparent;max-width:none;max-height:none;overflow:visible}
+dialog::backdrop{background:rgba(10,10,12,.78)}
+dialog video{display:block;height:min(86vh,820px);aspect-ratio:9/16;border-radius:12px;background:#000;outline:0}
+dialog .x{position:absolute;right:-48px;top:0;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center}
+dialog .x:hover{background:rgba(255,255,255,.22)}
+dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;font-size:13px;text-align:center;opacity:.8}
+
+@media (max-width:1180px){
+  .card{grid-template-columns:96px minmax(0,1fr)}
+  .side{grid-column:2;flex-direction:row;align-items:center;justify-content:space-between}
+}
+@media (max-width:960px){
+  .layout{grid-template-columns:1fr;padding:16px;gap:16px}
+  .new{position:static;max-height:none}
   .top{padding:0 16px}
-  .top nav span{display:none}
 }
-@media (max-width:520px){
-  .ready{grid-template-columns:1fr}
-  .ready .thumb{width:min(200px,60vw)}
+@media (max-width:560px){
+  .tally{display:none}
+  .side{grid-column:1 / -1;flex-wrap:wrap;gap:8px}
+  .actions{width:100%;justify-content:flex-start}
+  .top nav .btn .w{display:none}
+  .card{grid-template-columns:80px minmax(0,1fr);gap:14px;padding:14px}
+  .thumb{width:80px}
+  .search,.search input{width:100%}
+  .seg{grid-template-columns:repeat(2,1fr)}
+  dialog .x{right:0;top:-46px}
 }
-@media (prefers-reduced-motion:reduce){.thumb .fill,.prog i,.toast{transition:none}}
+@media (prefers-reduced-motion:reduce){.thumb .fillbar,.prog i,.toast,.tile,.seg label,.thumb .play{transition:none}}
 </style>
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 22c4.2 0 7-2.8 7-6.5 0-3.4-2.2-5.3-3.6-7.3-.3 1.7-1.2 2.7-2.2 3.2C13.5 8.3 12.4 4.5 9.4 2c.4 3.3-1 5.1-2.6 7.1C5.5 10.7 5 12.6 5 15.5 5 19.2 7.8 22 12 22z"/></symbol>
+  <symbol id="i-rupee" viewBox="0 0 24 24"><path d="M6 3h12M6 8h12M6 13h3M9 13c6.7 0 6.7-10 0-10M6 13l8.5 8"/></symbol>
+  <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m-5-4 5 5 5-5M4 20h16"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+</svg>
+
 <header class="top">
-  <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Qoneqt Video Factory</a>
-  <nav><span id="tally"><i class="dot" aria-hidden="true"></i>Idle</span><a href="https://qoneqt.com/networks/global-feed" target="_blank" rel="noopener">Open Global Feed</a></nav>
+  <a class="brand" href="/"><span class="mark" aria-hidden="true"><svg class="i fill"><use href="#i-play"/></svg></span>Qoneqt Video Factory</a>
+  <nav>
+    <span class="tally" id="tally"><i class="dot" aria-hidden="true"></i><span>Idle</span></span>
+    <a class="btn" href="https://qoneqt.com/networks/global-feed" target="_blank" rel="noopener"><svg class="i"><use href="#i-external"/></svg><span><span class="w">Open </span>Global Feed</span></a>
+  </nav>
 </header>
 
 <main class="layout">
   <form id="intake" class="new" aria-labelledby="new-title">
-    <h1 id="new-title">New video</h1>
+    <h1 id="new-title">Create a new video</h1>
+    <p class="sub">Turn a topic into a ready-to-post Global Feed video.</p>
 
-    <label class="field" for="topics"><span>Topics</span><small>One per line. Each line becomes a video.</small>
-      <textarea id="topics" class="topics" rows="4" placeholder="why sleep matters&#10;5 AI tools every student should know&#10;chai vs coffee"></textarea>
+    <label class="field" for="topics"><span>1. Topics</span>
+      <div class="ta">
+        <textarea id="topics" class="topics" rows="4" placeholder="why sleep matters&#10;5 AI tools every student should know&#10;chai vs coffee"></textarea>
+        <span class="count" id="count">0/10</span>
+      </div>
     </label>
-    <div class="row">
+    <div class="row" style="margin:-6px 0 16px">
       <button type="button" class="btn" id="suggest">Suggest topics</button>
-      <p class="hint" id="suggest-status">Uses what India is searching today.</p>
+      <button type="button" class="btn" id="trends">Make 5 from trends</button>
+      <p class="hint" id="suggest-status">One topic per line, up to 10. Suggestions use what India is searching today.</p>
+      <ul class="ideas" id="ideas"></ul>
+      <div class="preview" id="preview-box" hidden></div>
     </div>
-    <ul class="ideas" id="ideas"></ul>
 
-    <label class="field"><span>Community</span><select class="sel" name="community" id="community"></select></label>
-    <label class="field"><span>Language</span><select class="sel" name="language" id="language"></select></label>
-    <div class="field"><span>Length</span><div class="seg" id="durations"></div></div>
+    <div class="field"><span>2. Community</span><div class="tiles" id="community" role="radiogroup" aria-label="Community"></div></div>
+    <label class="field"><span>3. Language</span><div class="iconsel"><svg class="i"><use href="#i-globe"/></svg><select class="sel" name="language" id="language"></select></div></label>
+    <div class="field"><span>4. Length</span><div class="seg" id="durations" role="radiogroup" aria-label="Length"></div></div>
 
-    <button type="submit" class="primary" id="start" disabled>Make video</button>
-    <p class="hint after" id="intake-status"><kbd>Ctrl</kbd> <kbd>Enter</kbd> also starts it. About a minute per video.</p>
+    <div class="go"><button type="button" class="btn" id="preview" disabled>Preview script</button><button type="submit" class="primary" id="start" disabled><svg class="i fill"><use href="#i-play"/></svg><span id="start-label">Generate video</span></button></div>
+    <p class="after" id="intake-status"><span><svg class="i"><use href="#i-clock"/></svg>About a minute per video</span><span><kbd>Ctrl</kbd> <kbd>Enter</kbd> starts it</span></p>
   </form>
 
   <section class="videos">
-    <div class="sec" id="making-sec" hidden>
-      <div class="sec-head"><h2>In progress</h2><span id="making-count"></span></div>
-      <div id="making" aria-live="polite"></div>
+    <div class="head">
+      <div><h2>Your videos</h2><p class="sub">Watch, copy the post text and download when a video is ready.</p></div>
+      <label class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="search" placeholder="Search videos by topic" aria-label="Search videos"></label>
     </div>
-    <div class="sec" id="ready-sec" hidden>
-      <div class="sec-head"><h2>Ready to post</h2><span id="ready-count"></span></div>
-      <div id="ready"></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" role="tab" data-tab="all" aria-selected="true">All videos <span>0</span></button>
+      <button type="button" role="tab" data-tab="ready" aria-selected="false">Ready <span>0</span></button>
+      <button type="button" role="tab" data-tab="making" aria-selected="false">In progress <span>0</span></button>
+      <button type="button" role="tab" data-tab="failed" aria-selected="false">Failed <span>0</span></button>
     </div>
-    <div class="empty" id="empty"><b>No videos yet</b>Add a topic on the left and make one. It appears here while it is being made.</div>
+    <div id="list" aria-live="polite"></div>
+    <div class="empty" id="empty"><b>No videos yet</b>Add a topic on the left and generate one. It appears here while it is being made.</div>
+    <div class="empty" id="none" hidden><b>Nothing here</b>No videos match this filter.</div>
   </section>
 </main>
+
+<dialog id="player" aria-label="Video player">
+  <video controls playsinline></video>
+  <button type="button" class="x" id="player-close" aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button>
+  <p class="cap" id="player-cap"></p>
+</dialog>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
 const $ = s => document.querySelector(s);
 const STAGES = ["plan", "images", "voice", "visuals", "captions", "render"];
 const LABEL = {general: "General", tech: "Tech & AI", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun"};
-const posts = {};
-let timer = null, labels = {}, makingKey = "", readyKey = "";
+const ICON = {general: "globe", tech: "cpu", fitness: "dumbbell", motivation: "flame", finance: "rupee", hinglish_fun: "smile"};
+const VOICE = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"};
+const RTF = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
+const posts = {}, videos = {};
+let timer = null, labels = {}, listKey = "", tab = "all", q = "", allJobs = [];
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
 function lines() { return $("#topics").value.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 10); }
 function label(slug) { return labels[slug] || LABEL[slug] || slug; }
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function icon(name, cls = "i") { return `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`; }
+function community() { return new FormData($("#intake")).get("community") || "general"; }
+function duration() { return +new FormData($("#intake")).get("duration") || 30; }
+function ago(ts) {
+  const s = Date.now() / 1000 - ts;
+  for (const [unit, sec] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (s >= sec) return RTF.format(-Math.floor(s / sec), unit);
+  return "just now";
+}
+function mmss(sec) { sec = Math.round(sec); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }
 
 fetch("/presets").then(r => r.json()).then(p => {
   p.communities.forEach(x => labels[x.slug] = LABEL[x.slug] || x.label);
   p.languages.forEach(x => labels[x.slug] = x.label);
-  $("#community").innerHTML = p.communities.map(x => `<option value="${x.slug}" data-language="${x.language}">${esc(label(x.slug))}</option>`).join("");
+  $("#community").innerHTML = p.communities.map((x, i) => `<label class="tile"><input type="radio" name="community" value="${x.slug}" data-language="${x.language}"${i === 0 ? " checked" : ""}>${icon(ICON[x.slug] || "folder")}<span>${esc(label(x.slug))}</span></label>`).join("");
   $("#language").innerHTML = p.languages.map(x => `<option value="${x.slug}"${x.slug === "en" ? " selected" : ""}>${esc(x.label)}</option>`).join("");
   $("#durations").innerHTML = p.durations.map(d => `<label><input type="radio" name="duration" value="${d}"${d === 30 ? " checked" : ""}><span>${d} s</span></label>`).join("");
 });
 
 // a community with a non-English default (Hinglish Fun) switches the language; any change drops stale ideas
 $("#community").addEventListener("change", e => {
-  const l = e.target.selectedOptions[0].dataset.language;
+  const l = e.target.dataset.language;
   if (l && l !== "en") $("#language").value = l;
-  $("#ideas").innerHTML = "";
+  $("#ideas").innerHTML = ""; $("#preview-box").hidden = true;
 });
-$("#language").addEventListener("change", () => { $("#ideas").innerHTML = ""; });
+$("#language").addEventListener("change", () => { $("#ideas").innerHTML = ""; $("#preview-box").hidden = true; });
 
 $("#suggest").onclick = async () => {
   const b = $("#suggest"), st = $("#suggest-status");
   b.disabled = true; b.textContent = "Thinking…"; st.textContent = "";
   try {
-    const r = await fetch(`/suggest?community=${encodeURIComponent($("#community").value)}&language=${encodeURIComponent($("#language").value)}`);
+    const r = await fetch(`/suggest?community=${encodeURIComponent(community())}&language=${encodeURIComponent($("#language").value)}`);
     if (!r.ok) throw new Error(await r.text());
     const s = await r.json();
     $("#ideas").innerHTML = s.topics.map(t => `<li><span>${esc(t)}</span><button type="button" class="btn" data-idea="${esc(t)}">Add</button></li>`).join("");
@@ -204,29 +328,102 @@ $("#suggest").onclick = async () => {
   b.disabled = false; b.textContent = "Suggest topics";
 };
 
+// one click: today's trending searches -> five topics -> a batch with the current options
+$("#trends").onclick = async () => {
+  const b = $("#trends"), st = $("#suggest-status");
+  b.disabled = true; b.textContent = "Reading trends…"; st.textContent = "";
+  try {
+    const r = await fetch(`/suggest?community=${encodeURIComponent(community())}&language=${encodeURIComponent($("#language").value)}&trends_only=1`);
+    if (!r.ok) throw new Error(await r.text());
+    const topics = (await r.json()).topics.slice(0, 5);
+    const g = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({topics, community: community(), language: $("#language").value, duration: duration()})});
+    if (!g.ok) throw new Error(await g.text());
+    toast(`Generating ${topics.length} videos from today's trends`);
+    poll();
+  } catch (_) { st.textContent = "Trends are unavailable right now. Type a topic instead."; }
+  b.disabled = false; b.textContent = "Make 5 from trends";
+};
+
 $("#topics").addEventListener("input", () => {
-  const n = lines().length, b = $("#start");
-  b.disabled = n === 0;
-  b.textContent = n <= 1 ? "Make video" : `Make ${n} videos`;
+  const n = lines().length;
+  $("#start").disabled = n === 0;
+  $("#start-label").textContent = n <= 1 ? "Generate video" : `Generate ${n} videos`;
+  $("#count").textContent = `${n}/10`;
+  $("#preview").disabled = n !== 1;  // a script preview is for one topic at a time
+  $("#preview-box").hidden = true;
 });
+
+// script preview: the exact plan the pipeline would use, with the three scored hooks to pick from
+let previewPlan = null, previewTopic = "";
+$("#preview").onclick = async () => {
+  const topic = lines()[0];
+  if (!topic) return;
+  const b = $("#preview");
+  b.disabled = true; b.textContent = "Writing…";
+  try {
+    const r = await fetch("/plan", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({topic, community: community(), language: $("#language").value, duration: duration()})});
+    if (!r.ok) throw new Error(await r.text());
+    previewPlan = await r.json(); previewTopic = topic;
+    const hooks = (previewPlan.hooks || []).filter(h => h && h.text);
+    if (!hooks.some(h => h.text === previewPlan.hook)) hooks.unshift({text: previewPlan.hook});
+    $("#preview-box").innerHTML = `<h2>Script for “${esc(topic)}”</h2>
+      <p class="hint">Pick the opening line. The scenes below stay as written.</p>
+      <div class="hooks">${hooks.map(h => `<label><input type="radio" name="hook" value="${esc(h.text)}"${h.text === previewPlan.hook ? " checked" : ""}><span>${esc(h.text)}</span>${h.score ? `<small>${esc(h.score)}/10</small>` : ""}</label>`).join("")}</div>
+      <ol class="scenes">${previewPlan.scenes.map(sc => `<li><b>${esc(sc.title || "")}</b> ${esc(sc.narration)}</li>`).join("")}</ol>
+      <div class="actions" style="justify-content:flex-start"><button type="button" class="primary small" id="make-preview">Generate with this hook</button><button type="button" class="btn" id="close-preview">Close</button></div>`;
+    $("#preview-box").hidden = false;
+  } catch (_) { $("#suggest-status").textContent = "Could not write the script right now. Try again or just generate the video."; }
+  b.disabled = false; b.textContent = "Preview script";
+};
 $("#topics").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") $("#intake").requestSubmit(); });
 
 $("#intake").onsubmit = async e => {
   e.preventDefault();
   const topics = lines();
   if (!topics.length) return;
-  const fd = new FormData(e.target);
-  const body = {topics, community: fd.get("community") || "general", language: fd.get("language") || "en", duration: +fd.get("duration") || 30};
+  const body = {topics, community: community(), language: $("#language").value, duration: duration()};
   $("#start").disabled = true;
   const r = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
-  if (!r.ok) { $("#intake-status").textContent = "Could not start: " + (await r.text()); $("#start").disabled = false; return; }
-  toast(topics.length === 1 ? "Making 1 video" : `Making ${topics.length} videos`);
-  $("#topics").value = "";
-  $("#start").textContent = "Make video";
+  if (!r.ok) { $("#suggest-status").textContent = "Could not start: " + (await r.text()); $("#start").disabled = false; return; }
+  toast(topics.length === 1 ? "Generating 1 video" : `Generating ${topics.length} videos`);
+  $("#topics").value = ""; $("#topics").dispatchEvent(new Event("input"));
   poll();
 };
 
+// tabs and search only filter what is already loaded
+$("#tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tab]");
+  if (!b) return;
+  tab = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  render(allJobs);
+});
+$("#search").addEventListener("input", e => { q = e.target.value.trim().toLowerCase(); render(allJobs); });
+
+// player: one dialog for every card
+const player = $("#player"), pv = player.querySelector("video");
+player.addEventListener("close", () => { pv.pause(); pv.removeAttribute("src"); pv.load(); });
+player.addEventListener("click", e => { if (e.target === player) player.close(); });  // the backdrop is the dialog's own box
+$("#player-close").onclick = () => player.close();
+
 document.addEventListener("click", async e => {
+  document.querySelectorAll("details.menu[open]").forEach(d => { if (!d.contains(e.target)) d.removeAttribute("open"); });
+  if (e.target.id === "close-preview") { $("#preview-box").hidden = true; return; }
+  if (e.target.id === "make-preview" && previewPlan) {
+    const fd = new FormData($("#intake")), plan = structuredClone(previewPlan), hook = fd.get("hook") || plan.hook, s0 = plan.scenes[0];
+    s0.narration = s0.narration.startsWith(plan.hook) ? hook + s0.narration.slice(plan.hook.length) : `${hook} ${s0.narration}`;
+    plan.hook = hook;
+    e.target.disabled = true;
+    const r = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({topics: [previewTopic], community: community(), language: $("#language").value, duration: duration(), plan})});
+    if (!r.ok) { $("#suggest-status").textContent = "Could not start: " + (await r.text()); e.target.disabled = false; return; }
+    toast("Generating 1 video with your hook");
+    $("#preview-box").hidden = true; $("#topics").value = ""; $("#topics").dispatchEvent(new Event("input"));
+    poll();
+    return;
+  }
   const idea = e.target.closest("button[data-idea]");
   if (idea) {
     const cur = lines();
@@ -234,12 +431,28 @@ document.addEventListener("click", async e => {
     idea.disabled = true; idea.textContent = "Added";
     return;
   }
+  const play = e.target.closest("button[data-play]");
+  if (play) {
+    const v = videos[play.dataset.play];
+    pv.poster = v.thumb; pv.src = v.video; $("#player-cap").textContent = v.topic;
+    player.showModal(); pv.play().catch(() => {});
+    return;
+  }
   const copy = e.target.closest("button[data-copy]");
   if (copy) { await navigator.clipboard.writeText(posts[copy.dataset.copy]); toast("Post text copied"); return; }
+  const redo = e.target.closest("button[data-redo]");
+  if (redo) {
+    const n = +redo.dataset.scene; redo.disabled = true;
+    const r = await fetch(`/jobs/${redo.dataset.redo}/redo/${n}`, {method: "POST"});
+    toast(r.ok ? `Redoing scene ${n + 1}` : "Could not redo that scene");
+    redo.closest("details").removeAttribute("open");
+    poll();
+    return;
+  }
   const del = e.target.closest("button[data-del]");
   if (del) {
     if (!confirm(`Delete "${del.dataset.topic}"? The video and its post text are removed from the server.`)) return;
-    del.disabled = true; del.textContent = "Deleting";
+    del.disabled = true; del.textContent = "Deleting…";
     const r = await fetch(`/jobs/${del.dataset.del}`, {method: "DELETE"});
     if (!r.ok) { del.disabled = false; del.textContent = "Delete failed, try again"; return; }
     toast("Video deleted");
@@ -263,64 +476,80 @@ async function poll() {
   timer = setTimeout(poll, jobs.some(j => j.status === "queued" || j.status === "running") ? 2000 : 8000);
 }
 
-function opts(j) { return `${esc(label(j.community))}, ${esc(label(j.language))}, ${j.duration} s`; }
+function facts(j, extra = "") {
+  return `<ul class="facts"><li>${icon("folder")}${esc(label(j.community))}</li><li>${icon("globe")}${esc(label(j.language))}</li><li>${icon("clock")}${j.duration} s</li>${extra}</ul>`;
+}
 
-function makingItem(j) {
+function card(j) {
+  if (j.status === "done") return readyCard(j);
   const idx = STAGES.indexOf(j.stage);
   if (j.status === "failed") {
     const at = (j.error || "").split(":")[0] || "an unknown step", why = (j.error || "").split(":").slice(1).join(":").trim() || "Something went wrong.";
-    return `<article class="item"><div class="thumb"></div><div>
-      <h3>${esc(j.topic)}<span class="status failed">Failed</span></h3>
-      <p class="meta">${opts(j)}. Stopped at ${esc(at)}.</p>
+    return `<article class="card failed"><div class="thumb"><span class="stage">Stopped at ${esc(at)}</span></div><div class="body">
+      <span class="status failed">Failed</span>
+      <h3>${esc(j.topic)}</h3>
       <p class="err">${esc(why)}</p>
+      ${facts(j)}
+    </div><div class="side"><time>Started ${ago(j.created)}</time>
       <div class="actions"><button type="button" class="btn" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button></div>
     </div></article>`;
   }
   const running = j.status === "running", pct = running ? Math.round(((idx + 0.5) / STAGES.length) * 100) : 0;
-  return `<article class="item"><div class="thumb"><div class="fill" style="--fill:${pct}%"></div></div><div>
-    <h3>${esc(j.topic)}<span class="status ${running ? "making" : "queued"}">${running ? "Making" : "Queued"}</span></h3>
-    <p class="meta">${opts(j)}</p>
+  return `<article class="card"><div class="thumb"><div class="fillbar" style="--fill:${pct}%"></div><span class="stage">${running ? esc(cap(j.stage)) : "Queued"}</span></div><div class="body">
+    <span class="status ${running ? "making" : "queued"}">${running ? "Generating" : "Queued"}</span>
+    <h3>${esc(j.topic)}</h3>
     <div class="prog"><i style="--w:${pct}%"></i></div>
     <p class="step">${running ? `${cap(j.stage)}, step ${idx + 1} of ${STAGES.length}` : "Waiting for the previous video to finish"}</p>
-  </div></article>`;
+    ${facts(j)}
+  </div><div class="side"><time>Started ${ago(j.created)}</time></div></article>`;
 }
 
-function readyItem(j) {
-  const m = j.result;
+function readyCard(j) {
+  const m = j.result, v = m.updated || 0;
   posts[j.id] = `${m.hook}\n\n${m.caption}\n\n${m.hashtags.join(" ")}`;
-  const voice = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"}[m.scenes[0].voice] || m.scenes[0].voice;
-  return `<article class="item ready">
-    <div class="thumb"><video controls playsinline preload="metadata" poster="${m.thumb}" src="${m.video}"></video></div>
-    <div>
-      <h3>${esc(j.topic)}<span class="status ready">Ready</span></h3>
-      <p class="meta">${opts(j)}. ${Math.round(m.duration)} s of speech, made in ${Math.round(m.seconds_to_make)} s, ${esc(voice)} voice.</p>
-      <pre class="post">${esc(m.hook)}\n\n${esc(m.caption)}\n\n<span class="tags">${esc(m.hashtags.join(" "))}</span></pre>
+  videos[j.id] = {video: `${m.video}?v=${v}`, thumb: `${m.thumb}?v=${v}`, topic: j.topic};
+  const voice = VOICE[m.scenes[0].voice] || m.scenes[0].voice;
+  return `<article class="card">
+    <button type="button" class="thumb" data-play="${j.id}" aria-label="Play ${esc(j.topic)}"><img src="${m.thumb}?v=${v}" alt="">${icon("play", "i fill play")}<span class="dur">${mmss(m.duration)}</span></button>
+    <div class="body">
+      <span class="status ready">Ready</span>
+      <h3>${esc(j.topic)}</h3>
+      <p class="desc">${esc(m.hook)} ${esc(m.caption)}</p>
+      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>`)}
+      <div class="tags">${m.hashtags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+    </div>
+    <div class="side">
+      <time>Created ${ago(j.created)}</time>
       <div class="actions">
-        <button type="button" class="btn" data-copy="${j.id}">Copy post text</button>
-        <a class="btn" href="${m.video}" download="${esc(j.topic).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4">Download MP4</a>
-        <button type="button" class="danger" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete</button>
+        <button type="button" class="btn" data-copy="${j.id}">${icon("copy")}Copy text</button>
+        <a class="btn" href="${m.video}" download="${esc(j.topic).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4">${icon("download")}Download MP4</a>
+        <details class="menu"><summary class="btn icon" aria-label="More actions">${icon("more", "i fill")}</summary><div class="pop">
+          ${m.scenes.map((sc, i) => `<button type="button" data-redo="${j.id}" data-scene="${i}">Redo scene ${i + 1}: ${esc(sc.title || sc.query)}</button>`).join("")}
+          <hr><button type="button" class="del" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete video</button>
+        </div></details>
       </div>
     </div>
   </article>`;
 }
 
 function render(jobs) {
-  const making = jobs.filter(j => j.status !== "done").sort((a, b) => a.created - b.created);  // the line runs oldest first
-  const ready = jobs.filter(j => j.status === "done");
-  const live = making.filter(j => j.status !== "failed").length;
-  $("#tally").innerHTML = `<i class="dot${live ? " on" : ""}" aria-hidden="true"></i>${live ? `${live} in progress` : "Idle"}${ready.length ? `, ${ready.length} ready` : ""}`;
+  allJobs = jobs;
+  const making = jobs.filter(j => j.status === "queued" || j.status === "running").sort((a, b) => a.created - b.created);  // the line runs oldest first
+  const failed = jobs.filter(j => j.status === "failed").sort((a, b) => b.created - a.created);
+  const ready = jobs.filter(j => j.status === "done").sort((a, b) => b.created - a.created);
+  const counts = {all: jobs.length, ready: ready.length, making: making.length, failed: failed.length};
+  document.querySelectorAll("#tabs button").forEach(b => b.querySelector("span").textContent = counts[b.dataset.tab]);
+  $("#tally").innerHTML = `<i class="dot${making.length ? " on" : ""}" aria-hidden="true"></i><span>${making.length ? `${making.length} generating` : "Idle"}${ready.length ? `, ${ready.length} ready` : ""}</span>`;
+
+  let list = {all: [...making, ...failed, ...ready], making, failed, ready}[tab];
+  if (q) list = list.filter(j => j.topic.toLowerCase().includes(q));
   $("#empty").hidden = jobs.length > 0;
+  $("#none").hidden = !(jobs.length && !list.length);
 
-  // repaint a section only when it changed: a repaint restarts transitions and any playing video
-  const mk = JSON.stringify(making.map(j => [j.id, j.status, j.stage, j.error]));
-  $("#making-sec").hidden = making.length === 0;
-  if (mk !== makingKey) { $("#making").innerHTML = making.map(makingItem).join(""); $("#making-count").textContent = making.length; }
-  makingKey = mk;
-
-  const rk = ready.map(j => j.id).join();
-  $("#ready-sec").hidden = ready.length === 0;
-  if (rk !== readyKey) { $("#ready").innerHTML = ready.map(readyItem).join(""); $("#ready-count").textContent = ready.length; }
-  readyKey = rk;
+  // repaint only when something visible changed: a repaint restarts transitions and closes an open menu
+  const key = JSON.stringify([tab, q, Math.floor(Date.now() / 60000), list.map(j => [j.id, j.status, j.stage, j.error, j.result && j.result.updated])]);
+  if (key !== listKey) $("#list").innerHTML = list.map(card).join("");
+  listKey = key;
 }
 poll();
 </script>

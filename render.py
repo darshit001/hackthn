@@ -30,6 +30,16 @@ def _run(cmd, cwd=None):
         raise RuntimeError(f"ffmpeg exit {r.returncode}: {r.stderr.strip()[-400:]}")
 
 
+def duration(path):
+    """Seconds of media at path, via ffprobe."""
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+                         check=True, capture_output=True, text=True).stdout
+    return float(out.strip())
+
+
+MUSIC_GAIN = 0.22  # bed level before ducking; sidechaincompress pulls it down a further ~18 dB under speech
+
+
 def ass_time(sec):
     cs = int(round(sec * 100))
     h, rem = divmod(cs, 360000)
@@ -132,8 +142,9 @@ def _scene_video(src, sec, dst, cwd):
           "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", dst], cwd=cwd)
 
 
-def compose(scene_clips, voice_wav, ass, job_dir, out_id):
-    """scene_clips: [(clip path or None, seconds)] in order. Writes <job_dir>/<out_id>.mp4 and .jpg. Returns (mp4, jpg)."""
+def compose(scene_clips, voice_wav, ass, job_dir, out_id, music=None):
+    """scene_clips: [(clip path or None, seconds)] in order. music: optional track path, looped under the voice and
+    ducked while it speaks. Writes <job_dir>/<out_id>.mp4 and .jpg. Returns (mp4, jpg)."""
     job_dir = Path(job_dir)
     parts = []
     for i, (clip, sec) in enumerate(scene_clips):
@@ -147,12 +158,21 @@ def compose(scene_clips, voice_wav, ass, job_dir, out_id):
     parts.append("outro.mp4")
     (job_dir / "concat.txt").write_text("".join(f"file '{p}'\n" for p in parts))
     mp4, jpg = job_dir / f"{out_id}.mp4", job_dir / f"{out_id}.jpg"
-    _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-i", str(Path(voice_wav).resolve()),
-          "-vf", f"subtitles={Path(ass).name}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
-          # -shortest makes ffmpeg 7 queue raw frames to line streams up, default 10 s (~930 MB at 1080x1920,
-          # the Railway OOM kill); voice and scenes are cut to the same length, so 1 s gives identical output
-          "-c:a", "aac", "-b:a", "128k", "-shortest", "-shortest_buf_duration", "1", "-movflags", "+faststart",
-          mp4.name], cwd=job_dir)
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-i", str(Path(voice_wav).resolve())]
+    if music:
+        # audio only, so no frame memory: music looped, faded out at the end, compressed with the voice as sidechain, mixed
+        total = duration(voice_wav)
+        cmd += ["-stream_loop", "-1", "-i", str(Path(music).resolve()), "-filter_complex",
+                f"[2:a]volume={MUSIC_GAIN},afade=t=out:st={max(0.0, total - 1.5):.2f}:d=1.5[m];"
+                "[1:a]asplit=2[v1][v2];"
+                "[m][v2]sidechaincompress=threshold=0.02:ratio=8:attack=20:release=400[md];"
+                "[v1][md]amix=inputs=2:duration=first:normalize=0[a]",
+                "-map", "0:v", "-map", "[a]"]
+    cmd += ["-vf", f"subtitles={Path(ass).name}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+            # -shortest makes ffmpeg 7 queue raw frames to line streams up, default 10 s (~930 MB at 1080x1920,
+            # the Railway OOM kill); voice and scenes are cut to the same length, so 1 s gives identical output
+            "-c:a", "aac", "-b:a", "128k", "-shortest", "-shortest_buf_duration", "1", "-movflags", "+faststart", mp4.name]
+    _run(cmd, cwd=job_dir)
     _run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1", "-i", mp4.name, "-frames:v", "1", "-q:v", "3", jpg.name], cwd=job_dir)
     return mp4, jpg
 
@@ -167,7 +187,8 @@ if __name__ == "__main__":
                 (4.0, 4.0 + OUTRO_SEC, OUTRO, "Outro")]
     ass = subtitles(words, "general", d / "captions.ass", overlays)
     _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{4 + OUTRO_SEC}", "-c:a", "pcm_s16le", "voice.wav"], cwd=d)
-    mp4, jpg = compose([(None, 2.0), (None, 2.0)], d / "voice.wav", ass, d, "sample")
+    track = Path("assets/music/Wallpaper.mp3")
+    mp4, jpg = compose([(None, 2.0), (None, 2.0)], d / "voice.wav", ass, d, "sample", music=track if track.exists() else None)
     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height", "-of", "csv=p=0", mp4],
                            capture_output=True, text=True, check=True).stdout
     print(probe.strip())

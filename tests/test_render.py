@@ -86,3 +86,16 @@ def test_compose_appends_end_card(monkeypatch, tmp_path):
     assert (tmp_path / "concat.txt").read_text() == "file 'scene0.mp4'\nfile 'scene1.mp4'\nfile 'outro.mp4'\n"
     outro = next(c for c in cmds if c[-1] == str(tmp_path / "outro.mp4"))
     assert f"d={OUTRO_SEC:.3f}" in " ".join(outro)
+
+
+def test_compose_mixes_music_under_the_voice(monkeypatch, tmp_path):
+    import render
+    cmds = []
+    monkeypatch.setattr(render, "_run", lambda cmd, cwd=None: cmds.append(cmd))
+    monkeypatch.setattr(render, "duration", lambda p: 20.0)
+    render.compose([(None, 1.0)], tmp_path / "voice.wav", tmp_path / "captions.ass", tmp_path, "x", music=tmp_path / "bed.mp3")
+    final = next(c for c in cmds if "-shortest" in c)
+    fc = final[final.index("-filter_complex") + 1]
+    assert "sidechaincompress" in fc and "amix=inputs=2:duration=first:normalize=0" in fc and "afade=t=out:st=18.50" in fc
+    assert final[final.index("-map") + 1] == "0:v" and "-vf" in final  # video untouched by the audio graph
+    assert "-stream_loop" in final

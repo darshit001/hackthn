@@ -3,7 +3,8 @@ voice_eleven ids are ElevenLabs premade voices usable on the free API (Sarah, Ge
 eleven_flash_v2_5 is multilingual, so the same voice speaks Hindi. gender picks the edge-tts voice from LANGUAGES.
 language on a community is only the default language chip in the UI. accent is RRGGBB for the highlighted caption word.
 wps = effective spoken words per second for the edge-tts voices at media.EDGE_RATE, including the pause each scene adds
-(measured 2 Oct 2026); it sizes the script for a target length. ElevenLabs speaks ~15% faster, so its videos run a little short."""
+(measured 2 Oct 2026); it sizes the script for a target length. ElevenLabs speaks ~15% faster, so its videos run a little short.
+mood picks the background track from MUSIC (Kevin MacLeod, incompetech.com, CC BY 4.0; credited in the job JSON and README)."""
 
 DURATIONS = [15, 30, 45, 60]
 
@@ -23,7 +24,20 @@ LANGUAGES = {
         instruction="Hinglish written in Roman script (a natural mix of Hindi and English, the way young Indians text)",
         voice_edge={"f": "en-IN-NeerjaNeural", "m": "en-IN-PrabhatNeural"},
     ),
+    "gu": dict(
+        label="ગુજરાતી", whisper="gu", wps=1.7,
+        instruction="Gujarati in Gujarati script, simple everyday spoken Gujarati; write every number as Gujarati words",
+        voice_edge={"f": "gu-IN-DhwaniNeural", "m": "gu-IN-NiranjanNeural"},
+    ),
 }
+
+MUSIC = {  # mood -> (file under assets/music, track title)
+    "upbeat": ("Carefree.mp3", "Carefree"),
+    "calm": ("Wallpaper.mp3", "Wallpaper"),
+    "electronic": ("Electrodoodle.mp3", "Electrodoodle"),
+    "inspiring": ("Inspired.mp3", "Inspired"),
+}
+MUSIC_CREDIT = "Kevin MacLeod (incompetech.com), CC BY 4.0"
 
 COMMUNITIES = {
     "general": dict(
@@ -35,6 +49,7 @@ COMMUNITIES = {
         voice_eleven="EXAVITQu4vr4xnSDxMaL",  # Sarah
         voice_gemini="Kore",
         gender="f",
+        mood="calm",
         accent="FFE500",
     ),
     "tech": dict(
@@ -46,6 +61,7 @@ COMMUNITIES = {
         voice_eleven="JBFqnCBsd6RMkjVDRZzb",  # George
         voice_gemini="Charon",
         gender="m",
+        mood="electronic",
         accent="00E5FF",
     ),
     "fitness": dict(
@@ -57,6 +73,7 @@ COMMUNITIES = {
         voice_eleven="nPczCjzI2devNBz1zQrb",  # Brian
         voice_gemini="Puck",
         gender="m",
+        mood="electronic",
         accent="39FF14",
     ),
     "motivation": dict(
@@ -68,6 +85,7 @@ COMMUNITIES = {
         voice_eleven="EXAVITQu4vr4xnSDxMaL",  # Sarah
         voice_gemini="Kore",
         gender="f",
+        mood="inspiring",
         accent="FFB300",
     ),
     "finance": dict(
@@ -79,6 +97,7 @@ COMMUNITIES = {
         voice_eleven="JBFqnCBsd6RMkjVDRZzb",  # George
         voice_gemini="Charon",
         gender="m",
+        mood="calm",
         accent="00FF9C",
     ),
     "hinglish_fun": dict(
@@ -90,6 +109,7 @@ COMMUNITIES = {
         voice_eleven="nPczCjzI2devNBz1zQrb",  # Brian
         voice_gemini="Kore",
         gender="m",
+        mood="upbeat",
         accent="FF2D95",
     ),
 }

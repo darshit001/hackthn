@@ -8,7 +8,6 @@ import asyncio
 import base64
 import os
 import re
-import subprocess
 import sys
 import time
 import urllib.parse
@@ -18,16 +17,10 @@ import httpx
 from dotenv import load_dotenv
 
 from presets import COMMUNITIES, LANGUAGES
-from render import H, W, _run
+from render import H, W, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
 
 load_dotenv()
 UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}  # Wikimedia refuses generic agents
-
-
-def duration(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-                         check=True, capture_output=True, text=True).stdout
-    return float(out.strip())
 
 
 def _normalize(src, dst):
@@ -87,12 +80,18 @@ def tts(text, community, out_wav, language="en"):
     errors = []
     for name, fn in TTS_CHAIN:
         tmp = out_wav.with_suffix(f".{name}.raw")
-        try:
-            fn(text, preset, tmp)
-            _normalize(tmp, out_wav)
-            return name
-        except Exception as e:  # ponytail: any failure -> next engine; the job json records which engine spoke
-            errors.append(f"{name}: {str(e)[:160]}")
+        for attempt in range(2):  # one retry per engine: edge-tts drops a request now and then, and a fallback engine means a second voice mid-video
+            try:
+                fn(text, preset, tmp)
+                _normalize(tmp, out_wav)
+                return name
+            except Exception as e:  # the job json records which engine spoke
+                msg = " ".join(str(e).split())[:160]
+                errors.append(f"{name}: {msg}")
+                print(f"tts[{name}] try {attempt + 1}: {type(e).__name__}: {msg}", file=sys.stderr)
+                if re.search(r"\b4\d\d\b|no ELEVENLABS", msg):
+                    break  # auth/quota: retrying the same engine will not help
+                time.sleep(1)
     raise RuntimeError("all TTS engines failed: " + " | ".join(errors))
 
 
