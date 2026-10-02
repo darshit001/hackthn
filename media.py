@@ -67,9 +67,12 @@ def _tts_gemini(text, preset, tmp):
         _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", str(raw), "-f", "wav", str(tmp)])
 
 
+EDGE_RATE = "+12%"  # edge voices read a touch slow for shorts; measured pace lives in presets.LANGUAGES[lang]["wps"]
+
+
 def _tts_edge(text, preset, tmp):
     import edge_tts
-    asyncio.run(edge_tts.Communicate(text, preset["voice_edge"]).save(str(tmp)))
+    asyncio.run(edge_tts.Communicate(text, preset["voice_edge"], rate=EDGE_RATE).save(str(tmp)))
 
 
 # ponytail: Gemini TTS free tier is a handful of requests/day, so unlimited edge-tts goes before it
@@ -137,7 +140,8 @@ def _pixabay(query, min_sec):
 
 HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
 IMAGE_SUFFIX = ". Vertical 9:16 composition, photographic, cinematic soft light, no text, no watermark, no logo"
-_image_down = set()  # ponytail: a provider that answers 401/402/403/429 is skipped for the rest of the process
+_image_down = {}  # provider -> time it answered 401/402/403; skipped for DOWN_FOR seconds, not for the whole demo day
+DOWN_FOR = 600
 
 
 def _img_pollinations(prompt, out_png):
@@ -171,17 +175,18 @@ def gen_image(prompt, out_png):
     a second time after a pause: most failures seen are transient 500s. Returns a credit line, or None. Never raises."""
     for attempt in range(2):
         for name, fn in IMAGE_CHAIN:
-            if name in _image_down:
+            if time.time() - _image_down.get(name, 0) < DOWN_FOR:
                 continue
             try:
                 return fn(prompt + IMAGE_SUFFIX, out_png)
             except Exception as e:
                 msg = " ".join(str(e).split())
-                if any(code in msg for code in ("401", "402", "403", "429", "no POLLINATIONS", "no HF_TOKEN")):
-                    _image_down.add(name)
+                # auth/quota trouble: rest the provider; a 429 from parallel scenes is left for the second pass
+                if any(code in msg for code in ("401", "402", "403", "no POLLINATIONS", "no HF_TOKEN")):
+                    _image_down[name] = time.time()
                 print(f"image[{name}] try {attempt + 1} {prompt[:40]!r}: {type(e).__name__}: {msg[:140]}", file=sys.stderr)
-        if len(_image_down) == len(IMAGE_CHAIN):
-            break  # every provider is out for this process; no point pausing
+        if all(time.time() - _image_down.get(n, 0) < DOWN_FOR for n, _ in IMAGE_CHAIN):
+            break  # every provider is resting; no point pausing
         time.sleep(2)
     return None
 

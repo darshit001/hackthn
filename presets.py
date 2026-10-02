@@ -1,23 +1,25 @@
 """Community presets and language table. Adding a community or a language = adding one dict entry.
 voice_eleven ids are ElevenLabs premade voices usable on the free API (Sarah, George, Brian verified 29 Sep 2026);
 eleven_flash_v2_5 is multilingual, so the same voice speaks Hindi. gender picks the edge-tts voice from LANGUAGES.
-language on a community is only the default language chip in the UI. accent is RRGGBB for the highlighted caption word."""
+language on a community is only the default language chip in the UI. accent is RRGGBB for the highlighted caption word.
+wps = effective spoken words per second for the edge-tts voices at media.EDGE_RATE, including the pause each scene adds
+(measured 2 Oct 2026); it sizes the script for a target length. ElevenLabs speaks ~15% faster, so its videos run a little short."""
 
 DURATIONS = [15, 30, 45, 60]
 
 LANGUAGES = {
     "en": dict(
-        label="English", whisper="en",
+        label="English", whisper="en", wps=2.4,
         instruction="English",
         voice_edge={"f": "en-IN-NeerjaNeural", "m": "en-IN-PrabhatNeural"},
     ),
     "hi": dict(
-        label="हिन्दी", whisper="hi",
+        label="हिन्दी", whisper="hi", wps=2.1,
         instruction="Hindi in Devanagari script, simple everyday spoken Hindi; write every number as Hindi words",
         voice_edge={"f": "hi-IN-SwaraNeural", "m": "hi-IN-MadhurNeural"},
     ),
     "hinglish": dict(
-        label="Hinglish", whisper="hi",
+        label="Hinglish", whisper="hi", wps=2.2,
         instruction="Hinglish written in Roman script (a natural mix of Hindi and English, the way young Indians text)",
         voice_edge={"f": "en-IN-NeerjaNeural", "m": "en-IN-PrabhatNeural"},
     ),

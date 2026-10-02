@@ -52,11 +52,11 @@ Rules:
 - Write every topic in the requested language."""
 
 
-def budget(duration):
+def budget(duration, wps=2.4):
     """(scenes_lo, scenes_hi, words_lo, words_hi) for a target spoken length in seconds. Pure; unit-tested.
-    About 7 s per scene and 2.4 spoken words per second; every window keeps scenes under the 25-word cap."""
+    About 7 s per scene and `wps` spoken words per second (per language in presets); every window keeps scenes under the 25-word cap."""
     n = math.ceil(duration / 7)
-    return max(3, n - 1), min(9, n + 1), round(duration * 2.4 * 0.85), round(duration * 2.4 * 1.15)
+    return max(3, n - 1), min(9, n + 1), round(duration * wps * 0.85), round(duration * wps * 1.15)
 
 
 def _user_prompt(topic, preset, lang):
@@ -166,7 +166,7 @@ def _ask(base, validate, temperature=0.8):
 
 def plan(topic, community="general", language="en", duration=30):
     preset, lang = COMMUNITIES[community], LANGUAGES[language]
-    lo, hi, wlo, whi = budget(duration)
+    lo, hi, wlo, whi = budget(duration, lang["wps"])
     system = SYSTEM.format(duration=duration, scenes_lo=lo, scenes_hi=hi, words_lo=wlo, words_hi=whi)
     base = [{"role": "system", "content": system}, {"role": "user", "content": _user_prompt(topic, preset, lang)}]
     p = _ask(base, lambda q: validate_plan(q, (lo, hi)))
@@ -199,8 +199,9 @@ def trends():
 
 def _suggest_prompt(preset, lang, trend_titles):
     tr = "\n".join(f"- {t}" for t in trend_titles) or "(none available right now)"
-    return (f"Community: {preset['label']}\nTone: {preset['tone']}\nLanguage: {lang['instruction']}\n"
-            f"Trending searches in India right now:\n{tr}\nReturn the JSON now.")
+    return (f"Community: {preset['label']}\nTone: {preset['tone']}\n"
+            f"Trending searches in India right now:\n{tr}\n"
+            f"Language: write every topic in {lang['instruction']}. This is mandatory.\nReturn the JSON now.")
 
 
 def suggest(community="general", language="en"):
@@ -224,5 +225,5 @@ if __name__ == "__main__":
     out = plan(topic, community, language, duration)
     print(json.dumps(out, indent=2, ensure_ascii=False))
     words = sum(len(s["narration"].split()) for s in out["scenes"])
-    lo, hi, wlo, whi = budget(duration)
+    lo, hi, wlo, whi = budget(duration, LANGUAGES[language]["wps"])
     print(f"\n{len(out['scenes'])} scenes (want {lo}-{hi}), {words} words (want {wlo}-{whi}), model={out['model']}")

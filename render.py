@@ -100,7 +100,7 @@ def subtitles(words, community, out_ass, overlays=()):
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 0", "",
         "[V4+ Styles]", fmt,
         f"Style: Cap,{FONT},88,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,5,2,2,60,60,{int(H * 0.32)},1",
-        f"Style: Hook,{FONT},72,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.18)},1",
+        f"Style: Hook,{FONT},84,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.18)},1",
         f"Style: Title,{FONT},96,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.30)},1",
         f"Style: Outro,{FONT},64,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,5,80,80,0,1",
         "",
