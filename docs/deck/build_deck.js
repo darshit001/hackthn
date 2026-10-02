@@ -3,11 +3,10 @@
 const pptxgen = require("pptxgenjs");
 const path = require("path");
 
-const TEAM = process.env.TEAM || "[Team Name]";
-const TEAM_ID = process.env.TEAM_ID || "[Team ID]";
-const COLLEGE = process.env.COLLEGE || "[College Name]";
-const GITHUB = process.env.GITHUB_URL || "github.com/<user>/qoneqt-video-factory";
-const LIVE = process.env.LIVE_URL || "huggingface.co/spaces/<user>/qoneqt-video-factory";
+const TEAM = process.env.TEAM || "ProCoders";
+const TEAM_ID = process.env.TEAM_ID || "";
+const COLLEGE = process.env.COLLEGE || "LJ University";
+const LIVE = process.env.LIVE_URL || "https://qoneqt-video-factory.up.railway.app/";
 
 const BG = "0B0416", CARD = "160A2B", CARD2 = "1E0F3A", LINE = "2D1B4E", TXT = "F3EEFC", MUT = "A89CC4",
   ACC = "8B5CF6", ACC2 = "C4B5FD", YEL = "FFE500", WHITE = "FFFFFF";
@@ -68,7 +67,7 @@ function arrow(s, x, y, w) {
   body(s, 0.6, 2.55, 5.4, 0.6, "Theme: Build an LLM-Powered Content Pipeline for Qoneqt. A repeatable system that turns a topic into a publish-ready, captioned vertical video for the Qoneqt Global Feed.", 12.5, TXT);
   card(s, 0.6, 3.45, 5.2, 1.35);
   s.addText("TEAM", { x: 0.85, y: 3.6, w: 2, h: 0.25, fontFace: FONT, fontSize: 9.5, color: MUT, bold: true, charSpacing: 2, margin: 0, isTextBox: true });
-  s.addText(`${TEAM}  ·  ${TEAM_ID}`, { x: 0.85, y: 3.85, w: 4.8, h: 0.4, fontFace: FONT, fontSize: 16, bold: true, color: TEAM.startsWith("[") ? YEL : WHITE, margin: 0, isTextBox: true });
+  s.addText(TEAM_ID ? `${TEAM}  ·  ${TEAM_ID}` : TEAM, { x: 0.85, y: 3.85, w: 4.8, h: 0.4, fontFace: FONT, fontSize: 16, bold: true, color: TEAM.startsWith("[") ? YEL : WHITE, margin: 0, isTextBox: true });
   s.addText("COLLEGE", { x: 0.85, y: 4.25, w: 2, h: 0.25, fontFace: FONT, fontSize: 9.5, color: MUT, bold: true, charSpacing: 2, margin: 0, isTextBox: true });
   s.addText(COLLEGE, { x: 0.85, y: 4.48, w: 4.8, h: 0.32, fontFace: FONT, fontSize: 13, color: COLLEGE.startsWith("[") ? YEL : TXT, margin: 0, isTextBox: true });
   // three generated shorts, staggered like a feed
@@ -162,7 +161,7 @@ function arrow(s, x, y, w) {
     ["Frontend", "One static HTML page. Textarea for topics (one per line), community dropdown, live stage progress, inline player, Copy post text, Download."],
     ["Backend", "FastAPI. POST /generate, GET /jobs, static /out. In-memory job dict, one worker thread, files per job in out/<id>/."],
     ["AI layer", "LLM for plan JSON (validated, guided retry). TTS per scene. Photo or clip search per scene. Whisper word timings aligned to script words."],
-    ["Data + deploy", "Outputs as files (mp4, jpg, json). Docker image with ffmpeg and Noto fonts. Deployed on a free Hugging Face Space, keys as secrets."],
+    ["Data + deploy", "Outputs as files (mp4, jpg, json). Docker image with ffmpeg and Noto fonts. Deployed on Railway, keys as secrets."],
   ];
   comps.forEach(([h1, t], i) => {
     const x = 0.5 + i * 2.28;
@@ -170,7 +169,7 @@ function arrow(s, x, y, w) {
     head(s, x + 0.15, 3.1, 1.9, h1, 13);
     body(s, x + 0.15, 3.42, 1.9, 1.1, t, 9.5);
   });
-  s.addText([{ text: "Stack  ", options: { bold: true, color: ACC2 } }, { text: "Python 3.11 · FastAPI · httpx · ffmpeg · Docker · Groq (gpt-oss-120b, Whisper large-v3-turbo) · Pollinations FLUX · Hugging Face Spaces · ElevenLabs · edge-tts · Wikimedia Commons" }],
+  s.addText([{ text: "Stack  ", options: { bold: true, color: ACC2 } }, { text: "Python 3.11 · FastAPI · httpx · ffmpeg · Docker · Groq (gpt-oss-120b, Whisper large-v3-turbo) · Pollinations FLUX · Railway · ElevenLabs · edge-tts · Wikimedia Commons" }],
     { x: 0.5, y: 4.7, w: 9, h: 0.45, fontFace: FONT, fontSize: 10.5, color: TXT, margin: 0, isTextBox: true });
   s.addNotes("Five-stage pipeline with fallbacks. Frontend, backend, AI layer, data and deploy components. Stack line at the bottom.");
 }
@@ -222,8 +221,8 @@ function arrow(s, x, y, w) {
   bullets(s, 5.3, 3.17, 4.05, 1.8, [
     "One free CPU: ~40–60 videos/hour per worker; scale by adding workers",
     "Free tiers: Groq LLM + Whisper, ElevenLabs (edge-tts fallback), Wikimedia visuals",
-    "One Docker container on a free Hugging Face Space; keys stay secret",
-    "Working end to end today; live URL and Global Feed post by the finale",
+    "One Docker container on Railway; keys stay secret",
+    "Working end to end today and live on a public URL",
   ], 10.5);
   s.addNotes("Impact for creators, admins, and Qoneqt. Feasibility: measured timings, free-tier limits, one-container deploy.");
 }
@@ -234,17 +233,28 @@ function arrow(s, x, y, w) {
   s.addImage({ path: IMG("ui-top.png"), x: 0.5, y: 1.3, w: 3.3, h: 3.3 * 1120 / 994 });
   const rx = 4.4, rw = 5.1;
   head(s, rx, 1.3, rw, "What the prototype does today");
-  bullets(s, rx, 1.65, rw, 1.25, [
-    "Batch of three topics queued from the page; each ran plan → images → voice → visuals → captions → render with live progress",
-    "34-second videos produced in about 55 seconds each, ElevenLabs voice, word-pop captions, post text ready to copy",
-    "Hinglish preset verified on the fallback voice; every stage's fallback exercised",
-  ], 10.5);
-  card(s, rx, 2.95, rw, 0.95, CARD2);
-  s.addText([{ text: "GitHub  ", options: { bold: true, color: ACC2 } }, { text: GITHUB, options: { color: GITHUB.includes("<") ? YEL : TXT } }, { text: "\nLive demo  ", options: { bold: true, color: ACC2 } }, { text: LIVE, options: { color: LIVE.includes("<") ? YEL : TXT } }],
-    { x: rx + 0.15, y: 3.02, w: rw - 0.3, h: 0.8, fontFace: FONT, fontSize: 10.5, margin: 0, valign: "middle", isTextBox: true });
+  bullets(s, rx, 1.62, rw, 0.85, [
+    "Batch of topics queued from the page; each runs plan → images → voice → visuals → captions → render with live progress",
+    "34-second videos in about 55 seconds each, word-pop captions, post text ready to copy",
+  ], 9.5);
+  // try-it guide + clickable live demo button
+  card(s, rx, 2.45, rw, 1.35, CARD2);
+  head(s, rx + 0.15, 2.52, rw - 0.3, "Try the live demo in 3 steps", 12);
+  [["Write a prompt", "e.g. “AI use cases in daily life” (one topic per line)"],
+   ["Select a category", "pick a community: Tech, Fitness, Hinglish Fun…"],
+   ["Press Start", "watch the stages run; the video is ready in ~1 min"]].forEach(([h1, t], i) => {
+    const y = 2.86 + i * 0.3;
+    num(s, rx + 0.15, y, i + 1, 0.24);
+    s.addText([{ text: h1 + "  ", options: { bold: true, color: WHITE } }, { text: t, options: { color: MUT } }],
+      { x: rx + 0.48, y, w: rw - 0.6, h: 0.24, fontFace: FONT, fontSize: 9.5, valign: "middle", margin: 0, isTextBox: true });
+  });
+  s.addText([{ text: "▶  Open Live Demo", options: { hyperlink: { url: LIVE, tooltip: LIVE } } }],
+    { shape: pres.shapes.ROUNDED_RECTANGLE, x: rx, y: 3.95, w: 2.0, h: 0.4, rectRadius: 0.08, fill: { color: YEL }, line: { color: YEL, width: 0 },
+      fontFace: FONT, fontSize: 12, bold: true, color: BG, align: "center", valign: "middle", margin: 0 });
+  s.addText([{ text: LIVE.replace(/^https?:\/\//, "").replace(/\/$/, ""), options: { color: ACC2, hyperlink: { url: LIVE } } }],
+    { x: rx + 2.15, y: 3.92, w: rw - 2.15, h: 0.46, fontFace: FONT, fontSize: 9, margin: 0, valign: "middle", isTextBox: true });
   s.addText("Qoneqt doesn't need one AI video. It needs a factory. We built the factory.",
-    { x: rx, y: 3.98, w: rw, h: 0.55, fontFace: FONT, fontSize: 15, bold: true, color: WHITE, italic: true, margin: 0, isTextBox: true });
-  body(s, rx, 4.58, rw, 0.55, "Why select this: it already ships, costs nothing to run, speaks each community's language, and is built on Qoneqt's real content format, not a concept.", 10, TXT);
+    { x: rx, y: 4.5, w: rw, h: 0.55, fontFace: FONT, fontSize: 12.5, bold: true, color: WHITE, italic: true, margin: 0, isTextBox: true });
   s.addNotes("Live screenshot from tonight on the left. Links, one-line conclusion, and the selection case on the right.");
 }
 
