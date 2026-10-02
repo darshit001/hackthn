@@ -166,7 +166,35 @@ def _img_hf(prompt, out_png):
     return f"AI image, {HF_IMAGE_MODEL} via Hugging Face"
 
 
-IMAGE_CHAIN = [("pollinations", _img_pollinations), ("huggingface", _img_hf)]
+def _img_together(prompt, out_png):
+    """Together AI's free FLUX.1-schnell tier (rate limited, no card). Untested here: no key on this machine."""
+    key = os.environ.get("TOGETHER_API_KEY")
+    if not key:
+        raise RuntimeError("no TOGETHER_API_KEY")
+    r = httpx.post("https://api.together.xyz/v1/images/generations", timeout=120,
+                   headers={"Authorization": f"Bearer {key}"},
+                   json={"model": "black-forest-labs/FLUX.1-schnell-Free", "prompt": prompt, "width": 720, "height": 1280,
+                         "steps": 4, "n": 1, "response_format": "b64_json"})
+    r.raise_for_status()
+    Path(out_png).write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
+    return "AI image, FLUX.1-schnell via Together AI"
+
+
+def _img_cloudflare(prompt, out_png):
+    """Cloudflare Workers AI FLUX.1-schnell (free daily allowance). Square output; the Ken Burns crop makes it 9:16.
+    Untested here: no account on this machine."""
+    acct, token = os.environ.get("CF_ACCOUNT_ID"), os.environ.get("CF_API_TOKEN")
+    if not (acct and token):
+        raise RuntimeError("no CF_ACCOUNT_ID/CF_API_TOKEN")
+    r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell",
+                   timeout=120, headers={"Authorization": f"Bearer {token}"}, json={"prompt": prompt, "steps": 4})
+    r.raise_for_status()
+    Path(out_png).write_bytes(base64.b64decode(r.json()["result"]["image"]))
+    return "AI image, FLUX.1-schnell via Cloudflare Workers AI"
+
+
+# ponytail: order = quality then quota. Pollinations 402s once its free credits run out, so two more keyed free tiers sit before HF.
+IMAGE_CHAIN = [("pollinations", _img_pollinations), ("together", _img_together), ("cloudflare", _img_cloudflare), ("huggingface", _img_hf)]
 
 
 def gen_image(prompt, out_png):
@@ -181,7 +209,7 @@ def gen_image(prompt, out_png):
             except Exception as e:
                 msg = " ".join(str(e).split())
                 # auth/quota trouble: rest the provider; a 429 from parallel scenes is left for the second pass
-                if any(code in msg for code in ("401", "402", "403", "no POLLINATIONS", "no HF_TOKEN")):
+                if any(code in msg for code in ("401", "402", "403", "no POLLINATIONS", "no HF_TOKEN", "no TOGETHER", "no CF_")):
                     _image_down[name] = time.time()
                 print(f"image[{name}] try {attempt + 1} {prompt[:40]!r}: {type(e).__name__}: {msg[:140]}", file=sys.stderr)
         if all(time.time() - _image_down.get(n, 0) < DOWN_FOR for n, _ in IMAGE_CHAIN):
