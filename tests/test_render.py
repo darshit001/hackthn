@@ -77,7 +77,9 @@ def test_compose_crossfades_scenes_into_the_end_card(monkeypatch, tmp_path):
     assert f"d={1.0 + render.XFADE_SEC:.3f}" in " ".join(scene0)  # every scene runs on for the overlap
     outro = next(c for c in cmds if c[-1] == str(tmp_path / "outro.mp4"))
     assert f"d={OUTRO_SEC:.3f}" in " ".join(outro)  # the card itself is not extended
+    assert "bframes=0:ref=1" in scene0 and "bframes=0:ref=1" in outro  # small decoder buffers: xfade opens every clip at once
     final = cmds[-2]  # the last call is the thumbnail
+    assert "bframes=0:ref=1" not in final  # the delivered video keeps x264's normal quality settings
     ins = [final[i + 1] for i, a in enumerate(final) if a == "-i"]
     assert ins[:3] == ["scene0.mp4", "scene1.mp4", "outro.mp4"] and ins[3].endswith("voice.wav")
     fc = final[final.index("-filter_complex") + 1]

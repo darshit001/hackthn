@@ -130,18 +130,22 @@ def subtitles(words, community, out_ass, overlays=()):
     return Path(out_ass)
 
 
+# Scene clips are intermediates that the xfade compose decodes all at once (one decoder per scene plus the end card).
+# No B-frames and one reference frame keep each decoder's picture buffer tiny: 9 scenes peak at ~610 MB instead of ~910 MB.
+INTERMEDIATE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-x264-params", "bframes=0:ref=1", "-pix_fmt", "yuv420p"]
+
+
 def card(sec, out_mp4):
     """Fallback visual: slowly moving purple gradient. Captions carry the words."""
     _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
           "-i", f"gradients=s={W}x{H}:c0=0x2A0E5C:c1=0x0B0416:speed=0.02:d={sec:.3f}",
-          "-r", "30", "-pix_fmt", "yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-t", f"{sec:.3f}", str(out_mp4)])
+          "-r", "30", *INTERMEDIATE, "-t", f"{sec:.3f}", str(out_mp4)])
 
 
 def _scene_video(src, sec, dst, cwd):
     """Loop/trim a clip to `sec`, cover-scale and centre-crop to W×H, drop its audio."""
     _run(["ffmpeg", "-y", "-loglevel", "error", "-stream_loop", "-1", "-i", str(Path(src).resolve()), "-t", f"{sec:.3f}", "-an",
-          "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1",
-          "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", dst], cwd=cwd)
+          "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1", *INTERMEDIATE, dst], cwd=cwd)
 
 
 def compose(scene_clips, voice_wav, ass, job_dir, out_id, music=None):
