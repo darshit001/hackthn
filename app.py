@@ -13,8 +13,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+import llm
 import pipeline
-from presets import COMMUNITIES
+from presets import COMMUNITIES, DURATIONS, LANGUAGES
 
 ROOT = Path(__file__).parent
 pipeline.OUT.mkdir(exist_ok=True)
@@ -31,7 +32,8 @@ def _worker():
                 job["status"], job["stage"] = "running", stage
 
         try:
-            meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid)
+            meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid,
+                                       language=job["language"], duration=job["duration"])
             with LOCK:
                 job.update(status="done", stage=None, result=meta)
         except Exception as e:  # one bad job never kills the worker
@@ -53,6 +55,8 @@ app.mount("/out", StaticFiles(directory=pipeline.OUT), name="out")
 class GenerateIn(BaseModel):
     topics: list[str] = Field(min_length=1, max_length=10)
     community: str = "general"
+    language: str = "en"
+    duration: int = 30
 
 
 @app.get("/")
@@ -62,13 +66,25 @@ def index():
 
 @app.get("/presets")
 def presets():
-    return [{"slug": k, "label": v["label"]} for k, v in COMMUNITIES.items()]
+    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"]} for k, v in COMMUNITIES.items()],
+            "languages": [{"slug": k, "label": v["label"]} for k, v in LANGUAGES.items()],
+            "durations": DURATIONS}
+
+
+@app.get("/suggest")
+def suggest(community: str = "general", language: str = "en"):
+    if community not in COMMUNITIES or language not in LANGUAGES:
+        raise HTTPException(400, "unknown community or language")
+    try:
+        return llm.suggest(community, language)
+    except Exception as e:  # every model down: the user can still type a topic
+        raise HTTPException(503, f"suggestions unavailable: {str(e)[:120]}")
 
 
 @app.post("/generate")
 def generate(body: GenerateIn):
-    if body.community not in COMMUNITIES:
-        raise HTTPException(400, "unknown community")
+    if body.community not in COMMUNITIES or body.language not in LANGUAGES or body.duration not in DURATIONS:
+        raise HTTPException(400, "unknown community, language or duration")
     ids = []
     for t in body.topics:
         t = t.strip()[:200]
@@ -76,8 +92,9 @@ def generate(body: GenerateIn):
             continue
         jid = secrets.token_hex(4)
         with LOCK:
-            JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "status": "queued",
-                         "stage": None, "created": time.time(), "result": None, "error": None}
+            JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": body.language,
+                         "duration": body.duration, "status": "queued", "stage": None, "created": time.time(),
+                         "result": None, "error": None}
         Q.put(jid)
         ids.append(jid)
     if not ids:
