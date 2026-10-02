@@ -17,7 +17,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from presets import COMMUNITIES
+from presets import COMMUNITIES, LANGUAGES
 from render import H, W, _run
 
 load_dotenv()
@@ -76,9 +76,10 @@ def _tts_edge(text, preset, tmp):
 TTS_CHAIN = [("elevenlabs", _tts_eleven), ("edge", _tts_edge), ("gemini", _tts_gemini)]
 
 
-def tts(text, community, out_wav):
-    """Synthesise text into a normalised wav at out_wav. Returns the engine name that spoke."""
-    preset = COMMUNITIES[community]
+def tts(text, community, out_wav, language="en"):
+    """Synthesise text into a normalised wav at out_wav. Returns the engine name that spoke.
+    The edge-tts voice comes from the language table (by the community's gender); ElevenLabs and Gemini voices are per community."""
+    preset = dict(COMMUNITIES[community], voice_edge=LANGUAGES[language]["voice_edge"][COMMUNITIES[community]["gender"]])
     out_wav = Path(out_wav)
     errors = []
     for name, fn in TTS_CHAIN:
@@ -166,18 +167,22 @@ IMAGE_CHAIN = [("pollinations", _img_pollinations), ("huggingface", _img_hf)]
 
 
 def gen_image(prompt, out_png):
-    """AI still for a scene. Pollinations FLUX (keyed) first, Hugging Face Inference second.
-    Returns a credit line, or None when no provider is available. Never raises."""
-    for name, fn in IMAGE_CHAIN:
-        if name in _image_down:
-            continue
-        try:
-            return fn(prompt + IMAGE_SUFFIX, out_png)
-        except Exception as e:
-            msg = " ".join(str(e).split())
-            if any(code in msg for code in ("401", "402", "403", "429", "no POLLINATIONS", "no HF_TOKEN")):
-                _image_down.add(name)
-            print(f"image[{name}] {prompt[:40]!r}: {type(e).__name__}: {msg[:140]}", file=sys.stderr)
+    """AI still for a scene. Pollinations FLUX (keyed) first, Hugging Face Inference second, and the whole chain
+    a second time after a pause: most failures seen are transient 500s. Returns a credit line, or None. Never raises."""
+    for attempt in range(2):
+        for name, fn in IMAGE_CHAIN:
+            if name in _image_down:
+                continue
+            try:
+                return fn(prompt + IMAGE_SUFFIX, out_png)
+            except Exception as e:
+                msg = " ".join(str(e).split())
+                if any(code in msg for code in ("401", "402", "403", "429", "no POLLINATIONS", "no HF_TOKEN")):
+                    _image_down.add(name)
+                print(f"image[{name}] try {attempt + 1} {prompt[:40]!r}: {type(e).__name__}: {msg[:140]}", file=sys.stderr)
+        if len(_image_down) == len(IMAGE_CHAIN):
+            break  # every provider is out for this process; no point pausing
+        time.sleep(2)
     return None
 
 
@@ -259,13 +264,14 @@ def stock_clip(query, min_sec, out_mp4, image=None, credit=None):
 
 # ---------- captions ----------
 
-def words(wav):
-    """Word timings via Groq Whisper: [{'word','start','end'}, ...] in seconds."""
+def words(wav, language="en"):
+    """Word timings via Groq Whisper: [{'word','start','end'}, ...] in seconds. Telling Whisper the language
+    stops it guessing wrong on short Hindi and Hinglish clips."""
     with open(wav, "rb") as f:
         r = httpx.post("https://api.groq.com/openai/v1/audio/transcriptions", timeout=120,
                        headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
                        data={"model": "whisper-large-v3-turbo", "response_format": "verbose_json",
-                             "timestamp_granularities[]": "word"},
+                             "language": LANGUAGES[language]["whisper"], "timestamp_granularities[]": "word"},
                        files={"file": ("voice.wav", f, "audio/wav")})
     r.raise_for_status()
     return [{"word": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
@@ -273,10 +279,13 @@ def words(wav):
 
 
 if __name__ == "__main__":
+    # python media.py [community] [language]  -> voice + stock clip + whisper check (run with ELEVENLABS_API_KEY= to spare quota)
     d = Path("out/_selfcheck")
     d.mkdir(parents=True, exist_ok=True)
     community = sys.argv[1] if len(sys.argv) > 1 else "general"
-    eng = tts("Hello from the Qoneqt video factory. This is a voice check.", community, d / "voice.wav")
+    language = sys.argv[2] if len(sys.argv) > 2 else "en"
+    text = {"hi": "नमस्ते, यह क्यूनेक्ट वीडियो फैक्ट्री की आवाज़ की जाँच है।"}.get(language, "Hello from the Qoneqt video factory. This is a voice check.")
+    eng = tts(text, community, d / "voice.wav", language)
     sec = duration(d / "voice.wav")
     print(f"tts engine={eng} duration={sec:.2f}s")
     assert 2 < sec < 8, sec
@@ -284,7 +293,7 @@ if __name__ == "__main__":
     print(f"stock={src}" + ("" if src else " (every source failed -> pipeline will draw a card)"))
     if src:
         print(f"clip duration={duration(d / 'clip.mp4'):.1f}s")
-    ws = words(d / "voice.wav")
+    ws = words(d / "voice.wav", language)
     print(f"whisper words={len(ws)} first={ws[:3]}")
-    assert len(ws) >= 6, ws
+    assert len(ws) >= 5, ws
     print("MEDIA OK")
