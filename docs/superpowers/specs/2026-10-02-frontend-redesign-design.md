@@ -61,3 +61,24 @@ for copy/delete; reduced motion turns both off.
 No tinted near-black, no caps eyebrows, no middle-dot meta strings, no arrows in buttons, no identical card
 grid. Glass panels and the mesh glow are the deck's established look (brief-grounded, one static glow, no
 floating blobs). Stage numbering is kept because the stages are a real sequence.
+
+## Revision, same day: ui-ux-pro-max design system applied
+
+The user asked for the colour and UI type recommended by the ui-ux-pro-max design intelligence for this
+product ("AI short video generator for a social feed, creator tool, Indian audience, live demo"). Its
+recommendation, applied in full:
+
+| | |
+|---|---|
+| Style | Vibrant & Block-based: solid colour blocks, high contrast, large type (28-34 px headings), 48 px+ section gaps, bold hover colour shifts at 200-300 ms |
+| Colours | primary `#7C3AED` (AI purple), secondary `#6366F1`, accent/CTA `#EC4899` (generation pink), background `#FAF5FF`, foreground `#0F172A`, muted `#F7F3FD`, border `#EFE7FC`, destructive `#DC2626` |
+| Type | Space Grotesk (headings, stage word, CTA) / DM Sans (everything else) |
+
+How it maps: the control panel is one solid primary block with white controls and a pink CTA; the output
+column sits on the light ground with white content blocks; phones are slate `#0F172A` blocks whose fill is
+primary with a pink edge; hashtags take the secondary indigo. Structure, copy, the phone-fill element,
+keyboard and reduced-motion behaviour are unchanged from the section above. The dark glass version is kept
+in git history (`c9e6e7e`) if a dark mode is wanted later; the tokens are already on `:root`.
+
+Also fixed while verifying: the page now keeps polling every 8 s when idle, so a job started from another
+tab or the API appears without a reload.
