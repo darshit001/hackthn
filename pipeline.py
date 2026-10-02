@@ -30,10 +30,12 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     p = plan or llm.plan(topic, community, language, duration)
     scenes = p["scenes"]
 
-    progress("images")  # AI still per scene, 3 at a time (well inside Cloudflare Workers AI limits); None -> stock later
+    progress("images")  # AI stills, 3 at a time; every scene's first picture before any second one, so a quota hit never leaves a scene bare
+    tasks = [(i, "", sc.get("image_prompt") or sc["query"]) for i, sc in enumerate(scenes)]
+    tasks += [(i, "b", sc["image_prompt_b"]) for i, sc in enumerate(scenes) if sc.get("image_prompt_b")]
     with ThreadPoolExecutor(3) as pool:
-        ai_credits = list(pool.map(lambda a: media.gen_image(a[1].get("image_prompt") or a[1]["query"], d / f"gen{a[0]}.png"), enumerate(scenes)))
-    images = [(d / f"gen{i}.png", cr) if cr else None for i, cr in enumerate(ai_credits)]
+        got = list(pool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png"), tasks))
+    images = {(i, sfx): (d / f"gen{i}{sfx}.png", cr) for (i, sfx, _), cr in zip(tasks, got) if cr}  # (scene, "" or "b") -> (png, credit)
 
     progress("voice")  # 2 at a time: the ElevenLabs free tier allows 2 concurrent; a third 429s into a second voice mid-video
     wavs = [d / f"voice{i}.wav" for i in range(len(scenes))]
@@ -46,13 +48,15 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
                 "-af", f"apad=pad_dur={render.OUTRO_SEC}", "-c:a", "pcm_s16le", "voice.wav"], cwd=d)
 
     progress("visuals")  # sequential: ffmpeg work on 2 vCPUs, more processes would only fight for cores and memory
-    clips, sources, credits = [], [], []
+    clips, sources, splits, credits = [], [], [], []
     for i, (sc, sec) in enumerate(zip(scenes, secs)):
         c = d / f"clip{i}.mp4"
-        img = images[i]
-        src = media.stock_clip(sc["query"], sec, c, image=img[0] if img else None, credit=img[1] if img else None)
+        a, b = images.get((i, "")), images.get((i, "b"))
+        credit = (a or b)[1] if (a or b) else None
+        src = media.stock_clip(sc["query"], sec, c, image=a[0] if a else None, credit=credit, image_b=b[0] if b else None)
         clips.append((c if src else None, sec))
         sources.append(src["source"] if src else "card")
+        splits.append(bool(src and src.get("split")))
         credits.append(src["credit"] if src else "")
 
     progress("captions")  # Whisper per scene with that scene's script as its prompt: exact spelling, no bleed across scenes
@@ -88,10 +92,11 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),
         "caption": p["caption"], "hashtags": p["hashtags"], "posts": p.get("posts"),
-        "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, credit=cr) for sc, s, e, v, cr in zip(scenes, secs, engines, sources, credits)],
+        "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr)
+                   for sc, s, e, v, sp, cr in zip(scenes, secs, engines, sources, splits, credits)],
         "credits": [cr for cr in credits if cr], "music": mtitle if track.exists() else None,
         "duration": round(sum(secs), 2), "llm": p.get("model", "preview"), "whisper_words": len(timed),
-        "image_model": next((cr.split(", ", 1)[1] for _, cr in filter(None, images)), None),
+        "image_model": next((cr.split(", ", 1)[1] for _, cr in images.values()), None),
         "seconds_to_make": round(time.time() - t0, 1),
         "video": f"/out/{job_id}/{job_id}.mp4", "thumb": f"/out/{job_id}/{job_id}.jpg",
     }
@@ -107,13 +112,14 @@ def redo_scene(job_id, n, progress=lambda stage: None):
     scenes = meta["scenes"]
     sc = scenes[n]
     progress("images")
-    png = d / f"gen{n}.png"
-    # FLUX is deterministic per prompt on some providers, so a fresh suffix is what makes the picture different
-    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {secrets.token_hex(2)})", png)
+    take = secrets.token_hex(2)  # FLUX is deterministic per prompt on some providers, so a fresh suffix is what makes the picture different
+    png, png_b = d / f"gen{n}.png", d / f"gen{n}b.png"
+    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {take})", png)
+    cr_b = media.gen_image(f"{sc['image_prompt_b']} (take {take})", png_b) if sc.get("image_prompt_b") else None
     progress("visuals")
     clip = d / f"clip{n}.mp4"
-    src = media.stock_clip(sc["query"], sc["seconds"], clip, image=png if cr else None, credit=cr)
-    sc["visual"], sc["credit"] = (src["source"], src["credit"]) if src else ("card", "")
+    src = media.stock_clip(sc["query"], sc["seconds"], clip, image=png if cr else None, credit=cr or cr_b, image_b=png_b if cr_b else None)
+    sc["visual"], sc["credit"], sc["split"] = (src["source"], src["credit"], bool(src.get("split"))) if src else ("card", "", False)
     # ponytail: a scene that flips between card and picture keeps the title overlay state baked into captions.ass
     clips = [(d / f"clip{i}.mp4" if s["visual"] != "card" and (d / f"clip{i}.mp4").exists() else None, s["seconds"]) for i, s in enumerate(scenes)]
     progress("render")

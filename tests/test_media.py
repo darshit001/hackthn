@@ -63,3 +63,30 @@ def test_words_sends_the_script_as_whisper_prompt(monkeypatch, tmp_path):
     assert seen["data"]["prompt"] == "नमस्ते दुनिया" and seen["data"]["language"] == "hi"
     media.words(wav, "en")
     assert "prompt" not in seen["data"]  # no script, no prompt
+
+
+def test_stock_clip_cuts_between_two_stills_on_long_scenes(monkeypatch, tmp_path):
+    made = []
+    monkeypatch.setattr(media, "_still_to_clip", lambda img, sec, out, zoom_in=True: made.append((Path(img).name, round(sec, 3), Path(out).name, zoom_in)))
+    monkeypatch.setattr(media, "_run", lambda cmd, cwd=None: made.append(cmd[-1]))
+    zi = sum(map(ord, "city night")) % 2 == 0
+    src = media.stock_clip("city night", 6.0, tmp_path / "clip2.mp4", image=tmp_path / "a.png", credit="AI image, test", image_b=tmp_path / "b.png")
+    assert src == {"source": "ai", "credit": "AI image, test", "split": True}
+    assert made[0] == ("a.png", 3.0, "clip2a.mp4", zi)  # A: first half, one zoom direction
+    assert made[1] == ("b.png", round(3.0 + media.XFADE_SEC, 3), "clip2b.mp4", not zi)  # B: the rest plus the crossfade tail
+    assert made[2] == "clip2.mp4"  # the hard-cut join
+    assert (tmp_path / "clip2.txt").read_text() == "file 'clip2a.mp4'\nfile 'clip2b.mp4'\n"
+
+
+def test_stock_clip_keeps_one_still_on_short_scenes(monkeypatch, tmp_path):
+    made = []
+    monkeypatch.setattr(media, "_still_to_clip", lambda img, sec, out, zoom_in=True: made.append((Path(img).name, round(sec, 3))))
+    src = media.stock_clip("city night", 3.0, tmp_path / "clip0.mp4", image=tmp_path / "a.png", credit="AI image, test", image_b=tmp_path / "b.png")
+    assert src["split"] is False and made == [("a.png", round(3.0 + media.XFADE_SEC, 3))]
+
+
+def test_stock_clip_uses_b_alone_when_a_failed(monkeypatch, tmp_path):
+    made = []
+    monkeypatch.setattr(media, "_still_to_clip", lambda img, sec, out, zoom_in=True: made.append(Path(img).name))
+    src = media.stock_clip("city night", 6.0, tmp_path / "clip0.mp4", image=None, credit="AI image, test", image_b=tmp_path / "b.png")
+    assert src == {"source": "ai", "credit": "AI image, test", "split": False} and made == ["b.png"]

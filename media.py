@@ -250,22 +250,46 @@ def _still_to_clip(img, sec, out_mp4, zoom_in=True):
           "-frames:v", str(n), "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", str(out_mp4)])
 
 
-def stock_clip(query, min_sec, out_mp4, image=None, credit=None):
-    """Get one visual for the scene as an mp4 at out_mp4, min_sec plus the crossfade tail long. An AI still (image=path)
-    wins when given. Returns {'source': 'ai'|'pexels'|'pixabay'|'wikimedia', 'credit': str}, or None when every source failed."""
+SPLIT_MIN_SEC = 4.0  # scenes at least this long cut from still A to still B halfway; set past 60 to switch the split off for a demo
+
+
+def _split_clip(image, image_b, sec, out_mp4, zoom_in):
+    """Two stills for one scene: A for the first half zooming one way, B for the rest (plus the crossfade tail) zooming
+    the other, joined with a hard cut. The snap mid-sentence is what keeps thumbs still."""
+    half = sec / 2
+    a, b = out_mp4.with_name(f"{out_mp4.stem}a.mp4"), out_mp4.with_name(f"{out_mp4.stem}b.mp4")
+    _still_to_clip(image, half, a, zoom_in=zoom_in)
+    _still_to_clip(image_b, sec - half + XFADE_SEC, b, zoom_in=not zoom_in)
+    lst = out_mp4.with_suffix(".txt")
+    lst.write_text(f"file '{a.name}'\nfile '{b.name}'\n")
+    # same encoder settings on both halves, so the concat demuxer joins them without a re-encode
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst.name, "-c", "copy", out_mp4.name], cwd=out_mp4.parent)
+
+
+def stock_clip(query, min_sec, out_mp4, image=None, credit=None, image_b=None):
+    """Get one visual for the scene as an mp4 at out_mp4, min_sec plus the crossfade tail long. AI stills win when given:
+    with two of them and a scene of SPLIT_MIN_SEC or more the clip cuts from image to image_b halfway through.
+    Returns {'source': 'ai'|'pexels'|'pixabay'|'wikimedia', 'credit': str, 'split': bool}, or None when every source failed."""
     out_mp4 = Path(out_mp4)
     need = min_sec + XFADE_SEC  # the tail is what the crossfade into the next scene eats; a still must not loop back during it
     zoom_in = sum(map(ord, query)) % 2 == 0
-    if image:
+    stills = [s for s in (image, image_b) if s]
+    if len(stills) == 2 and min_sec >= SPLIT_MIN_SEC:
         try:
-            _still_to_clip(image, need, out_mp4, zoom_in=zoom_in)
-            return {"source": "ai", "credit": credit or "AI image"}
+            _split_clip(stills[0], stills[1], min_sec, out_mp4, zoom_in)
+            return {"source": "ai", "credit": credit or "AI image", "split": True}
+        except Exception as e:
+            print(f"a/b split failed for {query!r}: {e}", file=sys.stderr)
+    if stills:
+        try:
+            _still_to_clip(stills[0], need, out_mp4, zoom_in=zoom_in)
+            return {"source": "ai", "credit": credit or "AI image", "split": False}
         except Exception as e:
             print(f"ai still -> clip failed for {query!r}: {e}", file=sys.stderr)
     for name, fn in (("pexels", _pexels), ("pixabay", _pixabay)):
         try:
             _download(fn(query, need), out_mp4)
-            return {"source": name, "credit": f"{name} stock video"}
+            return {"source": name, "credit": f"{name} stock video", "split": False}
         except Exception:
             continue
     for attempt in range(2):  # Commons occasionally times out; one retry rescues most scenes
@@ -274,7 +298,7 @@ def stock_clip(query, min_sec, out_mp4, image=None, credit=None):
             img = out_mp4.with_suffix(".jpg")
             _download(url, img)
             _still_to_clip(img, need, out_mp4, zoom_in=zoom_in)
-            return {"source": "wikimedia", "credit": credit}
+            return {"source": "wikimedia", "credit": credit, "split": False}
         except Exception as e:
             print(f"wikimedia {query!r} attempt {attempt + 1}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
             time.sleep(2)
