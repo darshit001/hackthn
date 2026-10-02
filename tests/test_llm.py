@@ -1,12 +1,12 @@
 import pytest
-from llm import validate_plan, _parse
+from llm import validate_plan, _parse, budget, validate_topics
 
 
 def good():
     return {
         "hooks": [{"text": "a", "score": 5}, {"text": "b", "score": 6}, {"text": "c", "score": 7}],
         "hook": "Ever wonder why you feel tired?",
-        "scenes": [{"narration": f"Sentence number {i} goes here.", "query": "city night"} for i in range(5)],
+        "scenes": [{"narration": f"Sentence number {i} goes here.", "title": f"Point {i}", "query": "city night"} for i in range(5)],
         "caption": "Sleep more.",
         "hashtags": ["#sleep", "#health", "#Qoneqt"],
     }
@@ -21,6 +21,9 @@ def test_good_plan_passes():
     (lambda p: p.update(scenes=p["scenes"] * 2), "5-7 scenes"),
     (lambda p: p["scenes"][0].update(narration=" ".join(["word"] * 26)), "over 25 words"),
     (lambda p: p["scenes"][0].update(narration="   "), "narration missing"),
+    (lambda p: p["scenes"][0].update(title=""), "title"),
+    (lambda p: p["scenes"][0].pop("title"), "title"),
+    (lambda p: p["scenes"][0].update(title=" ".join(["w"] * 9)), "title"),
     (lambda p: p["scenes"][0].update(query="one two three four five"), "1-4 words"),
     (lambda p: p["scenes"][0].update(query="शहर रात"), "ASCII"),
     (lambda p: p.update(hashtags=["sleep", "#a", "#b"]), "start with #"),
@@ -45,3 +48,27 @@ def test_image_prompt_is_optional():
 
 def test_parse_strips_fences_and_prose():
     assert _parse('Sure! ```json\n{"a": 1}\n``` done') == {"a": 1}
+
+
+@pytest.mark.parametrize("duration,expected", [
+    (15, (3, 4, 31, 41)),
+    (30, (4, 6, 61, 83)),
+    (45, (6, 8, 92, 124)),
+    (60, (8, 9, 122, 166)),
+])
+def test_budget_windows(duration, expected):
+    assert budget(duration) == expected
+
+
+def test_validate_plan_honours_scene_range():
+    p = good()  # 5 scenes
+    validate_plan(p, scenes=(3, 5))
+    with pytest.raises(ValueError, match="3-4 scenes"):
+        validate_plan(p, scenes=(3, 4))
+
+
+def test_validate_topics():
+    validate_topics({"topics": ["a", "b", "c"]})
+    for bad in ({"topics": []}, {"topics": ["a", " ", "c"]}, {"topics": "a"}, [], {"topics": ["x"] * 9}):
+        with pytest.raises(ValueError, match="topics"):
+            validate_topics(bad)
