@@ -250,7 +250,7 @@ def _still_to_clip(img, sec, out_mp4, zoom_in=True):
           "-frames:v", str(n), "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", str(out_mp4)])
 
 
-SPLIT_MIN_SEC = 4.0  # scenes at least this long cut from still A to still B halfway; set past 60 to switch the split off for a demo
+SPLIT_MIN_SEC = 4.0  # scenes at least this long cut from still A to still B halfway (the second still is generated either way)
 
 
 def _split_clip(image, image_b, sec, out_mp4, zoom_in):

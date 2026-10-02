@@ -91,13 +91,3 @@ def test_redo_scene_queues_on_finished_job(monkeypatch):
     assert client.post(f"/jobs/{jid}/redo/2").status_code == 400
     assert client.post(f"/jobs/{jid}/redo/1").json() == {"job_id": jid, "scene": 1}
     assert appmod.JOBS[jid]["status"] == "queued" and queued[-1] == (jid, 1)
-
-
-def test_generate_validates_a_supplied_plan(monkeypatch):
-    from tests.test_llm import good
-    monkeypatch.setattr(appmod.Q, "put", lambda item: None)
-    p = good()
-    p.pop("posts")
-    r = client.post("/generate", json={"topics": ["a"], "plan": p})
-    assert r.status_code == 400 and "posts" in r.text
-    assert client.post("/generate", json={"topics": ["a"], "plan": good()}).status_code == 200

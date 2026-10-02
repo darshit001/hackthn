@@ -100,7 +100,7 @@ flowchart LR
 - 📈 **Trend-aware ideas**: Google Trends India → LLM → 6 topic ideas that fit the community, or **Make 5 from trends** in one click
 - 👀 **Script preview**: see the 3 scored hooks and every scene before rendering, pick the opening line, then make the video
 - 🎵 **Music bed**: a mood-matched track per community, ducked under the narration with `sidechaincompress`
-- 🔁 **Redo a scene**: regenerate one scene's visual on a finished video and re-render in seconds
+- 🔁 **Redo a scene**: regenerate one scene's visual on a finished video and re-render in under a minute
 - 🗣️ **Word-pop karaoke captions**: each word lights up as it is spoken (Whisper per scene, with the script as its prompt)
 - 📦 **Batch mode**: queue up to 10 topics in one click
 - 🛡️ **Fallbacks at every stage**: a flaky free API never kills a job
@@ -143,10 +143,10 @@ flowchart TD
 
 | # | Stage | What happens | Output |
 |---|---|---|---|
-| 1 | **Plan** | The LLM returns strict JSON: 3 hooks with scores, scenes sized to the length (word budget = length × the language's measured speaking pace), caption and hashtags. The JSON is validated, and bad JSON gets one guided retry before the next model is tried. Three hooks with a formula, a score and a why; a beat per scene; two image prompts per scene from different shots; YouTube and Instagram post text. | `plan` dict |
+| 1 | **Plan** | The LLM returns strict JSON: three hooks, each with a formula, a score and a one-line why; scenes sized to the length (word budget = length × the language's measured speaking pace), each with a beat and two image prompts from different shots; the Qoneqt caption and hashtags; YouTube and Instagram post text. The JSON is validated (banned openers, beat order, every field), and a bad plan gets one guided retry before the next model is tried. | `plan` dict |
 | 2 | **Images** | Two FLUX stills per scene (`image_prompt`, then `image_prompt_b`), 3 at a time, every scene's first picture before any second one. If every provider is down this stage is skipped and stage 4 uses stock. | `gen<i>.png` |
 | 3 | **Voice** | Each scene's narration becomes speech. The voice is chosen by community (gender) and language, then normalised. | `voice<i>.wav`, `voice.wav` |
-| 4 | **Visuals** | Each scene becomes a clip exactly as long as its voice line: a Ken Burns zoom on the AI still, else real stock footage, else a CC-licensed photo. Scenes of 4 s or more cut from shot A to shot B halfway; every clip runs 0.35 s past its voice line for the crossfade. | `clip<i>.mp4` |
+| 4 | **Visuals** | Each scene becomes a clip as long as its voice line plus a 0.35 s tail for the crossfade: a Ken Burns zoom on the AI still, else real stock footage, else a CC-licensed photo. Scenes of 4 s or more cut from shot A to shot B halfway. | `clip<i>.mp4` |
 | 5 | **Captions** | Whisper runs once per scene with that scene's narration as its prompt, so timings land on the right words. They become ASS karaoke lines with the active word in the community's accent colour. | `captions.ass` |
 | 6 | **Render** | ffmpeg crossfades the clips into each other and the end card, mixes voice and the ducked music bed, burns captions and the hook title, and writes the thumbnail. | `<id>.mp4`, `<id>.jpg`, `<id>.json` |
 

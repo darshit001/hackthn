@@ -115,7 +115,8 @@ def redo_scene(job_id, n, progress=lambda stage: None):
     take = secrets.token_hex(2)  # FLUX is deterministic per prompt on some providers, so a fresh suffix is what makes the picture different
     png, png_b = d / f"gen{n}.png", d / f"gen{n}b.png"
     cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {take})", png)
-    cr_b = media.gen_image(f"{sc['image_prompt_b']} (take {take})", png_b) if sc.get("image_prompt_b") else None
+    split = sc.get("image_prompt_b") and sc["seconds"] >= media.SPLIT_MIN_SEC  # a short scene never cuts, so skip its second picture
+    cr_b = media.gen_image(f"{sc['image_prompt_b']} (take {take})", png_b) if split else None
     progress("visuals")
     clip = d / f"clip{n}.mp4"
     src = media.stock_clip(sc["query"], sc["seconds"], clip, image=png if cr else None, credit=cr or cr_b, image_b=png_b if cr_b else None)
@@ -126,7 +127,7 @@ def redo_scene(job_id, n, progress=lambda stage: None):
     mfile, _ = MUSIC[COMMUNITIES[meta["community"]]["mood"]]
     track = MUSIC_DIR / mfile
     render.compose(clips, d / "voice.wav", d / "captions.ass", d, job_id, music=track if track.exists() else None)
-    meta["credits"] = [s["credit"] for s in scenes if s["credit"]] + [c for c in meta.get("credits", []) if c.startswith("Music:")]
+    meta["credits"] = [s["credit"] for s in scenes if s.get("credit")] + [c for c in meta.get("credits", []) if c.startswith("Music:")]
     meta["updated"] = round(time.time())
     (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
     return meta
