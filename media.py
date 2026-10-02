@@ -281,14 +281,17 @@ def stock_clip(query, min_sec, out_mp4, image=None, credit=None):
 
 # ---------- captions ----------
 
-def words(wav, language="en"):
+def words(wav, language="en", prompt=""):
     """Word timings via Groq Whisper: [{'word','start','end'}, ...] in seconds. Telling Whisper the language
-    stops it guessing wrong on short Hindi and Hinglish clips."""
+    stops it guessing wrong on short Hindi and Hinglish clips; giving it the spoken script as `prompt` keeps the
+    script's spelling and names, so timings land on the right words."""
+    data = {"model": "whisper-large-v3-turbo", "response_format": "verbose_json",
+            "language": LANGUAGES[language]["whisper"], "timestamp_granularities[]": "word"}
+    if prompt:
+        data["prompt"] = prompt
     with open(wav, "rb") as f:
         r = httpx.post("https://api.groq.com/openai/v1/audio/transcriptions", timeout=120,
-                       headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
-                       data={"model": "whisper-large-v3-turbo", "response_format": "verbose_json",
-                             "language": LANGUAGES[language]["whisper"], "timestamp_granularities[]": "word"},
+                       headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"}, data=data,
                        files={"file": ("voice.wav", f, "audio/wav")})
     r.raise_for_status()
     return [{"word": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}

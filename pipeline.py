@@ -55,15 +55,21 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         sources.append(src["source"] if src else "card")
         credits.append(src["credit"] if src else "")
 
-    progress("captions")
+    progress("captions")  # Whisper per scene with that scene's script as its prompt: exact spelling, no bleed across scenes
     bounds, t = [], 0.0
     for sec in secs:
         bounds.append((t, t + sec))
         t += sec
-    try:
-        timed = media.words(d / "voice.wav", language)
-    except Exception:  # ponytail: Whisper down -> align() spreads script words evenly
-        timed = []
+
+    def scene_words(i):
+        try:
+            return [dict(w, start=w["start"] + bounds[i][0], end=w["end"] + bounds[i][0])
+                    for w in media.words(wavs[i], language, scenes[i]["narration"])]
+        except Exception as e:  # ponytail: align() spreads this scene's script evenly; the other scenes keep Whisper's timings
+            print(f"whisper scene {i}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
+            return []
+    with ThreadPoolExecutor(2) as pool:  # Groq free tier: 20 Whisper requests a minute; a video needs at most 9
+        timed = [w for ws in pool.map(scene_words, range(len(scenes))) for w in ws]
     words = render.align([s["narration"] for s in scenes], bounds, timed)
     overlays = [(0.0, min(2.5, bounds[0][1]), render.ass_text(p["hook"]), "Hook")]
     overlays += [(s, e, render.ass_text(sc["title"]), "Title") for sc, (s, e), (clip, _) in zip(scenes, bounds, clips) if clip is None]

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import media
 
 
@@ -41,3 +43,23 @@ def test_tts_retries_an_engine_once_before_falling_back(monkeypatch, tmp_path):
     monkeypatch.setattr(media.time, "sleep", lambda s: None)
     assert media.tts("hello", "general", tmp_path / "v.wav", "en") == "edge"
     assert calls == ["eleven", "edge", "edge"]  # quota error is not retried; the edge hiccup is
+
+
+def test_words_sends_the_script_as_whisper_prompt(monkeypatch, tmp_path):
+    seen = {}
+
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"words": [{"word": " Hello ", "start": 0.1, "end": 0.4}, {"word": " ", "start": 0.4, "end": 0.4}]}
+
+    monkeypatch.setattr(media.httpx, "post", lambda url, **kw: seen.update(kw) or R())
+    monkeypatch.setenv("GROQ_API_KEY", "k")
+    wav = tmp_path / "v.wav"
+    wav.write_bytes(b"RIFF")
+    assert media.words(wav, "hi", "नमस्ते दुनिया") == [{"word": "Hello", "start": 0.1, "end": 0.4}]
+    assert seen["data"]["prompt"] == "नमस्ते दुनिया" and seen["data"]["language"] == "hi"
+    media.words(wav, "en")
+    assert "prompt" not in seen["data"]  # no script, no prompt
