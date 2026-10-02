@@ -1,4 +1,4 @@
-from render import ass_time, ass_color, chunk, align
+from render import ass_time, ass_color, chunk, align, ass_text, subtitles, OUTRO, OUTRO_SEC
 
 
 def test_ass_time_formats_centiseconds():
@@ -61,3 +61,28 @@ def test_compose_bounds_shortest_buffer(monkeypatch, tmp_path):
     render.compose([(None, 1.0)], tmp_path / "voice.wav", tmp_path / "captions.ass", tmp_path, "x")
     final = next(c for c in cmds if "-shortest" in c)
     assert final[final.index("-shortest_buf_duration") + 1] == "1"
+
+
+def test_ass_text_neutralises_markup():
+    assert ass_text("a {b} c\\d\ne") == "a (b) c/d\\Ne"
+
+
+def test_subtitles_writes_overlays(tmp_path):
+    words = [w("hello", 0.0, 0.5), w("world", 0.5, 1.0)]
+    overlays = [(0.0, 2.5, "Big hook", "Hook"), (3.0, 7.0, "Scene title", "Title"), (10.0, 12.0, OUTRO, "Outro")]
+    text = subtitles(words, "general", tmp_path / "c.ass", overlays).read_text()
+    assert "Style: Hook," in text and "Style: Title," in text and "Style: Outro," in text
+    assert "Dialogue: 1,0:00:00.00,0:00:02.50,Hook,,0,0,0,,{\\fad(200,200)}Big hook" in text
+    assert "Dialogue: 1,0:00:03.00,0:00:07.00,Title,,0,0,0,,{\\fad(150,150)}Scene title" in text
+    assert "Dialogue: 1,0:00:10.00,0:00:12.00,Outro,,0,0,0,,{\\fad(300,0)}" in text and "Qoneqt" in text
+    assert "HELLO" in text  # captions still there
+
+
+def test_compose_appends_end_card(monkeypatch, tmp_path):
+    import render
+    cmds = []
+    monkeypatch.setattr(render, "_run", lambda cmd, cwd=None: cmds.append(cmd))
+    render.compose([(None, 1.0), (None, 2.0)], tmp_path / "voice.wav", tmp_path / "captions.ass", tmp_path, "x")
+    assert (tmp_path / "concat.txt").read_text() == "file 'scene0.mp4'\nfile 'scene1.mp4'\nfile 'outro.mp4'\n"
+    outro = next(c for c in cmds if c[-1] == str(tmp_path / "outro.mp4"))
+    assert f"d={OUTRO_SEC:.3f}" in " ".join(outro)

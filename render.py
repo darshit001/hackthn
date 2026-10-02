@@ -8,6 +8,8 @@ from presets import COMMUNITIES
 
 W, H = 1080, 1920  # ponytail: one knob; set 1080, 1080 for a square feed variant
 FONT = "Noto Sans"  # fontconfig substitutes (DejaVu Sans) when absent; Docker installs fonts-noto-core
+OUTRO_SEC = 2.0  # branded end card; pipeline pads the voice track by the same amount so -shortest keeps lengths equal
+VIOLET = "6B3DF0"  # Qoneqt brand violet, used by the outro and the UI
 # ffmpeg sizes its decoder, filter and x264 thread pools from the host's cores, which on a shared cloud box can
 # be dozens; each thread holds 1080x1920 frames, so uncapped it blows a 1 GB container. Raise on a big laptop.
 THREADS = os.environ.get("FFMPEG_THREADS", "2")
@@ -40,6 +42,16 @@ def ass_color(rgb_hex):
     """'RRGGBB' -> ASS '&H00BBGGRR' (alpha 00 = opaque)."""
     r, g, b = rgb_hex[0:2], rgb_hex[2:4], rgb_hex[4:6]
     return f"&H00{b}{g}{r}".upper()
+
+
+def ass_text(s):
+    """User text -> safe ASS dialogue text: braces would open override blocks and a backslash would start a tag,
+    so they become parens and a slash; newlines become hard breaks. ponytail: libass escape sequences vary by version."""
+    return str(s).replace("\\", "/").replace("{", "(").replace("}", ")").replace("\n", "\\N")
+
+
+OUTRO = f"{{\\fs140\\b1\\c{ass_color(VIOLET)}}}Qoneqt{{\\r}}\\NFollow for more"
+FX = {"Hook": "{\\fad(200,200)}", "Title": "{\\fad(150,150)}", "Outro": "{\\fad(300,0)}"}
 
 
 def align(scene_texts, scene_bounds, timed):
@@ -76,15 +88,21 @@ def chunk(words, size=3, max_gap=0.6):
     return chunks
 
 
-def subtitles(words, community, out_ass):
-    """Write an ASS file: one Dialogue per chunk, karaoke \\k per word so the active word lights up in the accent colour."""
+def subtitles(words, community, out_ass, overlays=()):
+    """Write an ASS file: one Dialogue per caption chunk with karaoke \\k per word so the active word lights up in the
+    accent colour, plus overlays [(start, end, ass_text, style)] on layer 1: Hook (top), Title (upper third), Outro (centre).
+    Everything on screen goes through libass so Devanagari shapes correctly and no extra ffmpeg pass is needed."""
     accent = ass_color(COMMUNITIES[community]["accent"])
+    fmt = ("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
+           "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding")
+    white, black, shadow = "&H00FFFFFF", "&H00000000", "&H80000000"
     lines = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 0", "",
-        "[V4+ Styles]",
-        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
-        "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Cap,{FONT},88,{accent},&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,5,2,2,60,60,{int(H * 0.32)},1",
+        "[V4+ Styles]", fmt,
+        f"Style: Cap,{FONT},88,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,5,2,2,60,60,{int(H * 0.32)},1",
+        f"Style: Hook,{FONT},72,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.18)},1",
+        f"Style: Title,{FONT},96,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.30)},1",
+        f"Style: Outro,{FONT},64,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,5,80,80,0,1",
         "",
         "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
@@ -92,8 +110,10 @@ def subtitles(words, community, out_ass):
         parts = []
         for i, x in enumerate(ch):
             nxt = ch[i + 1]["start"] if i + 1 < len(ch) else ch[-1]["end"]
-            parts.append(f"{{\\k{max(1, int(round((nxt - x['start']) * 100)))}}}{x['word'].upper()}")
+            parts.append(f"{{\\k{max(1, int(round((nxt - x['start']) * 100)))}}}{ass_text(x['word']).upper()}")
         lines.append(f"Dialogue: 0,{ass_time(ch[0]['start'])},{ass_time(ch[-1]['end'] + 0.05)},Cap,,0,0,0,,{' '.join(parts)}")
+    for start, end, text, style in overlays:
+        lines.append(f"Dialogue: 1,{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{FX.get(style, '')}{text}")
     Path(out_ass).write_text("\n".join(lines) + "\n", encoding="utf-8")
     return Path(out_ass)
 
@@ -123,6 +143,8 @@ def compose(scene_clips, voice_wav, ass, job_dir, out_id):
         else:
             _scene_video(clip, sec, dst, job_dir)
         parts.append(dst)
+    card(OUTRO_SEC, job_dir / "outro.mp4")
+    parts.append("outro.mp4")
     (job_dir / "concat.txt").write_text("".join(f"file '{p}'\n" for p in parts))
     mp4, jpg = job_dir / f"{out_id}.mp4", job_dir / f"{out_id}.jpg"
     _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", "concat.txt", "-i", str(Path(voice_wav).resolve()),
@@ -139,10 +161,12 @@ if __name__ == "__main__":
     # Offline self-check: two gradient scenes, synthetic silence, fake word timings -> out/_selfcheck/sample.mp4
     d = Path("out/_selfcheck")
     d.mkdir(parents=True, exist_ok=True)
-    _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", "4", "-c:a", "pcm_s16le", "voice.wav"], cwd=d)
     timed = [{"word": w, "start": i * 0.4, "end": i * 0.4 + 0.35} for i, w in enumerate("word pop captions light up one at a time".split())]
     words = align(["word pop captions light up", "one at a time"], [(0, 2), (2, 4)], timed)
-    ass = subtitles(words, "general", d / "captions.ass")
+    overlays = [(0.0, 2.0, ass_text("Word-pop captions, now with a hook"), "Hook"), (2.0, 4.0, ass_text("Scene title card"), "Title"),
+                (4.0, 4.0 + OUTRO_SEC, OUTRO, "Outro")]
+    ass = subtitles(words, "general", d / "captions.ass", overlays)
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{4 + OUTRO_SEC}", "-c:a", "pcm_s16le", "voice.wav"], cwd=d)
     mp4, jpg = compose([(None, 2.0), (None, 2.0)], d / "voice.wav", ass, d, "sample")
     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height", "-of", "csv=p=0", mp4],
                            capture_output=True, text=True, check=True).stdout
