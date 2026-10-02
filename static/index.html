@@ -4,190 +4,226 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Qoneqt Video Factory</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%236B3DF0%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23FFD400%27/%3E%3C/svg%3E">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%237C4DFF%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23FFD400%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper:#F3F0FA; --ink:#211547; --ink-2:#5A4C86; --violet:#6B3DF0; --violet-deep:#4E27C4;
-  --signal:#FFD400; --mist:#D6CFEA; --mist-2:#E9E4F5; --white:#FFFFFF; --stop:#B3261E;
-  --font:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --bg:#120826; --bg-2:#1A0D38; --glass:rgba(255,255,255,.06); --glass-2:rgba(255,255,255,.10); --line:rgba(255,255,255,.14);
+  --ink:#F6F2FF; --muted:#B3A6D9; --dim:#7D6FA6;
+  --violet:#7C4DFF; --violet-2:#9B7BFF; --yellow:#FFD400; --danger:#FF6B6B;
+  --display:"Unbounded",system-ui,sans-serif; --text:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r-phone:28px; --r-panel:22px; --r-ctl:12px;
+  --ease:cubic-bezier(.16,1,.3,1);
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--font);font-variation-settings:"opsz" 14,"wdth" 100}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--text);position:relative;overflow-x:hidden}
+/* one ambient glow, behind the control panel, echoing the deck's violet–magenta–cyan mesh */
+body::before{content:"";position:fixed;inset:-20% auto auto -10%;width:min(70vw,900px);height:min(70vw,900px);pointer-events:none;z-index:0;
+  background:radial-gradient(closest-side at 40% 40%,rgba(124,77,255,.45),transparent 70%),
+             radial-gradient(closest-side at 70% 30%,rgba(240,147,251,.28),transparent 65%),
+             radial-gradient(closest-side at 30% 75%,rgba(0,212,255,.22),transparent 65%);filter:blur(10px)}
 button,input,textarea{font:inherit;color:inherit}
-:focus-visible{outline:3px solid var(--signal);outline-offset:2px;border-radius:4px}
-.wrap{max-width:1040px;margin:0 auto;padding:32px 16px 64px}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:3px;border-radius:6px}
+a{color:var(--ink)}
 
-/* masthead */
-.mast{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px 24px;padding-bottom:20px;border-bottom:2px solid var(--ink)}
-h1{margin:0;font-size:clamp(32px,6vw,56px);line-height:1;font-weight:800;letter-spacing:-.02em;font-variation-settings:"opsz" 96,"wdth" 112}
-.mast p{margin:0;color:var(--ink-2);font-size:17px;max-width:48ch}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:20px 20px 80px}
 
-/* intake */
-.intake{margin-top:28px;display:grid;gap:14px}
-.topics{width:100%;min-height:120px;resize:vertical;padding:14px 16px;background:var(--white);border:2px solid var(--ink);border-radius:6px;font-size:18px;line-height:1.45;font-variation-settings:"opsz" 18}
-.topics::placeholder{color:#9A8FC2}
-.hint{margin:0;color:var(--ink-2);font-size:15px}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;border:0}
-.chips legend{padding:0;margin:0 0 8px;font-size:15px;color:var(--ink-2)}
-.chip{position:relative}
-.chip input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
-.chip span{display:inline-block;padding:7px 14px;border:2px solid var(--ink);border-radius:999px;font-weight:600;background:var(--white);transition:background .12s,color .12s}
-.chip input:checked+span{background:var(--ink);color:var(--paper)}
-.chip input:focus-visible+span{outline:3px solid var(--signal);outline-offset:2px}
-.suggest{display:grid;gap:8px}
-.suggest .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+/* top bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 0 26px}
+.mark{display:flex;align-items:center;gap:12px;font:700 15px/1 var(--display);letter-spacing:-.01em}
+.mark i{width:30px;height:30px;border-radius:9px;background:var(--violet);display:grid;place-items:center;flex:none}
+.mark i::after{content:"";width:0;height:0;border-left:11px solid var(--yellow);border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px}
+.tally{color:var(--muted);font-size:15px;display:flex;align-items:center;gap:10px}
+.tally b{color:var(--ink);font-weight:600}
+.tally .live{width:9px;height:9px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 4px rgba(255,212,0,.18)}
+.tally .live.idle{background:var(--dim);box-shadow:none}
+
+/* two columns */
+.grid{display:grid;grid-template-columns:420px 1fr;gap:28px;align-items:start}
+
+/* control panel */
+.panel{position:sticky;top:20px;background:var(--glass);border:1px solid var(--line);border-radius:var(--r-panel);padding:26px;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 30px 80px -40px rgba(0,0,0,.8)}
+.panel h1{margin:0 0 6px;font:700 clamp(22px,2.2vw,27px)/1.2 var(--display);letter-spacing:-.02em}
+.panel .lede{margin:0 0 20px;color:var(--muted);font-size:15px;max-width:40ch}
+label.field{display:block;font-size:14px;color:var(--muted);margin-bottom:8px}
+.topics{width:100%;min-height:112px;resize:vertical;padding:14px 16px;background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:var(--r-ctl);color:var(--ink);font-size:17px;line-height:1.45;transition:border-color .2s}
+.topics::placeholder{color:var(--dim)}
+.topics:focus{border-color:var(--violet-2);outline:none;box-shadow:0 0 0 3px rgba(124,77,255,.28)}
+.suggest{margin:12px 0 20px;display:grid;gap:10px}
+.suggest .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);padding:9px 14px;border-radius:999px;font-weight:600;font-size:14px;transition:background .2s,border-color .2s}
+.ghost:hover{background:var(--glass-2);border-color:rgba(255,255,255,.3)}
+.ghost:disabled{color:var(--muted);cursor:progress}
+.note{color:var(--muted);font-size:14px;margin:0}
 .ideas{display:flex;flex-wrap:wrap;gap:8px}
 .ideas:empty{display:none}
-.idea{border:2px dashed var(--violet);background:var(--white);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;text-align:left}
-.idea:hover{background:var(--mist-2)}
-.idea:disabled{border-style:solid;border-color:var(--mist);color:var(--ink-2);cursor:default}
-.go{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.btn{border:2px solid var(--violet);background:var(--violet);color:var(--white);padding:12px 22px;border-radius:6px;font-weight:700;font-size:17px;cursor:pointer}
-.btn:hover{background:var(--violet-deep);border-color:var(--violet-deep)}
-.btn:disabled{background:var(--mist);border-color:var(--mist);color:var(--ink-2);cursor:not-allowed}
-.btn.quiet{background:var(--white);color:var(--ink);border-color:var(--ink);font-size:15px;padding:8px 14px}
-.btn.quiet:hover{background:var(--mist-2)}
-.status{color:var(--ink-2);font-size:15px}
+.idea{background:rgba(124,77,255,.14);border:1px solid rgba(155,123,255,.5);color:var(--ink);border-radius:999px;padding:7px 13px;font-size:14px;text-align:left;line-height:1.3;transition:background .2s}
+.idea:hover{background:rgba(124,77,255,.3)}
+.idea:disabled{background:transparent;border-color:var(--line);color:var(--dim);cursor:default}
 
-/* the line */
-section{margin-top:44px}
-h2{margin:0 0 6px;font-size:26px;font-weight:700;letter-spacing:-.01em;font-variation-settings:"opsz" 32}
-.lede{margin:0 0 18px;color:var(--ink-2);font-size:15px}
-.stations{display:grid;grid-template-columns:minmax(160px,1.3fr) repeat(6,1fr);gap:0 8px;align-items:end;padding-bottom:8px;border-bottom:1px solid var(--mist)}
-.stations span{font-size:14px;color:var(--ink-2);font-weight:600}
-.stations span b{display:block;font-size:12px;font-weight:500;color:#9A8FC2}
-.job{display:grid;grid-template-columns:minmax(160px,1.3fr) repeat(6,1fr);gap:0 8px;align-items:center;min-height:56px;border-bottom:1px solid var(--mist);position:relative}
-.job .who{position:relative;z-index:1;padding:10px 0;padding-right:12px;background:var(--paper)}
-.job .who strong{display:block;font-weight:700;line-height:1.25}
-.job .who small{color:var(--ink-2);font-size:14px}
-.job .who .err{color:var(--stop);font-size:14px;display:block;margin-top:4px}
-/* one .st per station; its line runs from its dot to the next station */
-.st{--step:.4s;position:relative;display:flex;align-items:center;min-height:14px}
-.st::before,.st::after{content:"";position:absolute;left:0;right:-8px;top:50%;height:2px;margin-top:-1px}
-.st::before{background:var(--mist)}
-.st.done::after{background:var(--violet)}
-.st.now::after{height:3px;margin-top:-1.5px;background:repeating-linear-gradient(90deg,var(--violet) 0 6px,transparent 6px 14px);animation:belt .7s linear infinite}
-.st:last-child::before,.st:last-child::after{display:none}
-.dot{position:relative;z-index:1;width:14px;height:14px;border-radius:50%;background:var(--paper);border:2px solid var(--mist)}
-.dot.done{background:var(--violet);border-color:var(--violet)}
-.dot.now{display:inline-flex;align-items:center;gap:6px;width:auto;height:auto;border-radius:999px;background:var(--signal);border-color:var(--signal);padding:3px 10px;font-size:13px;font-weight:700;color:var(--ink)}
-.dot.wait{background:var(--paper);border-style:dashed}
-.spin{width:10px;height:10px;border:2px solid var(--ink);border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
-/* stage change: finished dot pops, its line fills toward the next station, then the marker lands there */
-.st.fresh .dot{animation:pop .3s ease-out both;animation-delay:calc(var(--d)*var(--step))}
-.st.fresh::after{transform-origin:left;animation:fill var(--step) cubic-bezier(.5,0,.2,1) both;animation-delay:calc(var(--d)*var(--step))}
-.st.arrive .dot.now{animation:arrive .35s cubic-bezier(.3,1.5,.5,1) both;animation-delay:calc(var(--d)*var(--step))}
-@keyframes belt{to{background-position:14px 0}}
-@keyframes spin{to{transform:rotate(1turn)}}
-@keyframes pop{from{transform:scale(.4)}}
-@keyframes fill{from{transform:scaleX(0)}}
-@keyframes arrive{from{transform:scale(.3);opacity:0}}
-.empty{padding:22px 0;color:var(--ink-2);border-bottom:1px solid var(--mist)}
+.opt{display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:start;margin:0;padding:12px 0;border:0;border-top:1px solid var(--line);min-width:0}
+.opt legend{display:contents}
+.opt .name{font-size:14px;color:var(--muted);padding-top:7px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{position:relative}
+.pill input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.pill span{display:inline-block;padding:6px 12px;border-radius:999px;border:1px solid transparent;color:var(--muted);font-size:14px;font-weight:500;transition:background .18s,color .18s,border-color .18s}
+.pill:hover span{color:var(--ink);background:var(--glass)}
+.pill input:checked+span{background:var(--ink);color:var(--bg);font-weight:600}
+.pill input:focus-visible+span{outline:3px solid var(--yellow);outline-offset:2px}
 
-/* off the line */
-.short{display:grid;grid-template-columns:200px 1fr;gap:20px 28px;padding:24px 0;border-bottom:1px solid var(--mist)}
-.phone{width:200px;aspect-ratio:9/16;border-radius:22px;border:2px solid var(--ink);overflow:hidden;background:var(--ink)}
-.phone video{width:100%;height:100%;display:block;object-fit:cover}
-.short h3{margin:0 0 2px;font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
-.short .meta{margin:0 0 14px;color:var(--ink-2);font-size:15px}
-.post{margin:0;white-space:pre-wrap;background:var(--white);border:1px solid var(--mist);border-left:4px solid var(--signal);padding:12px 14px;border-radius:0 6px 6px 0;font-size:16px;line-height:1.5;max-width:64ch}
-.post .tags{color:var(--violet-deep)}
-.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;max-width:64ch}
-.actions a{color:var(--ink);font-weight:600}
-.del{margin-left:auto;background:none;border:0;padding:8px 0;color:var(--stop);font-weight:600;font-size:15px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.del:hover{color:#7F1A15}.del:disabled{color:var(--ink-2);cursor:wait;text-decoration:none}
-.credits{margin-top:12px;font-size:14px;color:var(--ink-2)}.credits summary{cursor:pointer;font-weight:600}.credits p{margin:6px 0 0;line-height:1.5}
+.go{margin-top:18px;display:grid;gap:10px}
+.make{width:100%;padding:15px 20px;border:0;border-radius:14px;background:var(--violet);color:#fff;font:700 17px/1 var(--text);box-shadow:0 14px 40px -12px rgba(124,77,255,.9);transition:transform .25s var(--ease),background .2s,box-shadow .2s}
+.make:hover{background:var(--violet-2)}
+.make:active{transform:scale(.985)}
+.make:disabled{background:rgba(255,255,255,.08);color:var(--dim);box-shadow:none;cursor:not-allowed}
+.go .note kbd{font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:0 5px}
 
-@media (max-width:720px){
-  .stations{display:none}
-  .job{grid-template-columns:1fr;gap:6px;padding:10px 0}
-  .job .who{padding:0}
-  .rail{display:flex;gap:8px}
-  .st{flex:1 1 0}.st:last-child{flex:0 0 auto}
+/* output */
+.out{display:grid;gap:40px;min-width:0}
+.out h2{margin:0 0 4px;font:700 20px/1.2 var(--display);letter-spacing:-.01em}
+.out .sub{margin:0 0 18px;color:var(--muted);font-size:15px}
+.empty{color:var(--muted);border:1px dashed var(--line);border-radius:var(--r-panel);padding:40px 24px;text-align:center;font-size:15px}
+.empty b{display:block;color:var(--ink);font:700 16px/1.3 var(--display);margin-bottom:6px}
+
+/* phones */
+.phones{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:20px}
+.phone{position:relative;aspect-ratio:9/16;border-radius:var(--r-phone);border:2px solid rgba(255,255,255,.22);background:linear-gradient(180deg,#2A0E5C,#0B0416);overflow:hidden;isolation:isolate}
+.phone::after{content:"";position:absolute;top:10px;left:50%;width:34%;height:7px;margin-left:-17%;border-radius:999px;background:rgba(255,255,255,.18)}
+/* the fill rises one step per finished stage */
+.phone .fill{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:linear-gradient(180deg,var(--violet-2),var(--violet));transition:height .9s var(--ease);z-index:0}
+.phone .fill::before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--yellow);box-shadow:0 0 14px var(--yellow)}
+.phone .screen{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;justify-content:space-between;padding:30px 16px 18px;text-align:center}
+.phone .topic{margin:0;font-weight:600;font-size:14px;line-height:1.3;color:var(--ink);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.phone .stage{margin:0;font:700 17px/1.1 var(--display);letter-spacing:-.01em}
+.phone .stage small{display:block;margin-top:6px;font:500 12px/1.2 var(--text);color:rgba(255,255,255,.75)}
+.phone .opts{margin:0;font-size:12px;color:rgba(255,255,255,.7)}
+.phone.queued .stage{color:var(--muted)}
+.phone.failed{border-color:rgba(255,107,107,.7)}
+.phone.failed .fill{background:rgba(255,107,107,.25)}
+.phone.failed .fill::before{display:none}
+.phone.failed .stage{color:var(--danger);font-size:14px}
+.phone .err{margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.phone .retry{margin-top:10px;background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.phone.running .stage{color:#fff;animation:pulse 1.6s ease-in-out infinite}
+
+/* ready cards */
+.ready{display:grid;gap:22px}
+.short{display:grid;grid-template-columns:208px minmax(0,1fr);gap:22px;align-items:start}
+.short .phone{border-color:rgba(255,255,255,.3)}
+.short .phone::after{display:none}
+.short video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.short h3{margin:4px 0 4px;font:700 19px/1.25 var(--display);letter-spacing:-.01em}
+.short .meta{margin:0 0 14px;color:var(--muted);font-size:14px}
+.post{margin:0;white-space:pre-wrap;background:rgba(0,0,0,.26);border:1px solid var(--line);border-left:3px solid var(--yellow);padding:14px 16px;border-radius:0 var(--r-ctl) var(--r-ctl) 0;font-size:15px;line-height:1.55;max-width:62ch}
+.post .tags{color:var(--violet-2)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;max-width:62ch}
+.actions .ghost{font-size:14px}
+.actions a{font-weight:600;font-size:14px;text-underline-offset:3px}
+.del{margin-left:auto;background:none;border:0;padding:8px 0;color:var(--danger);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.del:disabled{color:var(--dim);cursor:wait;text-decoration:none}
+.credits{margin-top:12px;font-size:13px;color:var(--muted)}.credits summary{cursor:pointer;font-weight:600}.credits p{margin:6px 0 0;line-height:1.5}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;transition:opacity .25s,transform .35s var(--ease);pointer-events:none;z-index:9}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+@media (max-width:960px){
+  .grid{grid-template-columns:1fr}
+  .panel{position:static}
+  .phones{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
   .short{grid-template-columns:1fr}
-  .phone{width:min(200px,60vw)}
+  .short .phone{width:min(240px,70vw);margin:0 auto}
 }
-@media (min-width:721px){.rail{display:contents}}
-@media (prefers-reduced-motion:reduce){.st::after,.st .dot,.spin{animation:none!important}.chip span{transition:none}}
+@media (max-width:480px){
+  .wrap{padding:16px 16px 64px}
+  .panel{padding:20px}
+  .opt{grid-template-columns:1fr;gap:6px}
+  .opt .name{padding-top:0}
+}
+@media (prefers-reduced-motion:reduce){.phone .fill{transition:none}.phone.running .stage{animation:none}.make{transition:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="mast">
-    <h1>Qoneqt Video Factory</h1>
-    <p>Type a topic or pick a suggestion, choose the community, language and length. Get a Global Feed short with a voice, visuals, word-by-word captions and the post text.</p>
+  <header class="bar">
+    <div class="mark"><i aria-hidden="true"></i>Qoneqt Video Factory</div>
+    <div class="tally" id="tally"><span class="live idle" aria-hidden="true"></span><span>Nothing in progress</span></div>
   </header>
 
-  <form id="intake" class="intake" aria-labelledby="intake-title">
-    <label for="topics" class="hint" id="intake-title">One topic per line. Each line becomes one video.</label>
-    <textarea id="topics" class="topics" rows="4" placeholder="why sleep matters&#10;5 AI tools every student should know&#10;chai vs coffee"></textarea>
-    <div class="suggest">
-      <div class="row">
-        <button type="button" class="btn quiet" id="suggest">Suggest topics</button>
-        <span class="status" id="suggest-status">Fresh ideas for the chosen community and language, mixed with what India is searching today.</span>
+  <div class="grid">
+    <form id="intake" class="panel" aria-labelledby="intake-title">
+      <h1 id="intake-title">Type a topic. Get a Global Feed short.</h1>
+      <p class="lede">A script, a voice, visuals, word-by-word captions and the post text. About a minute per video.</p>
+
+      <label class="field" for="topics">Topics, one per line. Each line becomes a video.</label>
+      <textarea id="topics" class="topics" rows="4" placeholder="why sleep matters&#10;5 AI tools every student should know&#10;chai vs coffee"></textarea>
+
+      <div class="suggest">
+        <div class="row">
+          <button type="button" class="ghost" id="suggest">Suggest topics</button>
+          <p class="note" id="suggest-status">Ideas for this community and language, some from what India is searching today.</p>
+        </div>
+        <div class="ideas" id="ideas"></div>
       </div>
-      <div class="ideas" id="ideas"></div>
-    </div>
-    <fieldset class="chips" id="communities"><legend>Community</legend></fieldset>
-    <fieldset class="chips" id="languages"><legend>Language</legend></fieldset>
-    <fieldset class="chips" id="durations"><legend>Length</legend></fieldset>
-    <div class="go">
-      <button type="submit" class="btn" id="start" disabled>Start</button>
-      <span class="status" id="intake-status"></span>
-    </div>
-  </form>
 
-  <section aria-labelledby="line-title">
-    <h2 id="line-title">On the line</h2>
-    <p class="lede">Each video passes six stations in order. The yellow marker is where it is right now.</p>
-    <div class="stations" aria-hidden="true">
-      <span>Topic</span>
-      <span>1 Plan<b>script and hook</b></span>
-      <span>2 Images<b>AI stills</b></span>
-      <span>3 Voice<b>narration</b></span>
-      <span>4 Visuals<b>photos to clips</b></span>
-      <span>5 Captions<b>word timings</b></span>
-      <span>6 Render<b>1080 by 1920</b></span>
-    </div>
-    <div id="line" aria-live="polite"></div>
-  </section>
+      <fieldset class="opt" id="communities"><legend><span class="name">Community</span></legend><div class="pills"></div></fieldset>
+      <fieldset class="opt" id="languages"><legend><span class="name">Language</span></legend><div class="pills"></div></fieldset>
+      <fieldset class="opt" id="durations"><legend><span class="name">Length</span></legend><div class="pills"></div></fieldset>
 
-  <section aria-labelledby="done-title" id="done-section" hidden>
-    <h2 id="done-title">Off the line</h2>
-    <p class="lede">Ready to post. Copy the post text, download the video, upload both to the Global Feed.</p>
-    <div id="done"></div>
-  </section>
+      <div class="go">
+        <button type="submit" class="make" id="start" disabled>Make a video</button>
+        <p class="note" id="intake-status"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> also starts it.</p>
+      </div>
+    </form>
+
+    <div class="out">
+      <section aria-labelledby="line-title">
+        <h2 id="line-title">Making now</h2>
+        <p class="sub">Each phone fills as its video passes the six stages: plan, images, voice, visuals, captions, render.</p>
+        <div id="line" class="phones" aria-live="polite"></div>
+      </section>
+
+      <section aria-labelledby="done-title" id="done-section" hidden>
+        <h2 id="done-title">Ready to post</h2>
+        <p class="sub">Download the video, copy the post text, upload both to the Global Feed.</p>
+        <div id="done" class="ready"></div>
+      </section>
+    </div>
+  </div>
 </div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const $ = s => document.querySelector(s);
 const STAGES = ["plan", "images", "voice", "visuals", "captions", "render"];
 const LABEL = {general: "General", tech: "Tech", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun"};
 const posts = {};
-let timer = null, labels = {}, seen = {}, lineKey = "", doneKey = "";
+let timer = null, labels = {}, lineKey = "", doneKey = "";
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
 function lines() { return $("#topics").value.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 10); }
 function label(slug) { return labels[slug] || LABEL[slug] || slug; }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 
-function chips(el, name, items, checked) {
-  el.insertAdjacentHTML("beforeend", items.map(x =>
-    `<label class="chip"><input type="radio" name="${name}" value="${x.slug}"${String(x.slug) === String(checked) ? " checked" : ""}${x.language ? ` data-language="${x.language}"` : ""}><span>${esc(x.label)}</span></label>`).join(""));
+function pills(el, name, items, checked) {
+  el.querySelector(".pills").innerHTML = items.map(x =>
+    `<label class="pill"><input type="radio" name="${name}" value="${x.slug}"${String(x.slug) === String(checked) ? " checked" : ""}${x.language ? ` data-language="${x.language}"` : ""}><span>${esc(x.label)}</span></label>`).join("");
 }
 
 fetch("/presets").then(r => r.json()).then(p => {
   p.communities.forEach(x => labels[x.slug] = LABEL[x.slug] || x.label);
   p.languages.forEach(x => labels[x.slug] = x.label);
-  chips($("#communities"), "community", p.communities.map(x => ({...x, label: label(x.slug)})), p.communities[0].slug);
-  chips($("#languages"), "language", p.languages, "en");
-  chips($("#durations"), "duration", p.durations.map(d => ({slug: d, label: `${d} s`})), 30);
+  pills($("#communities"), "community", p.communities.map(x => ({...x, label: label(x.slug)})), p.communities[0].slug);
+  pills($("#languages"), "language", p.languages, "en");
+  pills($("#durations"), "duration", p.durations.map(d => ({slug: d, label: `${d} s`})), 30);
 });
 
-// a community with a non-English default (Hinglish Fun) pulls the language chip along; any change clears stale ideas
+// a community with a non-English default (Hinglish Fun) pulls the language along; any change clears stale ideas
 $("#intake").addEventListener("change", e => {
   if (e.target.name === "community" && e.target.dataset.language && e.target.dataset.language !== "en") {
     const l = document.querySelector(`input[name=language][value="${e.target.dataset.language}"]`);
@@ -212,8 +248,9 @@ $("#suggest").onclick = async () => {
 $("#topics").addEventListener("input", () => {
   const n = lines().length, b = $("#start");
   b.disabled = n === 0;
-  b.textContent = n === 0 ? "Start" : n === 1 ? "Start 1 video" : `Start ${n} videos`;
+  b.textContent = n === 0 ? "Make a video" : n === 1 ? "Make 1 video" : `Make ${n} videos`;
 });
+$("#topics").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") $("#intake").requestSubmit(); });
 
 $("#intake").onsubmit = async e => {
   e.preventDefault();
@@ -223,10 +260,10 @@ $("#intake").onsubmit = async e => {
   const body = {topics, community: fd.get("community") || "general", language: fd.get("language") || "en", duration: +fd.get("duration") || 30};
   $("#start").disabled = true;
   const r = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
-  if (!r.ok) { $("#intake-status").textContent = "Could not start. " + (await r.text()); $("#start").disabled = false; return; }
-  $("#intake-status").textContent = topics.length === 1 ? "Added to the line." : `${topics.length} videos added to the line.`;
+  if (!r.ok) { $("#intake-status").textContent = "Could not start: " + (await r.text()); $("#start").disabled = false; return; }
+  toast(topics.length === 1 ? "Making your video" : `Making ${topics.length} videos`);
   $("#topics").value = "";
-  $("#start").textContent = "Start";
+  $("#start").textContent = "Make a video";
   poll();
 };
 
@@ -239,21 +276,21 @@ document.addEventListener("click", async e => {
     return;
   }
   const copy = e.target.closest("button[data-copy]");
-  if (copy) { await navigator.clipboard.writeText(posts[copy.dataset.copy]); copy.textContent = "Copied"; setTimeout(() => copy.textContent = "Copy post text", 2000); return; }
+  if (copy) { await navigator.clipboard.writeText(posts[copy.dataset.copy]); toast("Post text copied"); return; }
   const del = e.target.closest("button[data-del]");
   if (del) {
     if (!confirm(`Delete "${del.dataset.topic}"? The video and its post text are removed from the server.`)) return;
     del.disabled = true; del.textContent = "Deleting";
     const r = await fetch(`/jobs/${del.dataset.del}`, {method: "DELETE"});
     if (!r.ok) { del.disabled = false; del.textContent = "Delete failed, try again"; return; }
+    toast("Video deleted");
     poll();
     return;
   }
   const retry = e.target.closest("button[data-retry]");
   if (retry) {
-    const j = JSON.parse(retry.dataset.retry);
     retry.disabled = true;
-    await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(j)});
+    await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"}, body: retry.dataset.retry});
     poll();
   }
 });
@@ -266,35 +303,37 @@ async function poll() {
   if (jobs.some(j => j.status === "queued" || j.status === "running")) timer = setTimeout(poll, 2000);
 }
 
-function rail(j) {
-  const idx = STAGES.indexOf(j.stage), from = seen[j.id];
-  seen[j.id] = idx;
-  // stage advanced since the last paint -> animate stations from..idx; first sight of a job paints still
-  const moved = j.status === "running" && from !== undefined && idx > from, f0 = Math.max(from ?? 0, 0);
-  const st = (cls, dot, d) => `<span class="st${cls}"${d === undefined ? "" : ` style="--d:${d}"`}>${dot}</span>`;
-  return `<div class="rail">` + STAGES.map((s, i) => {
-    if (j.status === "failed") return st(i < idx ? " done" : "", `<span class="dot ${i < idx ? "done" : "wait"}"></span>`);
-    if (i < idx) return moved && i >= f0 ? st(" done fresh", `<span class="dot done"></span>`, i - f0) : st(" done", `<span class="dot done"></span>`);
-    if (i === idx && j.status === "running")
-      return st(moved ? " now arrive" : " now", `<span class="dot now"><span class="spin" aria-hidden="true"></span>${s}</span>`, moved ? idx - f0 : undefined);
-    return st("", `<span class="dot wait"></span>`);
-  }).join("") + `</div>`;
+function opts(j) { return `${esc(label(j.community))}, ${esc(label(j.language))}, ${j.duration} s`; }
+
+function phone(j) {
+  const idx = STAGES.indexOf(j.stage);
+  let cls = j.status, fill = 4, stage = "", extra = "";
+  if (j.status === "running") { fill = Math.round(((idx + 0.5) / STAGES.length) * 100); stage = `${j.stage}<small>stage ${idx + 1} of ${STAGES.length}</small>`; }
+  else if (j.status === "queued") { stage = `waiting<small>next in line</small>`; }
+  else {
+    const at = (j.error || "").split(":")[0] || "an unknown step";
+    fill = Math.max(4, Math.round((STAGES.indexOf(at) / STAGES.length) * 100));
+    stage = `stopped at ${esc(at)}`;
+    extra = `<p class="err">${esc((j.error || "").split(":").slice(1).join(":").trim() || "Something went wrong.")}</p>
+             <button type="button" class="retry" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button>`;
+  }
+  return `<div class="phone ${cls}" style="--fill:${fill}%"><div class="fill"></div>
+    <div class="screen"><p class="topic">${esc(j.topic)}</p><div><p class="stage">${stage}</p>${extra}</div><p class="opts">${opts(j)}</p></div></div>`;
 }
 
 function render(jobs) {
-  const active = jobs.filter(j => j.status !== "done");
+  const active = jobs.filter(j => j.status !== "done").sort((a, b) => a.created - b.created);  // the line runs oldest first
   const done = jobs.filter(j => j.status === "done");
-  // repaint only on change: every repaint restarts animations and any playing video
-  const lk = JSON.stringify(active.map(j => [j.id, j.status, j.stage, j.error])), dk = done.map(j => j.id).join();
+  const making = active.filter(j => j.status !== "failed").length;
+  $("#tally").innerHTML = `<span class="live${making ? "" : " idle"}" aria-hidden="true"></span><span>${making ? `<b>${making}</b> in progress` : "Nothing in progress"}${done.length ? `, <b>${done.length}</b> ready` : ""}</span>`;
 
-  if (lk !== lineKey) $("#line").innerHTML = active.length ? active.map(j => {
-    const state = j.status === "queued" ? "waiting for a free slot"
-      : j.status === "running" ? `now at ${j.stage}`
-      : `stopped at ${(j.error || "").split(":")[0] || "an unknown step"}`;
-    const err = j.status === "failed"
-      ? `<span class="err">${esc(j.error || "Something went wrong.")} <button type="button" class="btn quiet" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button></span>` : "";
-    return `<div class="job"><div class="who"><strong>${esc(j.topic)}</strong><small>${esc(label(j.community))}, ${esc(label(j.language))}, ${j.duration} s, ${state}</small>${err}</div>${rail(j)}</div>`;
-  }).join("") : `<div class="empty">Nothing on the line. Add a topic above to start a video.</div>`;
+  // repaint only on change: every repaint restarts the fill transition and any playing video
+  const lk = JSON.stringify(active.map(j => [j.id, j.status, j.stage, j.error])), dk = done.map(j => j.id).join();
+  if (lk !== lineKey) {
+    $("#line").className = active.length ? "phones" : "";
+    $("#line").innerHTML = active.length ? active.map(phone).join("")
+      : `<div class="empty"><b>No videos yet</b>Type a topic on the left, or ask for suggestions, and make one. It shows up here while it is being made.</div>`;
+  }
   lineKey = lk;
 
   $("#done-section").hidden = done.length === 0;
@@ -308,10 +347,10 @@ function render(jobs) {
       <div class="phone"><video controls playsinline preload="metadata" poster="${m.thumb}" src="${m.video}"></video></div>
       <div>
         <h3>${esc(j.topic)}</h3>
-        <p class="meta">${esc(label(j.community))}, ${esc(label(j.language))}. Asked for ${j.duration} s, spoke ${Math.round(m.duration)} s, made in ${Math.round(m.seconds_to_make)} s with the ${esc(voice)} voice.</p>
+        <p class="meta">${opts(j)}. Spoke ${Math.round(m.duration)} s, made in ${Math.round(m.seconds_to_make)} s with the ${esc(voice)} voice.</p>
         <p class="post">${esc(m.hook)}\n\n${esc(m.caption)}\n\n<span class="tags">${esc(m.hashtags.join(" "))}</span></p>
         <div class="actions">
-          <button type="button" class="btn quiet" data-copy="${j.id}">Copy post text</button>
+          <button type="button" class="ghost" data-copy="${j.id}">Copy post text</button>
           <a href="${m.video}" download="${esc(j.topic).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4">Download mp4</a>
           <button type="button" class="del" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete video</button>
         </div>
