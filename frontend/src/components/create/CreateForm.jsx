@@ -18,7 +18,6 @@ const SKELETON = ["78%", "62%", "85%", "55%", "70%", "66%"];
 
 export function CreateForm({ presets, onStarted }) {
   const [kind, setKind] = useState("video");  // video, or an image post: one picture with its headline plus post text
-  const [headline, setHeadline] = useState(true);  // image posts: the headline drawn on the picture
   const [slides, setSlides] = useState(1);  // image posts: 2-4 makes a carousel whose slide texts read as one story
   const [text, setText] = useState("");
   const [community, setCommunity] = useState("general");
@@ -39,7 +38,7 @@ export function CreateForm({ presets, onStarted }) {
   const want = useRef("");  // the community|language the ideas are for; a late answer for an old pick is dropped
   const topics = toLines(text);
   const image = kind === "image";
-  const options = image ? { kind, community, language, style, headline, slides } : { community, language, duration, style };
+  const options = image ? { kind, community, language, style, slides } : { community, language, duration, style };
   const count = topics.length;
   const face = !image && talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
   const noun = n => (image ? (slides > 1 ? (n === 1 ? "carousel" : "carousels") : (n === 1 ? "image" : "images")) : (n === 1 ? "video" : "videos"));
@@ -223,18 +222,7 @@ export function CreateForm({ presets, onStarted }) {
           </div>
         </div>
       )}
-      {image ? (
-        <div className="field"><span className="lbl"><b>6</b>{slides > 1 ? "Text" : "Headline"}</span>
-          <div className="chips two" role="radiogroup" aria-label="Headline">
-            <label className="chip">
-              <input type="radio" name="headline" checked={headline} onChange={() => setHeadline(true)} /><span>{slides > 1 ? "On every slide" : "On the picture"}</span>
-            </label>
-            <label className="chip">
-              <input type="radio" name="headline" checked={!headline} onChange={() => setHeadline(false)} /><span>Picture only</span>
-            </label>
-          </div>
-        </div>
-      ) : <div className="field"><span className="lbl"><b>6</b>Length</span>
+      {!image && <div className="field"><span className="lbl"><b>6</b>Length</span>
         <div className="chips" role="radiogroup" aria-label="Length">
           {presets.durations.map(d => (
             <label className="chip" key={d}>

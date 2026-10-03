@@ -189,6 +189,8 @@ def restyle(body: RestyleIn):
         except Exception as e:
             if "429" in str(e):  # every Cloudflare key has spent its 10,000 free neurons; they come back at 00:00 UTC
                 raise HTTPException(503, "The free daily AI image limit is used up. It resets at 05:30 IST. Your original photo works meanwhile.")
+            if "timed out" in str(e):  # seen 3 Oct 2026: FLUX.2 hangs on an account where FLUX.1 still answers
+                raise HTTPException(503, "The AI restyle service is not answering right now. Try again in a few minutes, or use your original photo.")
             raise HTTPException(503, f"Restyle failed: {str(e)[:120]}")
         return {"photo": "data:image/jpeg;base64," + base64.b64encode(out.read_bytes()).decode()}
 

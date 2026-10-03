@@ -80,6 +80,8 @@ def tts(text, community, out_wav, language="en"):
     out_wav = Path(out_wav)
     errors = []
     for name, fn in TTS_CHAIN:
+        if name == "elevenlabs" and not LANGUAGES[language].get("eleven", True):
+            continue
         tmp = out_wav.with_suffix(f".{name}.raw")
         for attempt in range(2):  # one retry per engine: edge-tts drops a request now and then, and a fallback engine means a second voice mid-video
             try:
@@ -196,7 +198,7 @@ def gen_image(prompt, out_png, style="photo", ref=None):
                           f"subject of this scene: {prompt}{IMAGE_SUFFIX}", ref, out_png)
             return f"AI image with you, FLUX.2 {model.split('-', 2)[2]} via Cloudflare Workers AI"
         except Exception as e:
-            if any(code in str(e) for code in ("401", "402", "403", "429")):
+            if any(code in str(e) for code in ("401", "402", "403", "429", "timed out")):  # a hang hits every scene alike
                 _image_down["flux2"] = time.time()
     for attempt in range(2):
         for name, fn in IMAGE_CHAIN:
@@ -352,7 +354,7 @@ def flux2(prompt, ref, out_png):
 
     def post(acct, token):
         r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/{FLUX2}",
-                       timeout=120, headers={"Authorization": f"Bearer {token}"},
+                       timeout=45, headers={"Authorization": f"Bearer {token}"},  # ~10 s when well; seen hanging 150 s+
                        data={"prompt": prompt, "width": str(w), "height": str(h)},
                        files={"input_image_0": ("ref.png", Path(ref).read_bytes(), "image/png")})
         r.raise_for_status()
@@ -489,11 +491,14 @@ def words(wav, language="en", prompt=""):
             "language": LANGUAGES[language]["whisper"], "timestamp_granularities[]": "word"}
     if prompt:
         data["prompt"] = prompt
+    # Whisper hears 16 kHz mono anyway: FLAC at that rate is ~5x smaller than our 44.1 kHz WAV, so Groq answers sooner
+    flac = Path(wav).with_suffix(".16k.flac")
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-ar", "16000", "-ac", "1", str(flac)])
     def post(key):
-        with open(wav, "rb") as f:  # reopened per key: a retried upload needs the file back at the start
+        with open(flac, "rb") as f:  # reopened per key: a retried upload needs the file back at the start
             r = httpx.post("https://api.groq.com/openai/v1/audio/transcriptions", timeout=120,
                            headers={"Authorization": f"Bearer {key}"}, data=data,
-                           files={"file": ("voice.wav", f, "audio/wav")})
+                           files={"file": ("voice.flac", f, "audio/flac")})
         r.raise_for_status()
         return r.json()
 

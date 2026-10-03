@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { fileName } from "../lib/format";
 import { Icon } from "./Icon";
 import { SaveButton } from "./cards/SaveButton";
 
@@ -31,6 +32,9 @@ export function PlayerDialog({ video, onClose, saved, onSave }) {
       {video && !slides.length && <video ref={player} controls playsInline poster={video.thumb} src={video.video} />}
       <button type="button" className="x" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
       {onSave && <SaveButton saved={saved} onClick={onSave} />}
+      {video && (slides.length
+        ? <a className="dl" href={video.download} download={video.file} aria-label={`Download ${video.file.split(".").pop().toUpperCase()}`} title="Download"><Icon name="download" /></a>
+        : <a className="dl" href={video.video} download={fileName(video.topic)} aria-label="Download MP4" title="Download MP4"><Icon name="download" /></a>)}
       <p className="cap">{video?.topic}{slides.length > 1 && <span className="count" aria-live="polite">Slide {at + 1} of {slides.length}</span>}</p>
     </dialog>
   );

@@ -45,6 +45,24 @@ def test_tts_retries_an_engine_once_before_falling_back(monkeypatch, tmp_path):
     assert calls == ["eleven", "edge", "edge"]  # quota error is not retried; the edge hiccup is
 
 
+def test_gujarati_skips_elevenlabs_and_speaks_as_dhwani(monkeypatch, tmp_path):
+    calls = []
+
+    def eleven(text, preset, tmp):
+        calls.append("eleven")
+        tmp.write_bytes(b"x")
+
+    def edge(text, preset, tmp):
+        calls.append(preset["voice_edge"])
+        tmp.write_bytes(b"x")
+
+    monkeypatch.setattr(media, "TTS_CHAIN", [("elevenlabs", eleven), ("edge", edge)])
+    monkeypatch.setattr(media, "_normalize", lambda src, dst: None)
+    assert media.tts("નમસ્તે", "finance", tmp_path / "v.wav", "gu") == "edge"  # finance is a male voice elsewhere
+    assert calls == ["gu-IN-DhwaniNeural"]
+    assert media.tts("hello", "finance", tmp_path / "e.wav", "en") == "elevenlabs"  # other languages keep ElevenLabs first
+
+
 def test_words_sends_the_script_as_whisper_prompt(monkeypatch, tmp_path):
     seen = {}
 
@@ -57,6 +75,7 @@ def test_words_sends_the_script_as_whisper_prompt(monkeypatch, tmp_path):
 
     monkeypatch.setattr(media.httpx, "post", lambda url, **kw: seen.update(kw) or R())
     monkeypatch.setenv("GROQ_API_KEY", "k")
+    monkeypatch.setattr(media, "_run", lambda cmd, cwd=None: Path(cmd[-1]).write_bytes(b"fLaC"))
     wav = tmp_path / "v.wav"
     wav.write_bytes(b"RIFF")
     assert media.words(wav, "hi", "नमस्ते दुनिया") == [{"word": "Hello", "start": 0.1, "end": 0.4}]
@@ -164,6 +183,14 @@ def test_gen_image_puts_the_user_in_or_falls_back_to_plain_flux(monkeypatch, tmp
     def quota(p, ref, o):
         raise RuntimeError("HTTP 429 neurons")
     monkeypatch.setattr(media, "flux2", quota)
+    assert media.gen_image("a stadium", tmp_path / "a.png", ref=tmp_path / "ref.png") == "AI image, plain"
+    assert "flux2" in media._image_down
+
+    media._image_down.clear()  # a hung FLUX.2 rests too, or every scene after it waits out the timeout
+
+    def hang(p, ref, o):
+        raise TimeoutError("The read operation timed out")
+    monkeypatch.setattr(media, "flux2", hang)
     assert media.gen_image("a stadium", tmp_path / "a.png", ref=tmp_path / "ref.png") == "AI image, plain"
     assert "flux2" in media._image_down
 

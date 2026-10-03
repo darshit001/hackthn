@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Header } from "./components/Header";
 import { IconSprite } from "./components/Icon";
+import { Resizer } from "./components/Resizer";
 import { PlayerDialog } from "./components/PlayerDialog";
 import { Toast } from "./components/Toast";
 import { VideoList } from "./components/VideoList";
@@ -53,6 +54,7 @@ export default function App() {
       <Header />
       <main className="layout">
         <CreateForm presets={presets} onStarted={msg => { say(msg); refresh(); }} />
+        <Resizer />
         <VideoList jobs={jobs} presets={presets} actions={actions} />
       </main>
       <PlayerDialog video={playing} onClose={() => setPlaying(null)} saved={!!open?.saved}
