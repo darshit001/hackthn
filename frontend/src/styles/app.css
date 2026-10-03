@@ -8,10 +8,10 @@
   --on-fg:light-dark(#FFFFFF,#141414); /* text on an ink (var(--fg)) fill */
   --screen:light-dark(#141414,#050506); /* a phone screen stays dark in both themes */
   --shadow:light-dark(rgba(20,20,20,.08),rgba(0,0,0,.5));
-  /* accent: violet-blue in light mode; in dark mode every value is the ink it was before */
-  --acc:light-dark(#6A4CF5,#EDEDF0); --acc-bg:light-dark(#F1EEFF,#25252B); --acc-fg:light-dark(#5537E0,#EDEDF0);
-  --on-acc:light-dark(#FFFFFF,#141414); /* text on a solid accent fill */
-  --pick-bg:light-dark(#F1EEFF,#EDEDF0); --pick-fg:light-dark(#5537E0,#141414); /* a picked chip: lavender in light, ink in dark */
+  /* accent: violet-blue. Lines and text are lighter in dark mode to read on the dark card; a solid fill is the same in both */
+  --acc:light-dark(#6A4CF5,#8B73FF); --acc-bg:light-dark(#F1EEFF,#26213F); --acc-fg:light-dark(#5537E0,#B3A3FF);
+  --acc-solid:#6A4CF5; --on-acc:#FFFFFF; /* a solid accent fill and the text on it */
+  --pick-bg:light-dark(#F1EEFF,#26213F); --pick-fg:light-dark(#5537E0,#C4B8FF); /* a picked chip: a soft violet tint */
   /* the six caption colours, in community order: the only colour on the page besides status */
   --neon:#FFE500,#00E5FF,#39FF14,#FFB300,#00FF9C,#FF2D95;
   --amber:light-dark(#B45309,#FBBF24); --amber-bg:light-dark(#FFF7ED,rgba(245,158,11,.13));
@@ -186,12 +186,12 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .go{display:flex;gap:8px;margin-top:20px}
 .go .btn{padding:10px 12px;border-radius:var(--r-md)}
 .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:12px 16px;border:2px solid transparent;border-radius:var(--r-md);color:#fff;font-weight:500;font-size:15px;
-  --fill:light-dark(#6A4CF5,var(--screen)); --glow:light-dark(#B3A3FF,var(--hue,#FFE500)); /* light: violet-blue; dark: as before */
-  --ring:color-mix(in srgb,var(--glow) 25%,light-dark(#6A4CF5,#141414));
+  --fill:var(--acc-solid); --glow:light-dark(#B3A3FF,#9C88FF);
+  --ring:color-mix(in srgb,var(--glow) 25%,var(--fill));
   background:linear-gradient(var(--fill),var(--fill)) padding-box,linear-gradient(100deg,var(--glow),var(--ring) 25%,var(--glow) 50%,var(--ring) 75%,var(--glow)) 0 0/200% 100% border-box;
   box-shadow:0 8px 22px -12px var(--glow);animation:ring 3.5s linear infinite}
 @keyframes ring{to{background-position:0 0,100% 0}}
-.primary .i{color:light-dark(#fff,var(--hue,#fff))}
+.primary .i{color:#fff}
 .primary:hover{box-shadow:0 10px 26px -10px var(--glow)}
 .primary:disabled{background:var(--border);color:var(--fg-3);box-shadow:none;animation:none;cursor:default}
 .primary:disabled .i{color:var(--fg-3)}
@@ -368,7 +368,7 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .pager:empty{display:none}
 .pager nav{display:flex;gap:4px;align-items:center}
 .pager .btn{min-width:32px;justify-content:center}
-.pager .btn[aria-current=page]{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.pager .btn[aria-current=page]{background:var(--acc-solid);border-color:var(--acc-solid);color:var(--on-acc)}
 .pager .gap{padding:0 4px;color:var(--fg-3)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);opacity:0;background:var(--fg);color:var(--on-fg);padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:500;transition:opacity .2s,transform .4s var(--spring);pointer-events:none;z-index:9}
 .toast.show{opacity:1;transform:translateX(-50%)}
@@ -387,8 +387,8 @@ dialog::backdrop{background:rgba(10,10,12,.78)}
 .titlebar .x{margin:-2px -6px 0 0;border-color:transparent;color:var(--fg-2)}
 .titlebar .x:hover{background:var(--soft);color:var(--fg)}
 .watch .sheet > .actions{margin:16px 0 4px;gap:6px}
-.btn.ink{padding:8px 16px;background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
-.btn.ink:hover{background:color-mix(in srgb,var(--acc) 85%,var(--fg))}
+.btn.ink{padding:8px 16px;background:var(--acc-solid);border-color:var(--acc-solid);color:var(--on-acc)}
+.btn.ink:hover{background:color-mix(in srgb,var(--acc-solid) 88%,#000)}
 .watch .sheet > .actions .btn.icon{padding:8px}
 .watch .tabs{margin:14px 0 14px}
 .pane{margin:0;padding:0;font-size:14px;line-height:1.55;color:var(--fg-2)}
