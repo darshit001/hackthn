@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ago, canHover, fileName, mmss, reducedMotion } from "../../lib/format";
+import { ago, canHover, mmss, reducedMotion } from "../../lib/format";
 import { Icon } from "../Icon";
 import { Facts } from "./Facts";
 import { SaveButton } from "./SaveButton";
@@ -47,7 +47,7 @@ export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete
         <p className="desc">{m.hook} {m.caption}</p>
         <div className="actions">
           <button type="button" className="btn icon" aria-label="Copy post text" title="Copy post text" onClick={() => onCopy(postText(m, "post"), COPIED.post)}><Icon name="copy" /></button>
-          <a className="btn icon" href={m.video} download={fileName(job.topic)} aria-label="Download MP4" title="Download MP4"><Icon name="download" /></a>
+          <a className="btn icon" href={`/jobs/${job.id}/download`} download aria-label="Download video, cover and caption as a ZIP" title="Download video, cover and caption (ZIP)"><Icon name="download" /></a>
           <details className="menu">
             <summary className="btn icon" aria-label="More actions"><Icon name="more" className="i fill" /></summary>
             <div className="pop">

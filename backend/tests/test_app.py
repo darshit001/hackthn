@@ -267,3 +267,25 @@ def test_save_survives_a_restart_and_needs_a_finished_video(monkeypatch, tmp_pat
     assert client.delete("/jobs/ab12cd34/save").json() == {"id": "ab12cd34", "saved": False}
     assert not (d / "saved").exists()
     assert client.delete("/jobs/ab12cd34/save").status_code == 200  # unsaving twice is fine
+
+
+def test_download_zips_video_cover_and_post_text(monkeypatch, tmp_path):
+    import io, zipfile
+    d = tmp_path / "ab12cd34"
+    d.mkdir()
+    (d / "ab12cd34.mp4").write_bytes(b"mp4")
+    (d / "ab12cd34.jpg").write_bytes(b"jpg")
+    m = {"topic": "Chai vs Coffee!", "hook": "Hook", "caption": "Cap", "hashtags": ["#a", "#b"]}
+    monkeypatch.setattr(pipeline, "OUT", tmp_path)
+    monkeypatch.setattr(appmod, "JOBS", {"ab12cd34": {"id": "ab12cd34", "status": "done", "result": m},
+                                         "gu": {"id": "gu", "status": "done", "result": dict(m, topic="ચા")},
+                                         "q": {"id": "q", "status": "queued", "result": None}})
+    r = client.get("/jobs/ab12cd34/download")
+    assert r.headers["content-disposition"] == 'attachment; filename="chai-vs-coffee.zip"'
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert sorted(z.namelist()) == ["chai-vs-coffee.jpg", "chai-vs-coffee.mp4", "chai-vs-coffee.txt"]
+    assert z.read("chai-vs-coffee.mp4") == b"mp4"
+    assert z.read("chai-vs-coffee.txt").decode() == "Hook\n\nCap\n\n#a #b\n"
+    assert client.get("/jobs/gu/download").headers["content-disposition"].endswith('"video-gu.zip"')
+    assert client.get("/jobs/q/download").status_code == 404
+    assert client.get("/jobs/nope/download").status_code == 404

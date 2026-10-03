@@ -1,17 +1,20 @@
 """FastAPI front: job dict + one worker thread + static UI.
 ponytail: in-memory jobs (Redis/SQLite if history is ever needed); ephemeral out/ (HF persistent volume if videos must survive restarts)."""
 import base64
+import io
 import json
 import queue
+import re
 import secrets
 import shutil
 import subprocess
 import tempfile
 import threading
 import time
+import zipfile
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -323,6 +326,27 @@ def delete_job(jid: str):
     return {"deleted": jid}
 
 
+
+
+@app.get("/jobs/{jid}/download")
+def download_job(jid: str):
+    """One zip to post from: the video, its cover and the post text (the same text the Copy button gives)."""
+    with LOCK:
+        j = JOBS.get(jid)
+        m = j and j.get("result")
+    if not m:
+        raise HTTPException(404, "no finished video")
+    # a Gujarati or Hindi topic has no ASCII letters for a file name, so the id stands in
+    name = re.sub(r"[^a-z0-9]+", "-", m["topic"].lower()).strip("-")[:60] or f"video-{jid}"
+    d, buf = pipeline.OUT / jid, io.BytesIO()
+    # ponytail: built in memory, fine for a 60 s short; stream from a temp file if videos ever reach hundreds of MB
+    with zipfile.ZipFile(buf, "w") as z:  # stored, not deflated: mp4 and jpg are already compressed
+        for ext in ("mp4", "jpg"):
+            if (d / f"{jid}.{ext}").exists():
+                z.write(d / f"{jid}.{ext}", f"{name}.{ext}")
+        z.writestr(f"{name}.txt", f"{m['hook']}\n\n{m['caption']}\n\n{' '.join(m['hashtags'])}\n")
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{name}.zip"'})
 # The React build (frontend/dist, from `npm run build`) is served last so it never shadows an API route.
 # In development Vite serves the UI on :8000 and proxies the API here, so the folder may not exist.
 WEB = pipeline.BACKEND.parent / "frontend" / "dist"
