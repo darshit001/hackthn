@@ -77,8 +77,8 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .chip:active{transform:scale(.97)}
 /* a community tile: monochrome icon over its name, no colour; picked = ink like every other chip */
 .chips.three{gap:8px}
-.comm{flex-direction:column;gap:8px;min-height:78px;padding:12px 6px;border-radius:var(--r-lg);font-size:13.5px;font-weight:500}
-.comm .i{width:22px;height:22px;stroke-width:1.5;color:var(--fg-2);transition:color .15s,transform .2s var(--spring)}
+.comm{flex-direction:column;gap:6px;min-height:72px;padding:12px 6px;border-radius:var(--r-lg);font-size:13.5px;font-weight:500}
+.comm .i{width:18px;height:18px;stroke-width:1.6;color:var(--fg-2);transition:color .15s,transform .2s var(--spring)}
 .comm:hover .i{transform:translateY(-1px)}
 .comm:hover .i{color:var(--fg)}
 .comm:has(input:checked) .i{color:inherit}
