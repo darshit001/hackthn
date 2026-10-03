@@ -18,6 +18,7 @@ load_dotenv()
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
 CHAIN = [("groq", "openai/gpt-oss-120b"), ("groq", "qwen/qwen3.8-27b"), ("gemini", "gemini-3.5-flash-lite")]
+MAX_TOKENS = {"qwen/qwen3.8-27b": 1000}  # Groq free tier caps qwen at 1000 output tokens a minute; a bigger ask is refused before it runs
 UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}
 FORMULAS = ("question", "bold_claim", "number", "myth", "story", "warning")
 BEATS = ("hook", "context", "rehook", "twist", "payoff")
@@ -270,7 +271,7 @@ def _parse(text):
 def _call_groq(model, messages, temperature):
     r = httpx.post(GROQ_URL, timeout=60,
                    headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
-                   json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": 4000,
+                   json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": MAX_TOKENS.get(model, 4000),
                          "reasoning_effort": "low", "response_format": {"type": "json_object"}})
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
@@ -351,7 +352,16 @@ def translate(src, language, duration=30):
     body = {k: v for k, v in src.items() if k not in ("model", "review")}
     base = [{"role": "system", "content": system},
             {"role": "user", "content": f"Script:\n{json.dumps(body, ensure_ascii=False)}\nReturn the JSON now."}]
-    p = _ask(base, lambda q: validate_plan(_merge(q, src), (n, n)), temperature=0.5)
+    script = re.compile(f"[{lang['script']}]" if lang["script"] else "[ऀ-૿]")
+
+    def check(q):
+        validate_plan(_merge(q, src), (n, n))
+        texts = [("hook", q["hook"])] + [(f"scene {i} {k}", s[k]) for k in ("narration", "title") for i, s in enumerate(q["scenes"], 1)]
+        for where, t in texts:
+            # models leave the hook in English: an Indic target needs its script in every line, a Roman one none at all
+            if bool(script.search(t)) != bool(lang["script"]):
+                raise ValueError(f"{where} is not in {lang['label']}: write every hook, narration and title in {lang['instruction']}")
+    p = _ask(base, check, temperature=0.5)
     p["hook"] = p["hook"].strip()
     return p
 

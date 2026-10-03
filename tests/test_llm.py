@@ -202,6 +202,16 @@ def test_review_is_skipped_when_every_model_is_down(monkeypatch):
     assert p["scenes"][1]["narration"] == "Sentence number 1 goes here."
 
 
+def hindi():
+    """good() as a Hindi translation: the hook, every narration and every title carry Devanagari."""
+    q = good()
+    q["hook"] = q["hooks"][0]["text"] = "थकान क्यों?"
+    for s in q["scenes"]:
+        s.update(narration="नमस्ते " + s["narration"], title="शीर्षक")
+    q["scenes"][0]["narration"] = "थकान क्यों? " + q["scenes"][0]["narration"]
+    return q
+
+
 def test_translate_keeps_the_visuals_and_the_review_and_pins_the_scene_count(monkeypatch):
     import json
     src = dict(good(), model="test", review={"verdict": "ok", "notes": []})
@@ -209,9 +219,9 @@ def test_translate_keeps_the_visuals_and_the_review_and_pins_the_scene_count(mon
 
     def fake(base, validate, temperature=0.8):
         seen.update(system=base[0]["content"], user=base[1]["content"], temperature=temperature)
-        q = json.loads(json.dumps(good()))
+        q = hindi()
         for s in q["scenes"]:  # a model that "helpfully" rewrites the visuals is corrected, not retried
-            s.update(narration="नमस्ते " + s["narration"], title="शीर्षक", query="changed", image_prompt="changed", beat="twist")
+            s.update(query="changed", image_prompt="changed", beat="twist")
         q["hooks"][0]["score"] = 1
         q["hashtags"] = ["#changed"]
         validate(q)
@@ -221,7 +231,7 @@ def test_translate_keeps_the_visuals_and_the_review_and_pins_the_scene_count(mon
     assert [s["query"] for s in out["scenes"]] == ["city night"] * 5 and [s["beat"] for s in out["scenes"]] == [s["beat"] for s in src["scenes"]]
     assert all(s.get("image_prompt") is None for s in out["scenes"])  # the source had none, so none is invented
     assert out["hooks"][0]["score"] == 8 and out["hashtags"] == src["hashtags"] and out["review"] == src["review"]
-    assert out["scenes"][0]["narration"].startswith("नमस्ते") and out["scenes"][0]["title"] == "शीर्षक"
+    assert out["scenes"][0]["narration"].startswith("थकान क्यों? नमस्ते") and out["scenes"][0]["title"] == "शीर्षक"
     assert seen["temperature"] == 0.5 and "Devanagari" in seen["system"] and "30 second" in seen["system"]
     assert '"model"' not in seen["user"] and '"review"' not in seen["user"] and "Sentence number 0" in seen["user"]
 
@@ -234,3 +244,30 @@ def test_translate_rejects_a_different_scene_count(monkeypatch):
     monkeypatch.setattr(llm, "_ask", fake)
     with pytest.raises(ValueError, match="need 5-5 scenes"):
         llm.translate(good(), "gu", 30)
+
+
+def test_translate_rejects_text_outside_the_target_script(monkeypatch):
+    ret = {}
+    monkeypatch.setattr(llm, "_ask", lambda base, validate, temperature=0.8: validate(ret["q"]) or ret["q"])
+    ret["q"] = q = hindi(); q["hook"] = q["hooks"][0]["text"] = "Tired?"  # the model left the hook in English
+    with pytest.raises(ValueError, match="hook is not in हिन्दी"):
+        llm.translate(good(), "hi", 30)
+    ret["q"] = q = hindi(); q["scenes"][1]["title"] = "Point 1"
+    with pytest.raises(ValueError, match="scene 2 title is not in हिन्दी"):
+        llm.translate(good(), "hi", 30)
+    ret["q"] = q = good(); q["scenes"][2]["narration"] = "नमस्ते दुनिया"
+    with pytest.raises(ValueError, match="scene 3 narration is not in English"):
+        llm.translate(good(), "en", 30)
+
+
+def test_groq_asks_qwen_for_what_the_free_tier_allows(monkeypatch):
+    sent = []
+
+    class R:
+        def raise_for_status(self): pass
+        def json(self): return {"choices": [{"message": {"content": "{}"}}]}
+    monkeypatch.setenv("GROQ_API_KEY", "x")
+    monkeypatch.setattr(llm.httpx, "post", lambda url, json=None, **kw: sent.append(json["max_tokens"]) or R())
+    llm._call_groq("qwen/qwen3.8-27b", [], 0.5)
+    llm._call_groq("openai/gpt-oss-120b", [], 0.5)
+    assert sent == [1000, 4000]
