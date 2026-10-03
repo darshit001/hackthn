@@ -1,17 +1,16 @@
 import { useRef, useState } from "react";
 import { api } from "../../lib/api";
-import { GLYPH, ICON, MAX_TOPICS } from "../../lib/constants";
+import { ICON, MAX_TOPICS } from "../../lib/constants";
 import { reducedMotion } from "../../lib/format";
 import { Icon } from "../Icon";
 import { ScriptPreview } from "./ScriptPreview";
 
 const HINT = "One topic per line, up to 10.";
-// the two dropdowns are <details className="menu">: a click elsewhere closes them (VideoList), Escape closes them here
+// the suggestions dropdown is a <details className="menu">: a click elsewhere closes it (VideoList), Escape closes it here
 const shut = d => { d.removeAttribute("open"); d.querySelector("summary").focus(); };
 const escToClose = e => { if (e.key === "Escape" && e.currentTarget.open) { e.preventDefault(); shut(e.currentTarget); } };
 // the form scrolls on its own, so an opened list is brought into view
 const reveal = d => d.open && d.querySelector(".pop").scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
-const Glyph = ({ slug }) => <span className="glyph" aria-hidden="true">{GLYPH[slug] || slug.slice(0, 2)}</span>;
 const toLines = text => text.split("\n").map(s => s.trim()).filter(Boolean).slice(0, MAX_TOPICS);
 
 export function CreateForm({ presets, onStarted }) {
@@ -87,83 +86,79 @@ export function CreateForm({ presets, onStarted }) {
     setBusy("");
   };
 
+  // the picked community's caption colour; no control may be named "style", or form.style stops being the CSS one
+  const hue = presets.accents[community] || "#FFE500";
+
   return (
-    <form ref={form} className="new" aria-labelledby="new-title" onSubmit={submit}>
-      <h1 id="new-title">Create a new video</h1>
-      <p className="sub">Turn a topic into a ready-to-post Global Feed video.</p>
+    <form ref={form} className="new" aria-labelledby="new-title" onSubmit={submit} style={{ "--hue": hue }}>
+      <h1 id="new-title">Create a video</h1>
 
-      <label className="field" htmlFor="topics"><span>1. Topics</span>
-        <div className="ta">
-          <textarea id="topics" className="topics" rows={4} value={text}
-            placeholder={"why sleep matters\n5 AI tools every student should know\nchai vs coffee"}
-            onChange={e => changeText(e.target.value)}
-            onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") form.current.requestSubmit(); }} />
-          <span className="count">{topics.length}/{MAX_TOPICS}</span>
-        </div>
-      </label>
-      <div className="row" style={{ margin: "-6px 0 16px" }}>
-        <details className="menu drop" onKeyDown={escToClose} onToggle={e => { reveal(e.currentTarget); if (e.currentTarget.open && !ideas.length && busy !== "suggest") suggest(); }}>
-          <summary className="btn"><Icon name="sparkles" />Suggest topics<Icon name="chevron" className="i chev" /></summary>
-          <div className="pop ideas" aria-busy={busy === "suggest"}>
-            <div className="pophead">
-              <span>{busy === "suggest" ? "Finding ideas…" : <>{ideasNote.startsWith("With") && <Icon name="trending" />}{ideasNote}</>}</span>
-              <button type="button" className="link" disabled={busy === "suggest"} onClick={suggest}><Icon name="refresh" />New ideas</button>
-            </div>
-            {busy !== "suggest" && ideas.map(i => (
-              <button type="button" key={i.text} className={i.added ? "added" : ""} disabled={i.added} onClick={() => addIdea(i.text)}
-                aria-label={i.added ? `${i.text}, added` : `Add ${i.text}`}>
-                <span>{i.text}</span><Icon name={i.added ? "check" : "plus"} />
-              </button>
-            ))}
-          </div>
-        </details>
-        <p className="hint">{status}</p>
-        {preview && (
-          <ScriptPreview key={preview.topic} {...preview} onClose={() => setPreview(null)}
-            onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan },
-              every ? `Generating ${langs} videos in ${langs} languages with your script` : "Generating 1 video with your script")} />
-        )}
-      </div>
-
-      <div className="field"><span>2. Community</span>
-        <div className="tiles" role="radiogroup" aria-label="Community">
+      {/* the order a person decides in: where it goes, which language, what about (suggestions use both), how it looks */}
+      <div className="field"><span className="lbl"><b>1</b>Community</span>
+        <div className="chips three" role="radiogroup" aria-label="Community">
           {presets.communities.map(c => (
-            <label className="tile" key={c.slug}>
+            <label className="chip comm" key={c.slug} style={{ "--c": c.accent }}>
               <input type="radio" name="community" value={c.slug} checked={community === c.slug} onChange={() => pickCommunity(c)} />
               <Icon name={ICON[c.slug] || "folder"} /><span>{presets.label(c.slug)}</span>
             </label>
           ))}
         </div>
       </div>
-      <div className="field"><span id="lang-label">3. Language</span>
-        <details className="menu drop" onKeyDown={escToClose} onToggle={e => reveal(e.currentTarget)}>
-          <summary className="sel pick" aria-labelledby="lang-label lang-now"><Glyph slug={language} /><span id="lang-now">{presets.label(language)}</span></summary>
-          <div className="pop langs" role="group" aria-label="Language">
-            {presets.languages.map(l => (
-              <button type="button" key={l.slug} aria-pressed={language === l.slug} onClick={e => {
-                setLanguage(l.slug); dropIdeas(); shut(e.currentTarget.closest("details"));
-              }}><Glyph slug={l.slug} /><span>{l.label}</span>{language === l.slug && <Icon name="check" />}</button>
-            ))}
-          </div>
-        </details>
+
+      <div className="field"><span className="lbl"><b>2</b>Language</span>
+        <div className="chips" role="radiogroup" aria-label="Language">
+          {presets.languages.map(l => (
+            <label className="chip" key={l.slug}>
+              <input type="radio" name="language" value={l.slug} checked={language === l.slug} onChange={() => { setLanguage(l.slug); dropIdeas(); }} />
+              <span>{l.label}</span>
+            </label>
+          ))}
+        </div>
+        <label className="check">
+          <input type="checkbox" checked={every} onChange={e => setEvery(e.target.checked)} />Also make it in the other {langs - 1} languages, same visuals
+        </label>
       </div>
-      <label className="check">
-        <input type="checkbox" checked={every} onChange={e => setEvery(e.target.checked)} />Also make it in the other languages (same visuals)
-      </label>
-      <div className="field"><span>4. Length</span>
-        <div className="seg" role="radiogroup" aria-label="Length">
-          {presets.durations.map(d => (
-            <label key={d}>
-              <input type="radio" name="duration" value={d} checked={duration === d} onChange={() => { setDuration(d); setPreview(null); }} /><span>{d} s</span>
+
+      <div className="field topic">
+        <div className="lblrow">
+          <label className="lbl" htmlFor="topics"><b>3</b>Topic</label>
+          <details className="menu drop" onKeyDown={escToClose} onToggle={e => { reveal(e.currentTarget); if (e.currentTarget.open && !ideas.length && busy !== "suggest") suggest(); }}>
+            <summary className="link"><Icon name="sparkles" />Suggest topics<Icon name="chevron" className="i chev" /></summary>
+            <div className="pop ideas" aria-busy={busy === "suggest"}>
+              <div className="pophead">
+                <span>{busy === "suggest" ? "Finding ideas…" : <>{ideasNote.startsWith("With") && <Icon name="trending" />}{ideasNote}</>}</span>
+                <button type="button" className="link" disabled={busy === "suggest"} onClick={suggest}><Icon name="refresh" />New ideas</button>
+              </div>
+              {busy !== "suggest" && ideas.map(i => (
+                <button type="button" key={i.text} className={i.added ? "added" : ""} disabled={i.added} onClick={() => addIdea(i.text)}
+                  aria-label={i.added ? `${i.text}, added` : `Add ${i.text}`}>
+                  <span>{i.text}</span><Icon name={i.added ? "check" : "plus"} />
+                </button>
+              ))}
+            </div>
+          </details>
+        </div>
+        <textarea id="topics" className="topics" rows={3} value={text} aria-describedby="topics-hint"
+          placeholder={"why sleep matters\n5 AI tools every student should know\nchai vs coffee"}
+          onChange={e => changeText(e.target.value)}
+          onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") form.current.requestSubmit(); }} />
+        <p className="hint" id="topics-hint"><span>{status}</span><span className="count">{topics.length}/{MAX_TOPICS}</span></p>
+      </div>
+
+      <div className="field"><span className="lbl"><b>4</b>Look</span>
+        <div className="chips look" role="radiogroup" aria-label="Look">
+          {presets.styles.map(s => (
+            <label className="chip" key={s.slug}>
+              <input type="radio" name="look" value={s.slug} checked={style === s.slug} onChange={() => setStyle(s.slug)} /><span>{s.label}</span>
             </label>
           ))}
         </div>
       </div>
-      <div className="field"><span>5. Look</span>
-        <div className="seg" role="radiogroup" aria-label="Look">
-          {presets.styles.map(s => (
-            <label key={s.slug}>
-              <input type="radio" name="style" value={s.slug} checked={style === s.slug} onChange={() => setStyle(s.slug)} /><span>{s.label}</span>
+      <div className="field"><span className="lbl"><b>5</b>Length</span>
+        <div className="chips" role="radiogroup" aria-label="Length">
+          {presets.durations.map(d => (
+            <label className="chip" key={d}>
+              <input type="radio" name="duration" value={d} checked={duration === d} onChange={() => { setDuration(d); setPreview(null); }} /><span>{d} s</span>
             </label>
           ))}
         </div>
@@ -182,6 +177,11 @@ export function CreateForm({ presets, onStarted }) {
         <span><Icon name="clock" />About a minute per video</span>
         <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> starts it</span>
       </p>
+      {preview && (
+        <ScriptPreview key={preview.topic} {...preview} onClose={() => setPreview(null)}
+          onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan },
+            every ? `Generating ${langs} videos in ${langs} languages with your script` : "Generating 1 video with your script")} />
+      )}
     </form>
   );
 }

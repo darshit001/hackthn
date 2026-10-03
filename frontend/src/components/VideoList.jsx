@@ -45,17 +45,17 @@ export function VideoList({ jobs, presets, actions }) {
   };
 
   const card = j => {
-    const common = { job: j, label: presets.label };
+    const common = { job: j, label: presets.label, accent: presets.accents[j.community] };
     if (j.status === "done") return <ReadyCard key={j.id} {...common} {...actions} />;
     if (j.status === "failed") return <FailedCard key={j.id} {...common} onRetry={actions.onRetry} onDelete={actions.onDelete} />;
     if (j.status === "queued") return <QueuedCard key={j.id} {...common} position={queuePos.get(j.id) || 0} onDelete={actions.onDelete} />;
-    return <LiveCard key={j.id} {...common} accent={presets.accents[j.community]} onStop={actions.onStop} />;
+    return <LiveCard key={j.id} {...common} onStop={actions.onStop} />;
   };
 
   return (
     <section className="videos" ref={top}>
       <div className="head">
-        <div><h2>Your videos</h2><p className="sub">Watch, copy the post text and download when a video is ready.</p></div>
+        <h2>Your videos</h2>
         <label className="search">
           <Icon name="search" />
           <input type="search" placeholder="Search videos by topic" aria-label="Search videos" value={q}

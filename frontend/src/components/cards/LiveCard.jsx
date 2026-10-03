@@ -27,8 +27,8 @@ export function LiveCard({ job, label, accent, onStop }) {
   const started = job.started || job.created;
 
   return (
-    <article className="card live">
-      <div className="thumb screen" style={{ "--accent": accent || "#FFE500" }}>
+    <article className="card live" style={{ "--c": accent || "#FFE500" }}>
+      <div className="thumb screen">
         {last ? <>
           <Still key={src(last)} className="still" src={src(last)} />
           <i className="bar" style={{ "--fill": `${pct}%` }} />
@@ -36,34 +36,34 @@ export function LiveCard({ job, label, accent, onStop }) {
         <span className="stage swap" key={job.stage}>{word}{count && <small>{count} stills</small>}</span>
       </div>
       <div className="body">
-        <span className="status making">Generating</span>
+        <div className="meta">
+          <span className="status making">Generating</span>
+          <Facts job={job} label={label} accent={accent} />
+          <time>Started {ago(started)}</time>
+        </div>
         <h3>{job.topic}</h3>
         {job.hook && <p className="desc">{job.hook}</p>}
         <ol className="steps" aria-label="Steps">
           {STAGES.map((st, i) => <li key={st} className={i < idx ? "done" : i === idx ? "now" : ""}><span>{STEP[st][0]}</span></li>)}
         </ol>
-        <p className="step">
-          <span className="swap" key={job.stage}>{verb}{count && `, ${count}`}</span>
-          <span className="elapsed"><Icon name="timer" /><Elapsed since={started} /></span>
-        </p>
         {stills.length > 0 && (
           <div className="strip">
             {stills.map(f => <Still key={src(f)} src={src(f)} title={(job.scenes || [])[parseInt(f.slice(3), 10)] || ""} />)}
           </div>
         )}
-        <Facts job={job} label={label} />
-      </div>
-      <div className="side">
-        <time>Started {ago(started)}</time>
-        {!job.result && (  // a scene redo on a finished video can't be stopped halfway
-          <div className="actions">
+        <div className="actions">
+          <p className="step">
+            <span className="swap" key={job.stage}>{verb}{count && `, ${count}`}</span>
+            <span className="elapsed"><Icon name="timer" /><Elapsed since={started} /></span>
+          </p>
+          {!job.result && (  // a scene redo on a finished video can't be stopped halfway
             <button type="button" className="btn del" onClick={e => {
               if (!confirm(`Stop "${job.topic}"? The work done so far is thrown away.`)) return;
               e.currentTarget.disabled = true;
               onStop(job.id);
             }}><Icon name="x" />Stop</button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </article>
   );

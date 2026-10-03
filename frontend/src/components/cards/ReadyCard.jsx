@@ -12,7 +12,7 @@ function postText(m, kind) {
 const COPIED = { yt: "YouTube text copied", ig: "Instagram text copied", post: "Post text copied" };
 const PREVIEW = canHover() && !reducedMotion();  // hovering a thumbnail plays it silently, the way a feed does
 
-export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {
+export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete }) {
   const m = job.result, v = m.updated || 0;
   const video = `${m.video}?v=${v}`, thumb = `${m.thumb}?v=${v}`;
   const [hover, setHover] = useState(false);
@@ -29,18 +29,17 @@ export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {
         <span className="dur">{mmss(m.duration)}</span>
       </button>
       <div className="body">
-        <span className="status ready">Ready</span>
+        <div className="meta">
+          <Facts job={job} label={label} accent={accent} length={false}>
+            {m.style && m.style !== "photo" && <li><Icon name="image" />{label(m.style)} look</li>}
+          </Facts>
+          <time>{ago(job.created)}</time>
+        </div>
         <h3>{job.topic}</h3>
         <p className="desc">{m.hook} {m.caption}</p>
-        <Facts job={job} label={label}>
-          {m.style && m.style !== "photo" && <li><Icon name="image" />{label(m.style)} look</li>}
-        </Facts>
-      </div>
-      <div className="side">
-        <time>Created {ago(job.created)}</time>
         <div className="actions">
-          <button type="button" className="btn" onClick={() => onCopy(postText(m, "post"), COPIED.post)}><Icon name="copy" />Copy text</button>
-          <a className="btn" href={m.video} download={fileName(job.topic)}><Icon name="download" />Download MP4</a>
+          <button type="button" className="btn" onClick={() => onCopy(postText(m, "post"), COPIED.post)}><Icon name="copy" /><span>Copy<span className="w"> text</span></span></button>
+          <a className="btn" href={m.video} download={fileName(job.topic)}><Icon name="download" /><span>Download<span className="w"> MP4</span></span></a>
           <details className="menu">
             <summary className="btn icon" aria-label="More actions"><Icon name="more" className="i fill" /></summary>
             <div className="pop">
