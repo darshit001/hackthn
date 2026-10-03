@@ -293,6 +293,7 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .tile > .save:hover{background:rgba(0,0,0,.75);border:0}
 .tile > .save .i{width:15px;height:15px}
 .tile > .thumb img,.tile > .thumb .peek{object-position:50% 18%}
+.tile.post > .thumb img{object-position:50% 0}  /* an image post's headline sits at its very top */
 /* the play mark waits for a pointer or keyboard focus; the cover alone reads cleaner */
 .tile .thumb .play{opacity:0;transition:opacity .15s,transform .15s,background .15s}
 .tile button.thumb:hover .play,.tile button.thumb:focus-visible .play{opacity:1}

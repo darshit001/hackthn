@@ -10,7 +10,7 @@ export function ImageCard({ job, label, onPlay, onCopy, onRedo, onDelete, onSave
   const many = m.slides?.length > 1;  // a carousel downloads as one zip of its slides; older posts have no slides
 
   return (
-    <article className="card tile">
+    <article className="card tile post">
       <button type="button" className="thumb" aria-label={`Open ${job.topic}`} onClick={() => onPlay(job.id)}>
         <img src={thumb} alt={m.alt || ""} />
         {m.style && m.style !== "photo" && <span className="badge">{label(m.style)}</span>}
