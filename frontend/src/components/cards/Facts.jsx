@@ -5,7 +5,7 @@ export function Facts({ job, label, children }) {
   return (
     <ul className="facts">
       <li><Icon name="folder" />{label(job.community)}</li>
-      <li><Icon name="globe" />{label(job.language)}</li>
+      <li><Icon name="languages" />{label(job.language)}</li>
       <li><Icon name="clock" />{job.duration} s</li>
       {children}
     </ul>

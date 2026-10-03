@@ -46,7 +46,7 @@ export function VideoList({ jobs, presets, actions }) {
 
   const card = j => {
     const common = { job: j, label: presets.label };
-    if (j.status === "done") return <ReadyCard key={j.id} {...common} {...actions} sourceJob={j.result.source && jobs.find(x => x.id === j.result.source)} />;
+    if (j.status === "done") return <ReadyCard key={j.id} {...common} {...actions} />;
     if (j.status === "failed") return <FailedCard key={j.id} {...common} onRetry={actions.onRetry} onDelete={actions.onDelete} />;
     if (j.status === "queued") return <QueuedCard key={j.id} {...common} position={queuePos.get(j.id) || 0} onDelete={actions.onDelete} />;
     return <LiveCard key={j.id} {...common} accent={presets.accents[j.community]} onStop={actions.onStop} />;

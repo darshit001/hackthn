@@ -12,8 +12,8 @@ export const STEP = {
 
 export const LABEL = { general: "General", tech: "Tech & AI", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun" };
 export const ICON = { general: "globe", tech: "cpu", fitness: "dumbbell", motivation: "flame", finance: "rupee", hinglish_fun: "smile" };
-export const VOICE = { elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini" };
 export const FORMULA = { question: "Question", bold_claim: "Bold claim", number: "Number", myth: "Myth", story: "Story", warning: "Warning" };
+export const GLYPH = { en: "A", hi: "अ", hinglish: "अa", gu: "અ" };  // each language in its own script
 
 export const PER_PAGE = 10;
 export const MAX_TOPICS = 10;

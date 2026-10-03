@@ -1,10 +1,17 @@
 import { useRef, useState } from "react";
 import { api } from "../../lib/api";
-import { ICON, MAX_TOPICS } from "../../lib/constants";
+import { GLYPH, ICON, MAX_TOPICS } from "../../lib/constants";
+import { reducedMotion } from "../../lib/format";
 import { Icon } from "../Icon";
 import { ScriptPreview } from "./ScriptPreview";
 
-const HINT = "One topic per line, up to 10. Suggestions use what India is searching today.";
+const HINT = "One topic per line, up to 10.";
+// the two dropdowns are <details className="menu">: a click elsewhere closes them (VideoList), Escape closes them here
+const shut = d => { d.removeAttribute("open"); d.querySelector("summary").focus(); };
+const escToClose = e => { if (e.key === "Escape" && e.currentTarget.open) { e.preventDefault(); shut(e.currentTarget); } };
+// the form scrolls on its own, so an opened list is brought into view
+const reveal = d => d.open && d.querySelector(".pop").scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+const Glyph = ({ slug }) => <span className="glyph" aria-hidden="true">{GLYPH[slug] || slug.slice(0, 2)}</span>;
 const toLines = text => text.split("\n").map(s => s.trim()).filter(Boolean).slice(0, MAX_TOPICS);
 
 export function CreateForm({ presets, onStarted }) {
@@ -16,6 +23,7 @@ export function CreateForm({ presets, onStarted }) {
   const [every, setEvery] = useState(false);  // also make it in every other language
   const [status, setStatus] = useState(HINT);
   const [ideas, setIdeas] = useState([]);
+  const [ideasNote, setIdeasNote] = useState("");  // where the ideas came from, or why there are none
   const [busy, setBusy] = useState("");  // the button that is working: suggest | preview | start
   const [preview, setPreview] = useState(null);  // {topic, plan}
   const form = useRef();
@@ -25,7 +33,7 @@ export function CreateForm({ presets, onStarted }) {
   const count = topics.length * (every ? langs : 1);
 
   const changeText = value => { setText(value); setPreview(null); };
-  const dropIdeas = () => { setIdeas([]); setPreview(null); };
+  const dropIdeas = () => { setIdeas([]); setIdeasNote(""); setPreview(null); };
 
   // a community with a non-English default (Hinglish Fun) switches the language; any change drops stale ideas
   const pickCommunity = c => {
@@ -48,12 +56,12 @@ export function CreateForm({ presets, onStarted }) {
   };
 
   const suggest = async () => {
-    setBusy("suggest"); setStatus("");
+    setBusy("suggest");
     try {
       const s = await api.suggest(community, language);
       setIdeas(s.topics.map(t => ({ text: t, added: topics.includes(t) })));
-      setStatus(s.trends.length ? `${s.topics.length} ideas, some from today's Google Trends India.` : `${s.topics.length} ideas.`);
-    } catch { setStatus("Suggestions are unavailable right now. Type a topic instead."); }
+      setIdeasNote(s.trends.length ? "With today's trends in India" : `Ideas for ${presets.label(community)}`);
+    } catch { setIdeas([]); setIdeasNote("Suggestions are unavailable right now. Type a topic instead."); }
     setBusy("");
   };
 
@@ -94,18 +102,22 @@ export function CreateForm({ presets, onStarted }) {
         </div>
       </label>
       <div className="row" style={{ margin: "-6px 0 16px" }}>
-        <button type="button" className="btn" disabled={busy === "suggest"} onClick={suggest}>{busy === "suggest" ? "Thinking…" : "Suggest topics"}</button>
-        <p className="hint">{status}</p>
-        {ideas.length > 0 && (
-          <ul className="ideas">
-            {ideas.map(i => (
-              <li key={i.text}>
-                <span>{i.text}</span>
-                <button type="button" className="btn" disabled={i.added} onClick={() => addIdea(i.text)}>{i.added ? "Added" : "Add"}</button>
-              </li>
+        <details className="menu drop" onKeyDown={escToClose} onToggle={e => { reveal(e.currentTarget); if (e.currentTarget.open && !ideas.length && busy !== "suggest") suggest(); }}>
+          <summary className="btn"><Icon name="sparkles" />Suggest topics<Icon name="chevron" className="i chev" /></summary>
+          <div className="pop ideas" aria-busy={busy === "suggest"}>
+            <div className="pophead">
+              <span>{busy === "suggest" ? "Finding ideas…" : <>{ideasNote.startsWith("With") && <Icon name="trending" />}{ideasNote}</>}</span>
+              <button type="button" className="link" disabled={busy === "suggest"} onClick={suggest}><Icon name="refresh" />New ideas</button>
+            </div>
+            {busy !== "suggest" && ideas.map(i => (
+              <button type="button" key={i.text} className={i.added ? "added" : ""} disabled={i.added} onClick={() => addIdea(i.text)}
+                aria-label={i.added ? `${i.text}, added` : `Add ${i.text}`}>
+                <span>{i.text}</span><Icon name={i.added ? "check" : "plus"} />
+              </button>
             ))}
-          </ul>
-        )}
+          </div>
+        </details>
+        <p className="hint">{status}</p>
         {preview && (
           <ScriptPreview key={preview.topic} {...preview} onClose={() => setPreview(null)}
             onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan },
@@ -123,13 +135,18 @@ export function CreateForm({ presets, onStarted }) {
           ))}
         </div>
       </div>
-      <label className="field"><span>3. Language</span>
-        <div className="iconsel"><Icon name="globe" />
-          <select className="sel" name="language" value={language} onChange={e => { setLanguage(e.target.value); dropIdeas(); }}>
-            {presets.languages.map(l => <option key={l.slug} value={l.slug}>{l.label}</option>)}
-          </select>
-        </div>
-      </label>
+      <div className="field"><span id="lang-label">3. Language</span>
+        <details className="menu drop" onKeyDown={escToClose} onToggle={e => reveal(e.currentTarget)}>
+          <summary className="sel pick" aria-labelledby="lang-label lang-now"><Glyph slug={language} /><span id="lang-now">{presets.label(language)}</span></summary>
+          <div className="pop langs" role="group" aria-label="Language">
+            {presets.languages.map(l => (
+              <button type="button" key={l.slug} aria-pressed={language === l.slug} onClick={e => {
+                setLanguage(l.slug); dropIdeas(); shut(e.currentTarget.closest("details"));
+              }}><Glyph slug={l.slug} /><span>{l.label}</span>{language === l.slug && <Icon name="check" />}</button>
+            ))}
+          </div>
+        </details>
+      </div>
       <label className="check">
         <input type="checkbox" checked={every} onChange={e => setEvery(e.target.checked)} />Also make it in the other languages (same visuals)
       </label>

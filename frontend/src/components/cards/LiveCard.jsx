@@ -33,7 +33,7 @@ export function LiveCard({ job, label, accent, onStop }) {
           <Still key={src(last)} className="still" src={src(last)} />
           <i className="bar" style={{ "--fill": `${pct}%` }} />
         </> : <i className="fill" style={{ "--fill": `${pct}%` }} />}
-        <span className="stage">{word}{count && <small>{count} stills</small>}</span>
+        <span className="stage swap" key={job.stage}>{word}{count && <small>{count} stills</small>}</span>
       </div>
       <div className="body">
         <span className="status making">Generating</span>
@@ -43,7 +43,7 @@ export function LiveCard({ job, label, accent, onStop }) {
           {STAGES.map((st, i) => <li key={st} className={i < idx ? "done" : i === idx ? "now" : ""}><span>{STEP[st][0]}</span></li>)}
         </ol>
         <p className="step">
-          <span>{verb}{count && `, ${count}`}</span>
+          <span className="swap" key={job.stage}>{verb}{count && `, ${count}`}</span>
           <span className="elapsed"><Icon name="timer" /><Elapsed since={started} /></span>
         </p>
         {stills.length > 0 && (
