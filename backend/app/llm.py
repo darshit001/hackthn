@@ -415,6 +415,146 @@ def _suggest_prompt(preset, lang, trend_titles, trends_only=False):
             f"Language: write every topic in {lang['instruction']}. This is mandatory.\nReturn the JSON now.")
 
 
+# The pictures say "full story in the caption", so the caption has to carry it; both image prompts share this rule
+CAPTION_RULES = """- caption: the post text under the pictures. The pictures send readers here, so it delivers everything the headline
+  promises and goes deeper than the text on the pictures. 5-8 lines, separated by newlines:
+  line 1: an opening that picks up the headline's promise in new words (never repeat the headline);
+  then 3-5 lines of concrete substance specific to this topic (steps, numbers, examples, the real answer), one point per
+  line, each starting with a fitting emoji;
+  then one easy question people can answer in the comments;
+  last line: a follow line naming the topic area, written in the caption's language like every other line (in English it
+  would read "Follow for more money tips like this"; never leave it in English for another language).
+  No filler ("this is important", "let's dive in"), no hashtags inside. Keep facts general and true; soften anything uncertain.
+"""
+
+IMAGE_SYSTEM = """You write single-image posts for the Qoneqt Global Feed, a community-first Indian social app. One picture
+with a short headline drawn on it, and the post text under it. Return ONLY a JSON object with exactly these keys:
+{"headline": "...", "image_prompt": "...", "query": "...", "caption": "...", "hashtags": ["#...", ...], "alt": "..."}
+Rules:
+- headline: 3-8 words drawn large on the picture. A sharp claim, question or number that stops the scroll. No hashtags,
+  no emoji. Never open with "Did you know", "Kya aap jaante hain" or "क्या आप जानते हैं".
+- image_prompt: 20-45 English words describing ONE portrait picture: subject, setting, light, mood. Keep the top third
+  of the frame calm and uncluttered (sky, wall, soft background), because the headline sits there. No text, letters,
+  brand names or logos in the picture.
+- query: 2-4 plain English words naming something visual and generic a stock photo site has, e.g. "woman laptop cafe".
+""" + CAPTION_RULES + """- hashtags: 3 to 8 items, each starting with #.
+- alt: one plain English sentence describing the picture for people who cannot see it.
+The headline and caption are written in the requested language; image_prompt, query and alt are always English."""
+
+
+def _check_caption(caption, script=None):
+    """An image post's caption is where the picture sends people, so a thin one is sent back. Indic scripts pack more into
+    a word, so they need fewer. Pure; unit-tested through the two validators."""
+    lines, words, floor = [x for x in caption.split("\n") if x.strip()], len(caption.split()), 30 if script else 40
+    if not 5 <= len(lines) <= 9:
+        raise ValueError("caption must be 5-8 lines: an opening, 3-5 lines of detail, a question, then a follow line")
+    if words < floor:
+        raise ValueError(f"caption must be at least {floor} words: give the concrete detail the headline promises")
+    if script and not re.search(f"[{script}]", lines[-1]):  # models copy the English example into a Hindi caption
+        raise ValueError("the last line, the follow line, must be written in the requested language's script too")
+
+
+def validate_image_plan(p, script=None):
+    """Raise ValueError naming the first rule broken. script: regex range the headline and caption must use. Pure; unit-tested."""
+    if not isinstance(p, dict):
+        raise ValueError("not a JSON object")
+    for k in ("headline", "image_prompt", "query", "caption", "alt"):
+        if not isinstance(p.get(k), str) or not p[k].strip():
+            raise ValueError(f"{k} missing")
+    if not 2 <= len(p["headline"].split()) <= 10:  # a little slack on the prompt's 3-8: Hindi runs longer
+        raise ValueError("headline must be 3-8 words")
+    if _BANNED.match(p["headline"].strip()):
+        raise ValueError(f"headline must not open with any of: {', '.join(BANNED_OPENERS)}")
+    tags = p.get("hashtags")
+    if not isinstance(tags, list) or not 3 <= len(tags) <= 8 or any(not isinstance(t, str) or not t.startswith("#") for t in tags):
+        raise ValueError("hashtags must be 3-8 strings starting with #")
+    if script and not all(re.search(f"[{script}]", p[k]) for k in ("headline", "caption")):
+        raise ValueError("headline and caption must be written in the requested language's script")
+    _check_caption(p["caption"], script)
+
+
+CAROUSEL_SYSTEM = """You write swipeable carousel posts for the Qoneqt Global Feed, a community-first Indian social app: {n} pictures in
+a row, each with a short text drawn on it, read one after another as one story, and one post text under them.
+Return ONLY a JSON object with exactly these keys:
+{{"look": "...", "slides": [{{"text": "...", "image_prompt": "..."}}, ...], "query": "...", "caption": "...", "hashtags": ["#...", ...], "alt": "..."}}
+Rules:
+- slides: exactly {n}, in reading order. Slide 1 text is the hook, 3-8 words: a sharp question, claim or number that
+  opens a gap only the next slides close. Never open with "Did you know", "Kya aap jaante hain" or "क्या आप जानते हैं".
+- Every middle slide text gives ONE point in 6-18 words and ends with a short phrase that pulls the reader to swipe
+  ("but the real reason is next", "and it gets worse"), so each slide leads into the one after it.
+- The last slide text is the payoff or takeaway in 6-18 words, ending with a question that invites comments.
+- No hashtags or emoji in slide texts. Write numbers as digits.
+- look: 12-25 English words describing what every picture shares so the set looks like one series: the same main
+  person or object, setting, colour palette and light.
+- image_prompt: 15-35 English words for that slide's picture: what changes on this slide (action, angle, detail).
+  Keep the top third calm (sky, wall, soft background): the text sits there. No text, letters, brand names or logos.
+- query: 2-4 plain English words naming something visual and generic a stock photo site has.
+""" + CAPTION_RULES.replace("{", "{{").replace("}", "}}") + """- hashtags: 3 to 8 items, each starting with #.
+- alt: one plain English sentence describing the pictures for people who cannot see them.
+Slide texts and caption are written in the requested language; look, image_prompt, query and alt are always English."""
+
+
+def validate_carousel_plan(p, n, script=None):
+    """Raise ValueError naming the first rule broken for an n-slide carousel. Pure; unit-tested."""
+    if not isinstance(p, dict):
+        raise ValueError("not a JSON object")
+    for k in ("look", "query", "caption", "alt"):
+        if not isinstance(p.get(k), str) or not p[k].strip():
+            raise ValueError(f"{k} missing")
+    sl = p.get("slides")
+    if not isinstance(sl, list) or len(sl) != n:
+        raise ValueError(f"slides must be a list of exactly {n}")
+    for i, x in enumerate(sl, 1):
+        if not isinstance(x, dict) or any(not isinstance(x.get(k), str) or not x[k].strip() for k in ("text", "image_prompt")):
+            raise ValueError(f"slide {i}: text and image_prompt are both needed")
+        words, cap = len(x["text"].split()), 10 if i == 1 else 22  # a little slack on the prompt's 8 and 18
+        if not 2 <= words <= cap:
+            raise ValueError(f"slide {i}: text must be {'3-8' if i == 1 else '6-18'} words")
+    if _BANNED.match(sl[0]["text"].strip()):
+        raise ValueError(f"slide 1 must not open with any of: {', '.join(BANNED_OPENERS)}")
+    tags = p.get("hashtags")
+    if not isinstance(tags, list) or not 3 <= len(tags) <= 8 or any(not isinstance(t, str) or not t.startswith("#") for t in tags):
+        raise ValueError("hashtags must be 3-8 strings starting with #")
+    if script and not all(re.search(f"[{script}]", t) for t in [x["text"] for x in sl] + [p["caption"]]):
+        raise ValueError("every slide text and the caption must be written in the requested language's script")
+    _check_caption(p["caption"], script)
+
+
+def image_plan(topic, community="general", language="en", slides=1):
+    """Topic -> the text and picture prompts for an image post (~3 s): one picture, or a carousel of `slides` pictures whose
+    texts read as one story. Either way p['slides'] is [{text, image_prompt}] in order, p['headline'] is slide 1's text
+    and p['look'] is what every picture shares ('' for a single picture)."""
+    preset, lang = COMMUNITIES[community], LANGUAGES[language]
+    user = (f"Topic: {topic}\nCommunity: {preset['label']}\nTone: {preset['tone']}\n"
+            f"Language for {'slide texts' if slides > 1 else 'headline'} and caption: {lang['instruction']}\n"
+            f"Caption style: {preset['caption_style']}\nReturn the JSON now.")
+    if slides > 1:
+        base = [{"role": "system", "content": CAROUSEL_SYSTEM.format(n=slides)}, {"role": "user", "content": user}]
+        p = _ask(base, lambda q: validate_carousel_plan(q, slides, lang["script"]))
+        p["slides"] = [{"text": x["text"].strip(), "image_prompt": x["image_prompt"].strip()} for x in p["slides"]]
+        p["headline"] = p["slides"][0]["text"]
+    else:
+        p = _ask([{"role": "system", "content": IMAGE_SYSTEM}, {"role": "user", "content": user}], lambda q: validate_image_plan(q, lang["script"]))
+        p["headline"] = p["headline"].strip()
+        p["slides"], p["look"] = [{"text": p["headline"], "image_prompt": p["image_prompt"]}], ""
+    p["hashtags"] = list(dict.fromkeys(t.strip() for t in p["hashtags"] + preset["hashtags"]))
+    return p
+
+
+def review_post(p, language="en"):
+    """llm.review on an image post (from image_plan), wrapped as a plan: scene 1 is slide 1's text (the hook, never rewritten),
+    then the other slides, then every caption line as a scene of its own, so a softened claim replaces only its own text
+    and the rest, line breaks included, stay. A blocked post raises."""
+    texts = [x["text"] for x in p["slides"]] + [x.strip() for x in p["caption"].split("\n") if x.strip()]
+    r = review({"hook": texts[0], "scenes": [{"narration": t} for t in texts]}, language)
+    out = [sc["narration"] for sc in r["scenes"]]
+    for x, t in zip(p["slides"], out):
+        x["text"] = t
+    p["caption"] = "\n".join(out[len(p["slides"]):])
+    p["review"] = r["review"]
+    return p
+
+
 def suggest(community="general", language="en", trends_only=False):
     """{'topics': [6 ideas], 'trends': [titles used]}; 3-4 ideas ride today's trends, or all of them with trends_only."""
     preset, lang = COMMUNITIES[community], LANGUAGES[language]

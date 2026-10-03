@@ -136,6 +136,49 @@ def subtitles(words, community, out_ass, overlays=(), hook_low=False):
 INTERMEDIATE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-x264-params", "bframes=0:ref=1", "-pix_fmt", "yuv420p"]
 
 
+PW, PH = 1080, 1350  # image posts: 4:5, the tallest shape a feed shows uncropped
+
+
+def poster(picture, headline, out_png, out_jpg=None, page=None, body=False, cta=None):
+    """An image post or one carousel slide: picture (None = a plain dark card) cover-cropped to PW x PH, the text drawn at
+    the top over a soft shade (skipped when headline is empty) and a small Qoneqt mark, plus a thumbnail when out_jpg is
+    given. page ("2/3 →") marks a carousel slide bottom right, the Qoneqt mark then moves bottom left; body draws a longer
+    slide text a size smaller. cta ("Full story in the caption ↓", a second line after a newline is drawn smaller) sits
+    bottom centre over its own soft shade, above the marks. One ffmpeg call; the text goes through libass like the video captions, so Devanagari and
+    Gujarati shape correctly."""
+    out_png = Path(out_png)
+    ass = out_png.with_suffix(".ass")  # one per slide: a carousel's slides never share a file
+    white, black, shadow = "&H00FFFFFF", "&H00000000", "&H80000000"
+    d = "Dialogue: 1,0:00:00.00,0:00:10.00"
+    events = [f"{d},Mark,,0,0,0,,{{\\an1}}Qoneqt", f"{d},Mark,,0,0,0,,{ass_text(page)}"] if page else [f"{d},Mark,,0,0,0,,Qoneqt"]
+    if headline:  # a blurred black block fades the top third so white text reads on any picture
+        events.insert(0, "Dialogue: 0,0:00:00.00,0:00:10.00,Shade,,0,0,0,,"
+                         f"{{\\an7\\pos(0,0)\\p1\\blur70\\1a&H48&}}m 0 -80 l {PW} -80 {PW} 520 0 520{{\\p0}}")
+        events.insert(1, f"{d},{'Body' if body else 'Head'},,0,0,0,,{ass_text(headline)}")
+    if cta:  # the same fade from the bottom edge, so the call to action reads on any picture too
+        first, _, rest = cta.partition("\n")
+        events.insert(0, "Dialogue: 0,0:00:00.00,0:00:10.00,Shade,,0,0,0,,"
+                         f"{{\\an7\\pos(0,0)\\p1\\blur60\\1a&H50&}}m 0 {PH - 330} l {PW} {PH - 330} {PW} {PH + 80} 0 {PH + 80}{{\\p0}}")
+        events.append(f"{d},Cta,,0,0,0,,{ass_text(first)}" + (f"\\N{{\\fs40\\b0}}{ass_text(rest)}" if rest else ""))
+    fmt = ("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
+           "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding")
+    ass.write_text("\n".join([
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {PW}", f"PlayResY: {PH}", "WrapStyle: 0", "",
+        "[V4+ Styles]", fmt,
+        f"Style: Shade,{FONT},20,{black},{black},{black},{black},0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
+        f"Style: Head,{FONT},92,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,3,3,8,80,80,90,1",
+        f"Style: Body,{FONT},68,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,3,3,8,80,80,90,1",
+        f"Style: Cta,{FONT},56,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,2,2,2,80,80,104,1",
+        f"Style: Mark,{FONT},38,&H40FFFFFF,{white},&H60000000,{shadow},-1,0,0,0,100,100,0,0,1,2,0,3,48,48,40,1",
+        "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text", *events]) + "\n", encoding="utf-8")
+    src = ["-i", str(Path(picture).resolve())] if picture else ["-f", "lavfi", "-i", f"gradients=s={PW}x{PH}:c0=0x2A0E5C:c1=0x0B0416:d=1"]
+    _run(["ffmpeg", "-y", "-loglevel", "error", *src, "-filter_complex",
+          f"[0:v]scale={PW}:{PH}:force_original_aspect_ratio=increase,crop={PW}:{PH},setsar=1,ass={ass.name}:shaping=complex,split[a][b];[b]scale=432:-2[t]",
+          "-map", "[a]", "-frames:v", "1", out_png.name,
+          *(["-map", "[t]", "-frames:v", "1", "-q:v", "4", Path(out_jpg).name] if out_jpg else ["-map", "[t]", "-f", "null", "-"])], cwd=out_png.parent)
+    return out_png
+
+
 def card(sec, out_mp4):
     """Fallback visual: slowly moving purple gradient. Captions carry the words."""
     _run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
@@ -178,7 +221,7 @@ def compose(scene_clips, voice_wav, ass, job_dir, out_id, music=None):
     for k in range(1, n):
         graph.append(f"[{prev}][s{k}]xfade=transition={XFADE}:duration={XFADE_SEC}:offset={offsets[k - 1]:.3f}[x{k}]")
         prev = f"x{k}"
-    graph.append(f"[{prev}]subtitles={Path(ass).name}[v]")
+    graph.append(f"[{prev}]ass={Path(ass).name}:shaping=complex[v]")  # the subtitles filter leaves Indic conjuncts unjoined (स्‌त); ass + complex shaping joins them
     maps = ["-map", "[v]"]
     if music:
         # audio only, so no frame memory: music looped, faded out at the end, compressed with the voice as sidechain, mixed

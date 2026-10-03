@@ -142,6 +142,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .check input{accent-color:var(--fg);margin:0}
 /* on screen: AI pictures or the user's photo talking */
 .chips.two{grid-template-columns:repeat(2,1fr)}
+.chips.kind{margin:-4px 0 18px}
 .vh{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .dropzone{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border:1px dashed var(--border-2);border-radius:var(--r-md);background:var(--bg);color:var(--fg-2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
 .dropzone .i{width:22px;height:22px;margin-bottom:4px;color:var(--fg-3)}
@@ -253,6 +254,8 @@ dialog .save:hover,dialog .dl:hover{background:rgba(255,255,255,.22)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb .play{position:absolute;left:50%;top:50%;width:36px;height:36px;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);border-radius:50%;padding:9px 8px 9px 10px;transition:transform .15s,background .15s}
 button.thumb{cursor:pointer}
+.card.post{grid-template-columns:108px minmax(0,1fr)}
+.thumb.post{width:100%;aspect-ratio:4/5;align-self:start}
 button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50%) scale(1.08)}
 .thumb .dur{position:absolute;right:6px;bottom:6px;font-size:11px;font-weight:500;background:rgba(0,0,0,.72);padding:1px 6px;border-radius:4px;line-height:1.5}
 .thumb .peek{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -352,9 +355,18 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 dialog{border:0;padding:0;background:transparent;max-width:none;max-height:none;overflow:visible}
 dialog::backdrop{background:rgba(10,10,12,.78)}
 dialog video{display:block;height:min(86vh,820px);aspect-ratio:9/16;border-radius:12px;background:#000;outline:0}
+dialog img.post{display:block;height:min(86vh,820px);max-width:92vw;aspect-ratio:4/5;object-fit:contain;border-radius:12px;background:#000}
 dialog .x{position:absolute;right:-48px;top:0;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center}
 dialog .x:hover{background:rgba(255,255,255,.22)}
 dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;font-size:13px;text-align:center;opacity:.8}
+/* a carousel steps slide by slide: round buttons over the picture's edges, the slide number under it */
+dialog .nav{position:absolute;top:50%;width:40px;height:40px;transform:translateY(-50%);border:0;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;transition:background .15s,opacity .15s}
+dialog .nav:hover:not(:disabled){background:rgba(0,0,0,.75)}
+dialog .nav:disabled{opacity:0;pointer-events:none}
+dialog .nav:focus-visible{outline:2px solid #fff;outline-offset:2px}
+dialog .prev{left:12px}
+dialog .next{right:12px}
+dialog .cap .count{display:block;margin-top:2px;font-weight:500}
 
 @media (max-width:960px){
   .layout{grid-template-columns:1fr;padding:16px;gap:16px}
@@ -365,6 +377,7 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
 @media (max-width:560px){
   .card{grid-template-columns:72px minmax(0,1fr);gap:12px}
   .thumb{width:72px}
+  .card.post{grid-template-columns:92px minmax(0,1fr)}
   .card.live{grid-template-columns:96px minmax(0,1fr)}
   .card.live .thumb{width:96px}
   .card.wait{grid-template-columns:56px minmax(0,1fr)}

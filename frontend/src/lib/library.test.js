@@ -33,3 +33,11 @@ test("sorting keeps videos being made first and in their order", () => {
   assert.deepEqual(ids(sortJobs([...making, jobs[0], jobs[1]], "longest")), [3, 4, 1, 2]);
   assert.deepEqual(ids(sortJobs([...making, jobs[1], jobs[0]], "az")), [3, 4, 2, 1]);
 });
+
+test("Type filter: jobs without a kind are videos; an image post sorts as the shortest", () => {
+  const post = done(5, { kind: "image", duration: null, result: { hook: "Phones slow down", caption: "", hashtags: [] } });
+  const all = [...jobs, post];
+  assert.deepEqual(ids(all.filter(j => matches(j, "", { kind: new Set(["image"]) }, label))), [5]);
+  assert.deepEqual(ids(all.filter(j => matches(j, "", { kind: new Set(["video"]) }, label))), [1, 2, 3, 4]);
+  assert.deepEqual(ids(sortJobs(all, "shortest")).slice(2), [5, 2, 1]);
+});

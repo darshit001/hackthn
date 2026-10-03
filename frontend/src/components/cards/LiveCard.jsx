@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { STAGES, STEP } from "../../lib/constants";
+import { stepsFor } from "../../lib/constants";
 import { ago, cap } from "../../lib/format";
 import { Icon } from "../Icon";
 import { Confirm } from "./Confirm";
@@ -13,13 +13,15 @@ function Still({ src, className, title }) {
 
 // The video being made: the phone screen shows the newest still, six bars show the step, the strip collects every still.
 export function LiveCard({ job, label, accent, onStop }) {
+  const [STAGES, STEP] = stepsFor(job);
   const idx = STAGES.indexOf(job.stage);
   const pct = Math.round(((idx + 0.5) / STAGES.length) * 100);
   const stills = job.stills || [], last = stills[stills.length - 1];
   const talking = job.presenter && job.stage === "visuals";  // the slow step of a talking video: one scene at a time on a free GPU
   const [word, verb] = talking ? ["Face", "Making your photo talk"] : STEP[job.stage] || [cap(job.stage || ""), cap(job.stage || "")];
   const [count, noun] = talking && job.scenes ? [`${job.faces || 0} of ${job.scenes.length}`, "scenes"]
-    : job.stage === "images" && job.shots ? [`${stills.filter(f => f.startsWith("gen")).length} of ${job.shots}`, "stills"] : ["", ""];
+    : job.stage === "images" && job.shots ? [`${stills.filter(f => f.startsWith("gen")).length} of ${job.shots}`, "stills"]
+    : job.stage === "image" && job.shots > 1 ? [`${stills.length} of ${job.shots}`, "slides"] : ["", ""];  // a carousel's pictures land one by one
   const src = f => `/out/${job.id}/${f}?${job.stage}${stills.length}`;
   const started = job.started || job.created;
   const [ask, setAsk] = useState(null);

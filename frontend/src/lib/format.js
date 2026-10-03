@@ -14,5 +14,7 @@ export function mmss(sec) {
 export const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 export const nth = i => ["Next up", "2nd in line", "3rd in line"][i] || `${i + 1}th in line`;
 
+export const fileName = topic => topic.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".mp4";
+
 export const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const canHover = () => matchMedia("(hover: hover)").matches;

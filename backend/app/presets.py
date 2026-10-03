@@ -4,6 +4,7 @@ eleven_flash_v2_5 is multilingual, so the same voice speaks Hindi. gender picks 
 language on a community is only the default language chip in the UI. accent is RRGGBB for the highlighted caption word.
 wps = effective spoken words per second for the edge-tts voices at media.EDGE_RATE, including the pause each scene adds
 (measured 2 Oct 2026); it sizes the script for a target length. ElevenLabs speaks ~15% faster, so its videos run a little short.
+cta = the lines an image post draws at the bottom: (single picture, last carousel slide, the follow line under it).
 script = regex character range a translation into this language must use (None: Roman script, no Indic letters).
 mood picks the background track from MUSIC (Kevin MacLeod, incompetech.com, CC BY 4.0; credited in the job JSON and README)."""
 
@@ -46,21 +47,25 @@ DURATIONS = [15, 30, 45, 60]
 LANGUAGES = {
     "en": dict(
         label="English", script=None, whisper="en", wps=2.4,
+        cta=("Full story in the caption ↓", "The rest is in the caption ↓", "Follow for more"),
         instruction="English",
         voice_edge={"f": "en-IN-NeerjaNeural", "m": "en-IN-PrabhatNeural"},
     ),
     "hi": dict(
         label="हिन्दी", script="ऀ-ॿ", whisper="hi", wps=2.1,
+        cta=("पूरी बात कैप्शन में ↓", "बाकी बात कैप्शन में ↓", "ऐसी और पोस्ट के लिए फ़ॉलो करें"),
         instruction="Hindi in Devanagari script, simple everyday spoken Hindi; write every number as Hindi words",
         voice_edge={"f": "hi-IN-SwaraNeural", "m": "hi-IN-MadhurNeural"},
     ),
     "hinglish": dict(
         label="Hinglish", script=None, whisper="hi", wps=2.2,
+        cta=("Poori baat caption mein ↓", "Baaki baat caption mein ↓", "Aur aise posts ke liye follow karo"),
         instruction="Hinglish written in Roman script (a natural mix of Hindi and English, the way young Indians text)",
         voice_edge={"f": "en-IN-NeerjaNeural", "m": "en-IN-PrabhatNeural"},
     ),
     "gu": dict(
         label="ગુજરાતી", script="઀-૿", whisper="gu", wps=1.7,
+        cta=("આખી વાત કેપ્શનમાં ↓", "બાકીની વાત કેપ્શનમાં ↓", "આવી વધુ પોસ્ટ માટે ફોલો કરો"),
         instruction="Gujarati in Gujarati script, simple everyday spoken Gujarati; write every number as Gujarati words",
         voice_edge={"f": "gu-IN-DhwaniNeural", "m": "gu-IN-DhwaniNeural"},  # Dhwani for every community, by choice
         eleven=False,  # eleven_flash_v2_5 has no Gujarati: an English voice read it with an accent, so edge speaks first

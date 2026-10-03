@@ -5,10 +5,11 @@ import { reducedMotion } from "../lib/format";
 import { Icon } from "./Icon";
 import { Pager } from "./Pager";
 import { LiveCard } from "./cards/LiveCard";
+import { ImageCard } from "./cards/ImageCard";
 import { ReadyCard } from "./cards/ReadyCard";
 import { FailedCard, QueuedCard } from "./cards/WaitCard";
 
-const TABS = [["all", "All videos"], ["ready", "Ready"], ["saved", "Saved"], ["making", "In progress"], ["failed", "Failed"]];
+const TABS = [["all", "All"], ["ready", "Ready"], ["saved", "Saved"], ["making", "In progress"], ["failed", "Failed"]];
 
 // Splits the jobs into the four tabs; the line of videos being made runs oldest first, everything else newest first.
 export function groupJobs(jobs) {
@@ -27,7 +28,11 @@ export function VideoList({ jobs, presets, actions }) {
   const [sort, setSort] = useState("latest");
   const top = useRef();
   const groups = useMemo(() => groupJobs(jobs), [jobs]);
-  const queuePos = useMemo(() => new Map(groups.making.filter(j => j.status === "queued").map((j, i) => [j.id, i])), [groups]);
+  // images and videos wait in separate lines, so each counts its place in its own
+  const queuePos = useMemo(() => {
+    const line = kind => groups.making.filter(j => j.status === "queued" && (j.kind === "image") === kind).map((j, i) => [j.id, i]);
+    return new Map([...line(false), ...line(true)]);
+  }, [groups]);
 
   // a click anywhere else closes an open ⋮ menu
   useEffect(() => {
@@ -38,7 +43,7 @@ export function VideoList({ jobs, presets, actions }) {
 
   // a filter group offers only the values some video has, in the form's order, and only when there are two to choose between
   const options = useMemo(() => {
-    const order = { community: presets.communities.map(c => c.slug), language: presets.languages.map(l => l.slug), style: presets.styles.map(s => s.slug), duration: presets.durations };
+    const order = { kind: ["video", "image"], community: presets.communities.map(c => c.slug), language: presets.languages.map(l => l.slug), style: presets.styles.map(s => s.slug), duration: presets.durations };
     return FILTERS.map(([key, name]) => [key, name, order[key].filter(v => jobs.some(j => facet(j, key) === v))]).filter(([, , vals]) => vals.length > 1);
   }, [jobs, presets]);
   const picked = Object.values(picks).reduce((n, set) => n + set.size, 0);
@@ -60,6 +65,7 @@ export function VideoList({ jobs, presets, actions }) {
 
   const card = j => {
     const common = { job: j, label: presets.label, accent: presets.accents[j.community] };
+    if (j.status === "done" && j.kind === "image") return <ImageCard key={j.id} {...common} {...actions} />;
     if (j.status === "done") return <ReadyCard key={j.id} {...common} {...actions} />;
     if (j.status === "failed") return <FailedCard key={j.id} {...common} onRetry={actions.onRetry} onDelete={actions.onDelete} />;
     if (j.status === "queued") return <QueuedCard key={j.id} {...common} position={queuePos.get(j.id) || 0} onDelete={actions.onDelete} />;
@@ -69,18 +75,18 @@ export function VideoList({ jobs, presets, actions }) {
   return (
     <section className="videos" ref={top}>
       <div className="head">
-        <h2>Your videos</h2>
+        <h2>Your posts</h2>
         <div className="find">
           <label className="search">
             <Icon name="search" />
-            <input type="search" placeholder="Search by topic, hook or #hashtag" aria-label="Search videos" value={q}
+            <input type="search" placeholder="Search by topic, hook or #hashtag" aria-label="Search posts" value={q}
               onChange={e => { setQ(e.target.value); setPage(1); }} />
           </label>
           <details className="menu filter">
             <summary className="btn"><Icon name="filter" />Filter{picked > 0 && <span className="count">{picked}</span>}</summary>
             <div className="pop">
               <div className="pophead">
-                <span>Show videos that match</span>
+                <span>Show posts that match</span>
                 {picked > 0 && <button type="button" className="link" onClick={() => { setPicks({}); setPage(1); }}>Clear</button>}
               </div>
               {options.map(([key, name, vals]) => (
@@ -117,10 +123,10 @@ export function VideoList({ jobs, presets, actions }) {
       </div>
       <div aria-live="polite">{shown.map(card)}</div>
       <Pager page={current} pages={pages} total={list.length} onPage={goTo} />
-      {!jobs.length && <div className="empty"><b>No videos yet</b>Add a topic on the left and generate one. It appears here while it is being made.</div>}
+      {!jobs.length && <div className="empty"><b>Nothing here yet</b>Add a topic on the left and generate a video or an image. It appears here while it is being made.</div>}
       {jobs.length > 0 && !list.length && (tab === "saved" && !groups.saved.length
         ? <div className="empty"><b>No saved videos yet</b>Tap the bookmark on a video to keep it here.</div>
-        : <div className="empty"><b>Nothing here</b>No videos match this filter.</div>)}
+        : <div className="empty"><b>Nothing here</b>Nothing matches this filter.</div>)}
     </section>
   );
 }
