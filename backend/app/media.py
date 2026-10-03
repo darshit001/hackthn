@@ -348,9 +348,9 @@ def head_png(portrait, out_png):
     return Path(out_png)
 
 
-def flux2(prompt, ref, out_png):
-    """FLUX.2 klein with `ref` as image 0, FLUX2_SIZE out; Cloudflare keys rotate on a quota error. Returns the model."""
-    w, h = FLUX2_SIZE
+def flux2(prompt, ref, out_png, size=FLUX2_SIZE):
+    """FLUX.2 klein with `ref` as image 0, `size` out; Cloudflare keys rotate on a quota error. Returns the model."""
+    w, h = size
 
     def post(acct, token):
         r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/{FLUX2}",
@@ -374,6 +374,16 @@ def restyle(portrait, outfit, out_png):
           f"stand upright with a relaxed confident posture and look at the camera. Waist-up vertical portrait, soft studio light, "
           f"{place} behind them with shallow depth of field, realistic photograph",
           ref_png(portrait, Path(out_png).with_name("restyle_ref.png")), out_png)
+    return Path(out_png)
+
+
+def reimagine(picture, topic, style, out_png):
+    """The user's own picture for an image post redrawn by AI in the chosen look: same subject and layout, better light and
+    detail. 768x960 is the post's 4:5 in four 512 tiles (~110 neurons). Raises when FLUX.2 is down."""
+    about = f" for a social post about {topic}" if topic else ""
+    flux2(f"{STYLES[style][1]}. Recreate image 0 as a polished picture{about}: keep its main subject, composition and colours "
+          f"recognisable, sharpen the detail and improve the light. No text, no watermark, no logo",
+          ref_png(picture, Path(out_png).with_name("reimagine_ref.png")), out_png, (768, 960))
     return Path(out_png)
 
 

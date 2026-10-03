@@ -261,9 +261,10 @@ def make_image(topic, community="general", progress=lambda stage: None, job_id=N
         "thumb": f"/out/{job_id}/{job_id}.jpg",
     }
 
-    progress("image")  # 3 at a time, like the video stills
+    progress("image")  # 3 at a time, like the video stills; a slide the user gave a picture for (own<i>.png, put there by the API) keeps it
+    own = lambda i: (d / f"own{i}.png", "", "own") if (d / f"own{i}.png").exists() else _picture(_prompt(meta, i), p["query"], d, style, i)
     with ThreadPoolExecutor(3) as pool:
-        pics = list(pool.map(lambda i: _picture(_prompt(meta, i), p["query"], d, style, i), range(len(meta["slides"]))))
+        pics = list(pool.map(own, range(len(meta["slides"]))))
 
     progress("poster")
     for i, (pic, credit, source) in enumerate(pics):

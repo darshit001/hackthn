@@ -178,8 +178,27 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .ver:has(input:focus-visible) .pic{outline:2px solid var(--acc);outline-offset:3px}
 .ver-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .chips.outfits{margin-top:12px}
+/* an image post's own pictures: one 4:5 tile per slide, the post's shape; while AI redraws one it blurs and sweeps like a restyle */
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-top:12px}
+.slot{display:flex;flex-direction:column;gap:6px;min-width:0}
+.frame{position:relative;display:grid;place-items:center;aspect-ratio:4/5;border-radius:var(--r-md);overflow:hidden;background:var(--soft);box-shadow:0 0 0 1px var(--border);cursor:pointer;transition:box-shadow .15s,background .15s}
+.frame img{width:100%;height:100%;object-fit:cover;object-position:50% 0}
+.frame.blank{align-content:center;gap:4px;background:var(--bg);box-shadow:none;border:1px dashed var(--border-2);color:var(--fg-2);font-size:12.5px}
+.frame.blank .i{width:20px;height:20px;color:var(--fg-3)}
+.frame:hover{box-shadow:0 0 0 2px var(--acc)}
+.frame.blank:hover{border-color:var(--acc);background:var(--acc-bg);box-shadow:none}
+.frame:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:3px}
+.frame .tag{position:absolute;left:6px;bottom:6px;padding:2px 7px;border-radius:999px;background:color-mix(in srgb,var(--card) 88%,transparent);color:var(--fg);font-size:11.5px;font-weight:500}
+.slot.busy .frame{cursor:progress}
+.slot.busy .frame img{filter:blur(6px) grayscale(1);opacity:.55;transform:scale(1.1)}
+.slot.busy .frame::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent,color-mix(in srgb,var(--card) 75%,transparent),transparent) 0 0/100% 40% no-repeat;animation:sweep 1.8s cubic-bezier(.5,0,.5,1) infinite}
+.slot.busy .frame .i{position:absolute;z-index:1;width:22px;height:22px;color:var(--fg);animation:pulse 1.2s ease-in-out infinite}
+.slot-actions{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.slot-actions .btn{justify-content:center;padding:6px 4px;font-size:12.5px}
+.slot-actions .link{padding:2px;border:0;background:none;color:var(--acc-fg);font-weight:500;font-size:12.5px;cursor:pointer}
+.slot-actions .link:hover{text-decoration:underline}
 .hint.below{margin-top:6px}
-@media (prefers-reduced-motion:reduce){.ver.busy .pic .i,.ver.busy .pic::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.ver.busy .pic .i,.ver.busy .pic::after,.slot.busy .frame .i,.slot.busy .frame::after{animation:none}}
 .check.consent{margin:12px 0 0;align-items:flex-start}
 .check.consent input{margin-top:3px}
 .check abbr{color:var(--red);text-decoration:none}
@@ -202,13 +221,13 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--card)}
 
 /* videos */
-.head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
 .head h2{font-size:26px}
 .search{position:relative}
-.search input{width:280px;max-width:100%;padding:8px 10px 8px 33px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card)}
+.search input{width:240px;max-width:100%;height:36px;padding:0 10px 0 33px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card)}
 .search input::placeholder{color:var(--fg-3)}
 .search .i{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--fg-3);pointer-events:none}
-.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:14px 0 16px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:-4px 0 16px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{position:relative;transition:color .15s;display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;border:0;background:none;font-size:14px;color:var(--fg-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:0}
 .tabs button span{transition:background .2s,color .2s;font-size:12px;background:var(--soft);border-radius:999px;padding:0 7px;color:var(--fg-2)}
@@ -218,8 +237,11 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .tabs button[aria-selected=true]::after{transform:scaleX(1)}
 .tabs button[aria-selected=true] span{background:var(--pick-bg);color:var(--pick-fg)}
 /* search, filter and sort share the heading line */
-.find{display:flex;align-items:center;gap:8px}
-.find .btn{padding:9px 12px}
+.find{display:flex;align-items:center;gap:4px}
+/* Filter and Sort stay quiet beside the search box: no outline until hovered or open */
+.find .btn{height:36px;padding-block:0;border-color:transparent;background:none;color:var(--fg-2)}
+.find .btn{padding-inline:10px}
+.find .btn:hover,.filter[open] summary{border-color:transparent;background:var(--soft);color:var(--fg)}
 .filter summary .count{min-width:18px;padding:0 5px;border-radius:999px;background:var(--fg);color:var(--on-fg);font-size:11.5px;line-height:18px;text-align:center}
 .filter .pop{width:340px;max-width:calc(100vw - 32px);padding:10px}
 .filter .pophead .link{display:inline-flex;width:auto;padding:4px 8px;color:var(--acc-fg);font-weight:500;font-size:12.5px}
@@ -228,8 +250,8 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .filter .chip{min-height:32px;padding:4px 10px;font-size:12.5px}
 .filter .none{margin:4px 6px 6px;font-size:13px;line-height:1.45;color:var(--fg-2)}
 .sort{position:relative;display:flex;align-items:center}
-.sort select{appearance:none;padding:8px 28px 8px 30px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card);font-size:13px;font-weight:500;cursor:pointer}
-.sort select:hover{border-color:var(--fg-3)}
+.sort select{appearance:none;height:36px;padding:0 28px 0 30px;border:1px solid transparent;border-radius:var(--r);background:none;color:var(--fg-2);font-size:13px;font-weight:500;cursor:pointer}
+.sort select:hover{background:var(--soft);color:var(--fg)}
 .sort select:focus-visible{outline:0;border-color:var(--fg)}  /* Chrome shows a select's ring on a click too; an ink border marks focus without the double line */
 .sort .i{position:absolute;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--fg-2);pointer-events:none}
 .sort .i:first-child{left:10px}
@@ -275,8 +297,8 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .screen .stage{position:absolute;inset:0;display:grid;place-content:center;gap:3px;text-align:center;padding:8px;font:600 15px/1.2 var(--display);text-shadow:0 1px 10px rgba(0,0,0,.7)}
 .screen .stage small{font:500 11.5px/1.3 var(--font);opacity:.85}
 .screen:has(.still) .stage{place-content:end center;padding-bottom:12px;background:linear-gradient(transparent 50%,rgba(0,0,0,.75))}
-/* a tile (ready, waiting or failed): the cover on top, cropped 16:10 from near its top so the burned-in hook stays in frame,
-   then the title and one line of facts and buttons. Only the video being made is a dark, full-width row. */
+/* a tile (ready, waiting or failed): the cover on top, whole and uncropped (a 4:5 post or a 9:16 video in a 16:10 frame)
+   over a blurred, darkened copy of itself that fills the sides, then the title and one line of facts and buttons. Only the video being made is a dark, full-width row. */
 .tile{display:flex;flex-direction:column;gap:0;padding:0;transition:border-color .15s}
 .tile:hover{border-color:var(--border-2)}
 .tile > .thumb{width:100%;aspect-ratio:16/10;border-radius:calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0}
@@ -292,8 +314,9 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .tile > .save{position:absolute;top:8px;right:8px;z-index:1;width:30px;height:30px;padding:0;justify-content:center;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff}
 .tile > .save:hover{background:rgba(0,0,0,.75);border:0}
 .tile > .save .i{width:15px;height:15px}
-.tile > .thumb img,.tile > .thumb .peek{object-position:50% 18%}
-.tile.post > .thumb img{object-position:50% 0}  /* an image post's headline sits at its very top */
+.tile > .thumb::before{content:"";position:absolute;inset:-24px;background:#000 var(--cover) center/cover;filter:blur(20px) brightness(.55)}
+.tile > .thumb img{position:relative}
+.tile > .thumb img,.tile > .thumb .peek{object-fit:contain}
 /* the play mark waits for a pointer or keyboard focus; the cover alone reads cleaner */
 .tile .thumb .play{opacity:0;transition:opacity .15s,transform .15s,background .15s}
 .tile button.thumb:hover .play,.tile button.thumb:focus-visible .play{opacity:1}
@@ -394,6 +417,8 @@ dialog::backdrop{background:rgba(10,10,12,.78)}
 .watch .tabs{margin:14px 0 14px}
 .pane{margin:0;padding:0;font-size:14px;line-height:1.55;color:var(--fg-2)}
 .pane p{margin:0 0 8px}
+.pane .points{list-style:none;display:grid;gap:8px;margin:12px 0 14px;padding:0;color:var(--fg)}
+.pane .points li{display:grid;grid-template-columns:24px 1fr}
 .pane .hook{color:var(--fg);font-weight:600;font-size:15px}
 .pane .tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
 dl.pane div{display:grid;grid-template-columns:110px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}

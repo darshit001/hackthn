@@ -18,6 +18,7 @@ export const api = {
   suggest: (community, language) => call(`/suggest?${new URLSearchParams({ community, language })}`),
   plan: opts => post("/plan", opts),
   restyle: (photo, outfit) => post("/photo/restyle", { photo, outfit }),
+  reimagine: (picture, topic, style) => post("/image/reimagine", { picture, topic, style }),
   generate: opts => post("/generate", opts),
   redo: (id, scene) => post(`/jobs/${id}/redo/${scene}`),
   stop: id => post(`/jobs/${id}/stop`),

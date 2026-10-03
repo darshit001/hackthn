@@ -217,3 +217,30 @@ def test_the_caption_line_goes_on_a_single_picture_and_the_last_slide_only(monke
     pipeline.make_image("t", "tech", job_id="car", language="hi", slides=3)
     ass = [(tmp_path / "car" / f"car-{i}.ass").read_text() for i in (1, 2, 3)]
     assert not any(last in a or follow in a for a in ass[:2]) and last in ass[2] and follow in ass[2]
+
+
+
+def test_own_pictures_skip_the_ai_and_go_on_the_post(monkeypatch, tmp_path):
+    import base64
+    png = tmp_path / "mine.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=2000x1000", "-frames:v", "1", png], check=True)
+    url = "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode()
+    monkeypatch.setattr(pipeline, "OUT", tmp_path)
+    monkeypatch.setattr(appmod, "IQ", __import__("queue").Queue())  # no worker picks it up; the test runs make_image itself
+    assert client.post("/generate", json={"topics": ["a"], "kind": "image", "slides": 2, "pictures": [url]}).status_code == 400
+    jid = client.post("/generate", json={"topics": ["a"], "kind": "image", "pictures": [url]}).json()["job_ids"][0]
+    size = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", tmp_path / jid / "own0.png"],
+                          capture_output=True, text=True).stdout.strip()
+    assert size == "1350,675"  # kept whole, shrunk to fit
+    monkeypatch.setattr(llm, "image_plan", lambda *a: planned())
+    monkeypatch.setattr(llm, "review_post", lambda p, lang: p)
+    monkeypatch.setattr(pipeline, "_picture", lambda *a: pytest.fail("an AI picture was made"))
+    m = pipeline.make_image("a", job_id=jid)
+    assert m["slides"][0]["visual"] == "own" and (tmp_path / jid / f"{jid}.png").exists()
+
+    def down(*a):
+        raise RuntimeError("Client error '429 Too Many Requests'")
+    monkeypatch.setattr(appmod.media, "reimagine", down)
+    r = client.post("/image/reimagine", json={"picture": url, "topic": "a", "style": "anime"})
+    assert r.status_code == 503 and "05:30" in r.json()["detail"]
+    assert client.post("/image/reimagine", json={"picture": url, "style": "x"}).status_code == 400

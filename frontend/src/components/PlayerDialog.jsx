@@ -9,6 +9,27 @@ import { SaveButton } from "./cards/SaveButton";
 
 const TABS = [["post", "Post"], ["details", "Details"], ["script", "Script"]];
 const VOICE = { elevenlabs: "ElevenLabs", edge: "Edge TTS", gemini: "Gemini TTS" };
+// a caption line that opens with an emoji or a bullet is a point; the lines before the first and after the last stay prose
+const POINT = /^(\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic})*|[•●▪◆*-])\s*/u;
+function Caption({ text }) {
+  const lines = text.split("\n").map(s => s.trim()).filter(Boolean);
+  const first = lines.findIndex(l => POINT.test(l)), last = lines.findLastIndex(l => POINT.test(l));
+  const prose = part => part.map((l, i) => <p key={i}>{l}</p>);
+  if (first < 0) return prose(lines);
+  return (
+    <>
+      {prose(lines.slice(0, first))}
+      <ul className="points">
+        {lines.slice(first, last + 1).map((l, i) => {
+          const mark = l.match(POINT)?.[0] || "";
+          return <li key={i}><span aria-hidden="true">{mark.trim()}</span><span>{l.slice(mark.length)}</span></li>;
+        })}
+      </ul>
+      {prose(lines.slice(last + 1))}
+    </>
+  );
+}
+
 const took = s => s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s)} s`;
 
 // The watch view: one native <dialog> with the vertical video on the left and, beside it, what to post, how it was made,
@@ -84,7 +105,7 @@ export function PlayerDialog({ job, jobs, label, actions, onOpen, onClose }) {
           {tab === "post" && (
             <div className="pane" role="tabpanel">
               <p className="hook">{m.hook || m.headline}</p>
-              <p>{m.caption}</p>
+              <Caption text={m.caption} />
               {m.hashtags.length > 0 && <p className="tags">{m.hashtags.map(h => <span className="tag" key={h}>{h}</span>)}</p>}
               <button type="button" className="btn" onClick={() => actions.onCopy(postText(m), "Post text copied")}><Icon name="copy" />Copy post text</button>
             </div>

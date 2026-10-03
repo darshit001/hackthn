@@ -11,7 +11,7 @@ export function ImageCard({ job, label, onPlay, onCopy, onRedo, onDelete, onSave
 
   return (
     <article className="card tile post">
-      <button type="button" className="thumb" aria-label={`Open ${job.topic}`} onClick={() => onPlay(job.id)}>
+      <button type="button" className="thumb" aria-label={`Open ${job.topic}`} onClick={() => onPlay(job.id)} style={{ "--cover": `url("${thumb}")` }}>
         <img src={thumb} alt={m.alt || ""} />
         {m.style && m.style !== "photo" && <span className="badge">{label(m.style)}</span>}
         {many && <span className="dur">{m.slides.length} slides</span>}

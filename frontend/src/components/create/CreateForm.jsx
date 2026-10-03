@@ -3,6 +3,7 @@ import { api } from "../../lib/api";
 import { ICON, MAX_TOPICS } from "../../lib/constants";
 import { reducedMotion } from "../../lib/format";
 import { Icon } from "../Icon";
+import { OwnPictures, chosen } from "./OwnPictures";
 import { PresenterPhoto } from "./PresenterPhoto";
 import { ScriptPreview } from "./ScriptPreview";
 
@@ -19,6 +20,9 @@ const SKELETON = ["78%", "62%", "85%", "55%", "70%", "66%"];
 export function CreateForm({ presets, onStarted }) {
   const [kind, setKind] = useState("video");  // video, or an image post: one picture with its headline plus post text
   const [slides, setSlides] = useState(1);  // image posts: 2-4 makes a carousel whose slide texts read as one story
+  const [own, setOwn] = useState(false);  // image posts: the user's own pictures instead of AI ones
+  const [pics, setPics] = useState([]);  // one {mine, ai, useAi, busy} per slide, see OwnPictures
+  const [picsError, setPicsError] = useState("");
   const [text, setText] = useState("");
   const [community, setCommunity] = useState("general");
   const [language, setLanguage] = useState("en");
@@ -38,7 +42,9 @@ export function CreateForm({ presets, onStarted }) {
   const want = useRef("");  // the community|language the ideas are for; a late answer for an old pick is dropped
   const topics = toLines(text);
   const image = kind === "image";
-  const options = image ? { kind, community, language, style, slides } : { community, language, duration, style };
+  const mine = image && own;
+  const options = image ? { kind, community, language, style, slides, ...(mine && { pictures: pics.slice(0, slides).map(chosen) }) }
+    : { community, language, duration, style };
   const count = topics.length;
   const face = !image && talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
   const noun = n => (image ? (slides > 1 ? (n === 1 ? "carousel" : "carousels") : (n === 1 ? "image" : "images")) : (n === 1 ? "video" : "videos"));
@@ -62,8 +68,17 @@ export function CreateForm({ presets, onStarted }) {
     return true;
   };
 
+  // own pictures need one per slide, and none still being redrawn
+  const picsReady = () => {
+    if (!mine) return true;
+    const set = pics.slice(0, slides);
+    if (set.length < slides || !set.every(p => p?.mine)) { setPicsError(slides > 1 ? "Add a picture for every slide, or switch to AI made." : "Add your picture, or switch to AI made."); return false; }
+    if (set.some(p => p.busy)) { setPicsError("Wait for the AI redraw to finish."); return false; }
+    return true;
+  };
+
   const start = async (body, message) => {
-    if (!faceReady()) return false;
+    if (!faceReady() || !picsReady()) return false;
     try {
       await api.generate(body);
       onStarted(message);
@@ -196,6 +211,22 @@ export function CreateForm({ presets, onStarted }) {
           <p className="hint below" id="slides-hint">{slides > 1 ? `A carousel of ${slides}: each slide's text leads into the next, swiped as one story.` : "One picture. Pick 2 to 4 for a carousel."}</p>
         </div>
       )}
+      {image && (
+        <div className="field"><span className="lbl"><b>5</b>Pictures</span>
+          <div className="chips two" role="radiogroup" aria-label="Pictures">
+            <label className="chip">
+              <input type="radio" name="pictures" checked={!own} onChange={() => { setOwn(false); setPicsError(""); }} /><Icon name="sparkles" /><span>AI made</span>
+            </label>
+            <label className="chip">
+              <input type="radio" name="pictures" checked={own} onChange={() => setOwn(true)} /><Icon name="image" /><span>My images</span>
+            </label>
+          </div>
+          {own ? (
+            <OwnPictures slides={slides} pics={pics} setPics={p => { setPics(p); setPicsError(""); }} topic={topics[0] || ""} style={style} error={picsError} />
+          ) : <p className="hint below">AI draws {slides > 1 ? "each slide's picture" : "the picture"} from your topic.</p>}
+          {own && <p className="hint below">Your headline goes on top. Regenerate redraws a picture with AI in the look below.</p>}
+        </div>
+      )}
       {!image && <div className="field"><span className="lbl"><b>4</b>On screen</span>
         <div className="chips two" role="radiogroup" aria-label="On screen">
           <label className="chip">
@@ -212,7 +243,7 @@ export function CreateForm({ presets, onStarted }) {
           setConsent={c => { setConsent(c); setConsentError(""); }} error={consentError} consentRef={consentRef} />
       )}
       {showLook && (
-        <div className="field"><span className="lbl"><b>5</b>Look</span>
+        <div className="field"><span className="lbl"><b>{image ? 6 : 5}</b>Look</span>
           <div className="chips look" role="radiogroup" aria-label="Look">
             {presets.styles.map(s => (
               <label className="chip" key={s.slug}>

@@ -116,6 +116,7 @@ class GenerateIn(BaseModel):
     photo: str | None = Field(None, max_length=12_000_000)  # data URL of the user's photo (restyled or not): the user is in the video
     photo_consent: bool = False  # the user confirms the face is theirs or they may use it
     layout: str = "scenes"  # presets.LAYOUTS; the form sends none: the user inside the middle scenes' pictures, no bubble
+    pictures: list[str] | None = Field(None, max_length=4)  # image posts: the user's own picture per slide (data URLs), used instead of AI ones
 
 
 class RestyleIn(BaseModel):
@@ -123,22 +124,44 @@ class RestyleIn(BaseModel):
     outfit: str = "smart"
 
 
-def _photo_png(data_url):
-    """Data URL -> PNG bytes of a 9:16 portrait (media.PORTRAIT), cropped from the top of a tall photo and the middle
-    of a wide one, where faces are. ffmpeg doubles as the validator: anything it cannot decode is refused."""
+class ReimagineIn(BaseModel):
+    picture: str = Field(max_length=12_000_000)
+    topic: str = Field("", max_length=200)
+    style: str = "photo"
+
+
+PORTRAIT_CROP = "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':'(iw-ow)/2':'(ih-oh)/4',scale=%d:%d" % media.PORTRAIT
+
+
+def _photo_png(data_url, vf=PORTRAIT_CROP, what="photo"):
+    """Data URL -> PNG bytes, by default a 9:16 portrait (media.PORTRAIT) cropped from the top of a tall photo and the
+    middle of a wide one, where faces are. ffmpeg doubles as the validator: anything it cannot decode is refused."""
     try:
         raw = base64.b64decode(data_url.split(",", 1)[-1], validate=True)
     except ValueError:
-        raise HTTPException(400, "photo is not base64")
+        raise HTTPException(400, f"{what} is not base64")
     with tempfile.TemporaryDirectory() as t:
         src, dst = f"{t}/in", f"{t}/photo.png"
         open(src, "wb").write(raw)
-        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-frames:v", "1", "-vf",
-                            "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':'(iw-ow)/2':'(ih-oh)/4',scale=%d:%d" % media.PORTRAIT, dst],
+        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-frames:v", "1", "-vf", vf, dst],
                            capture_output=True, timeout=30)
         if r.returncode:
-            raise HTTPException(400, "photo is not an image ffmpeg can read")
+            raise HTTPException(400, f"{what} is not an image ffmpeg can read")
         return open(dst, "rb").read()
+
+
+def _picture_png(data_url):
+    """An image post's own picture: kept whole (the poster cover-crops it), only shrunk to fit 1350 px."""
+    return _photo_png(data_url, "scale='min(1350,iw)':'min(1350,ih)':force_original_aspect_ratio=decrease", "picture")
+
+
+def _ai_down(e, keep):
+    """The 503 for a failed FLUX.2 call; `keep` says what still works meanwhile."""
+    if "429" in str(e):  # every Cloudflare key has spent its 10,000 free neurons; they come back at 00:00 UTC
+        return HTTPException(503, f"The free daily AI image limit is used up. It resets at 05:30 IST. {keep}")
+    if "timed out" in str(e):  # seen 3 Oct 2026: FLUX.2 hangs on an account where FLUX.1 still answers
+        return HTTPException(503, f"The AI image service is not answering right now. Try again in a few minutes. {keep}")
+    return HTTPException(503, f"AI image failed: {str(e)[:120]}")
 
 
 class PlanIn(BaseModel):
@@ -190,12 +213,23 @@ def restyle(body: RestyleIn):
         try:
             out = media.restyle(src, body.outfit, f"{t}/restyled.png")
         except Exception as e:
-            if "429" in str(e):  # every Cloudflare key has spent its 10,000 free neurons; they come back at 00:00 UTC
-                raise HTTPException(503, "The free daily AI image limit is used up. It resets at 05:30 IST. Your original photo works meanwhile.")
-            if "timed out" in str(e):  # seen 3 Oct 2026: FLUX.2 hangs on an account where FLUX.1 still answers
-                raise HTTPException(503, "The AI restyle service is not answering right now. Try again in a few minutes, or use your original photo.")
-            raise HTTPException(503, f"Restyle failed: {str(e)[:120]}")
+            raise _ai_down(e, "Your original photo works meanwhile.")
         return {"photo": "data:image/jpeg;base64," + base64.b64encode(out.read_bytes()).decode()}
+
+
+@app.post("/image/reimagine")
+def reimagine(body: ReimagineIn):
+    """The user's own picture for an image post redrawn by AI in the chosen look (~10 s). The form shows it in the slot."""
+    if body.style not in STYLES:
+        raise HTTPException(400, "unknown look")
+    with tempfile.TemporaryDirectory() as t:
+        src = f"{t}/picture.png"
+        open(src, "wb").write(_picture_png(body.picture))
+        try:
+            out = media.reimagine(src, body.topic.strip(), body.style, f"{t}/reimagined.png")
+        except Exception as e:
+            raise _ai_down(e, "Your own picture works meanwhile.")
+        return {"picture": "data:image/png;base64," + base64.b64encode(out.read_bytes()).decode()}
 
 
 @app.post("/generate")
@@ -209,6 +243,9 @@ def generate(body: GenerateIn):
     if body.kind == "image":
         if not topics:
             raise HTTPException(400, "no topics")
+        if body.pictures and len(body.pictures) != body.slides:
+            raise HTTPException(400, "one picture per slide")
+        pics = [_picture_png(p) for p in body.pictures or []]
         ids = []
         for t in topics:
             jid = secrets.token_hex(4)
@@ -216,6 +253,10 @@ def generate(body: GenerateIn):
                 JOBS[jid] = {"id": jid, "kind": "image", "headline": body.headline, "slides": body.slides, "topic": t, "community": body.community,
                              "language": body.language, "duration": None, "style": body.style, "status": "queued", "stage": None,
                              "created": time.time(), "result": None, "error": None}
+            if pics:  # make_image finds them there and skips the AI picture; every topic gets the same ones
+                (pipeline.OUT / jid).mkdir(exist_ok=True)
+                for i, png in enumerate(pics):
+                    (pipeline.OUT / jid / f"own{i}.png").write_bytes(png)
             IQ.put((jid, None))
             ids.append(jid)
         return {"job_ids": ids}
@@ -256,7 +297,8 @@ def _live(j):
     if j["status"] != "running":
         return j
     d = pipeline.OUT / j["id"]
-    j = {**j, "stills": sorted(p.name for p in d.glob("gen*.png")) or (["photo.png"] if (d / "photo.png").exists() else [])}
+    j = {**j, "stills": sorted(p.name for p in d.glob("gen*.png")) or sorted(p.name for p in d.glob("own*.png"))
+         or (["photo.png"] if (d / "photo.png").exists() else [])}  # own*.png: an image post's own pictures show from the start
     if j.get("presenter"):
         j["faces"] = len(list(d.glob("clip*.mp4")))  # talking scenes finished so far
     try:

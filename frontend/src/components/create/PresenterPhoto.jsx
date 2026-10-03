@@ -4,7 +4,7 @@ import { Icon } from "../Icon";
 
 const SIDE = 1024;  // the server crops a 9:16 portrait anyway; a phone photo is shrunk here so the upload stays ~200 KB
 
-async function shrink(file) {
+export async function shrink(file) {
   const bmp = await createImageBitmap(file);  // throws on what the browser can't decode (HEIC on most desktops)
   const k = Math.min(1, SIDE / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas");

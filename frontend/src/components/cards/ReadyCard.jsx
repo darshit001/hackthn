@@ -14,7 +14,7 @@ export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete, onSave
 
   return (
     <article className="card tile">
-      <button type="button" className="thumb" aria-label={`Play ${job.topic}`} onClick={() => onPlay(job.id)}
+      <button type="button" className="thumb" aria-label={`Play ${job.topic}`} onClick={() => onPlay(job.id)} style={{ "--cover": `url("${thumb}")` }}
         onMouseEnter={() => PREVIEW && setHover(true)} onMouseLeave={() => setHover(false)}>
         <img src={thumb} alt="" />
         {hover && <video className="peek" src={video} muted loop playsInline autoPlay />}

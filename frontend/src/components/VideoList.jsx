@@ -52,6 +52,9 @@ export function VideoList({ jobs, presets, actions }) {
     setPage(1);
   };
 
+  // a tab shows only when it narrows the list: empty ones and ones that repeat All stay hidden, unless picked
+  const tabs = TABS.filter(([key]) => key === "all" || key === tab || (groups[key].length > 0 && groups[key].length < groups.all.length));
+
   const needle = q.trim().toLowerCase();
   const list = sortJobs(groups[tab].filter(j => matches(j, needle, picks, presets.label)), sort);
   const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
@@ -79,7 +82,7 @@ export function VideoList({ jobs, presets, actions }) {
         <div className="find">
           <label className="search">
             <Icon name="search" />
-            <input type="search" placeholder="Search by topic, hook or #hashtag" aria-label="Search posts" value={q}
+            <input type="search" placeholder="Search posts" aria-label="Search posts" value={q}
               onChange={e => { setQ(e.target.value); setPage(1); }} />
           </label>
           <details className="menu filter">
@@ -112,13 +115,13 @@ export function VideoList({ jobs, presets, actions }) {
           </label>
         </div>
       </div>
-      <div className="tabs" role="tablist">
-        {TABS.map(([key, name]) => (
+      {tabs.length > 1 && <div className="tabs" role="tablist">
+        {tabs.map(([key, name]) => (
           <button type="button" role="tab" key={key} aria-selected={tab === key} onClick={() => { setTab(key); setPage(1); }}>
-            {name} <span>{groups[key].length}</span>
+            {name}{key !== "all" && <span>{groups[key].length}</span>}
           </button>
         ))}
-      </div>
+      </div>}
       <div aria-live="polite">{shown.map(card)}</div>
       <Pager page={current} pages={pages} total={list.length} onPage={goTo} />
       {!jobs.length && <div className="empty"><b>Nothing here yet</b>Add a topic on the left and generate a video or an image. It appears here while it is being made.</div>}
