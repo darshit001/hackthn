@@ -15,10 +15,10 @@ const post = (path, body) => call(path, { method: "POST", headers: { "Content-Ty
 export const api = {
   presets: () => call("/presets"),
   jobs: () => call("/jobs"),
-  suggest: (community, language, trendsOnly = false) =>
-    call(`/suggest?${new URLSearchParams({ community, language, ...(trendsOnly && { trends_only: 1 }) })}`),
+  suggest: (community, language) => call(`/suggest?${new URLSearchParams({ community, language })}`),
   plan: opts => post("/plan", opts),
   generate: opts => post("/generate", opts),
   redo: (id, scene) => post(`/jobs/${id}/redo/${scene}`),
+  stop: id => post(`/jobs/${id}/stop`),
   remove: id => call(`/jobs/${id}`, { method: "DELETE" }),
 };

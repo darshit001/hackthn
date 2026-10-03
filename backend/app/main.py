@@ -28,13 +28,13 @@ def _worker():
         jid, scene = Q.get()  # scene is None for a new video, or the index of a scene to redo on a finished one
         with LOCK:
             job = JOBS.get(jid)
-        if job is None:  # deleted while queued
+        if job is None or job.get("stopped"):  # deleted or stopped while queued
             shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
             continue
 
         def progress(stage):
             with LOCK:
-                if jid not in JOBS:  # ponytail: deleted mid-run stops at the next stage boundary, not mid-ffmpeg
+                if jid not in JOBS or job.get("stopped"):  # ponytail: delete/stop mid-run ends at the next stage boundary, not mid-ffmpeg
                     raise Cancelled
                 job["status"], job["stage"] = "running", stage
                 job.setdefault("started", time.time())
@@ -47,13 +47,17 @@ def _worker():
             else:
                 meta = pipeline.redo_scene(jid, scene, progress)
             with LOCK:
-                job.update(status="done", stage=None, result=meta)
+                if not job.get("stopped"):  # a stop during the last stage still wins
+                    job.update(status="done", stage=None, result=meta)
+        except Cancelled:
+            pass
         except Exception as e:  # one bad job never kills the worker
             with LOCK:
-                job.update(status="failed", error=f"{job['stage']}: {e}"[:500])
+                if not job.get("stopped"):
+                    job.update(status="failed", error=f"{job['stage']}: {e}"[:500])
         with LOCK:
-            gone = jid not in JOBS
-        if gone:  # the worker owns out/<id>/ while a job is on the line, so it cleans up a deleted one
+            gone = jid not in JOBS or job.get("stopped")
+        if gone:  # the worker owns out/<id>/ while a job is on the line, so it cleans up a deleted or stopped one
             shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
 
 
@@ -205,13 +209,26 @@ def redo(jid: str, scene: int):
     return {"job_id": jid, "scene": scene}
 
 
+@app.post("/jobs/{jid}/stop")
+def stop_job(jid: str):
+    """Stop a queued or running new video; its card stays as a stopped one the user can retry or delete."""
+    with LOCK:
+        j = JOBS.get(jid)
+        if not j:
+            raise HTTPException(404, "no such job")
+        if j["status"] not in ("queued", "running") or j.get("result"):  # a redo half-done would break the finished video
+            raise HTTPException(409, "nothing to stop")
+        j.update(status="failed", stopped=True, error=f"{j['stage'] or 'queue'}: Stopped by you")
+    return {"stopped": jid}
+
+
 @app.delete("/jobs/{jid}")
 def delete_job(jid: str):
     with LOCK:
         j = JOBS.pop(jid, None)  # only ids we minted reach rmtree, so no path traversal
         if not j:
             raise HTTPException(404, "no such job")
-    if j["status"] not in ("queued", "running"):  # a job on the line is stopped and cleaned up by the worker
+    if j["status"] not in ("queued", "running") and not j.get("stopped"):  # the worker cleans up a job on the line or a stopped one
         shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
     return {"deleted": jid}
 

@@ -16,7 +16,7 @@ export function CreateForm({ presets, onStarted }) {
   const [every, setEvery] = useState(false);  // also make it in every other language
   const [status, setStatus] = useState(HINT);
   const [ideas, setIdeas] = useState([]);
-  const [busy, setBusy] = useState("");  // the button that is working: suggest | trends | preview | start
+  const [busy, setBusy] = useState("");  // the button that is working: suggest | preview | start
   const [preview, setPreview] = useState(null);  // {topic, plan}
   const form = useRef();
   const topics = toLines(text);
@@ -54,18 +54,6 @@ export function CreateForm({ presets, onStarted }) {
       setIdeas(s.topics.map(t => ({ text: t, added: topics.includes(t) })));
       setStatus(s.trends.length ? `${s.topics.length} ideas, some from today's Google Trends India.` : `${s.topics.length} ideas.`);
     } catch { setStatus("Suggestions are unavailable right now. Type a topic instead."); }
-    setBusy("");
-  };
-
-  // one click: today's trending searches -> five topics -> a batch with the current options
-  const fromTrends = async () => {
-    setBusy("trends"); setStatus("");
-    try {
-      const picks = (await api.suggest(community, language, true)).topics.slice(0, 5);
-      await api.generate({ topics: picks, ...options });
-      onStarted(`Generating ${picks.length} videos from today's trends`);
-      setStatus(HINT);
-    } catch { setStatus("Trends are unavailable right now. Type a topic instead."); }
     setBusy("");
   };
 
@@ -107,7 +95,6 @@ export function CreateForm({ presets, onStarted }) {
       </label>
       <div className="row" style={{ margin: "-6px 0 16px" }}>
         <button type="button" className="btn" disabled={busy === "suggest"} onClick={suggest}>{busy === "suggest" ? "Thinking…" : "Suggest topics"}</button>
-        <button type="button" className="btn" disabled={busy === "trends"} onClick={fromTrends}>{busy === "trends" ? "Reading trends…" : "Make 5 from trends"}</button>
         <p className="hint">{status}</p>
         {ideas.length > 0 && (
           <ul className="ideas">

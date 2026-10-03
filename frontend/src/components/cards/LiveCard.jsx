@@ -17,7 +17,7 @@ function Still({ src, className, title }) {
 }
 
 // The video being made: the phone screen shows the newest still, six bars show the step, the strip collects every still.
-export function LiveCard({ job, label, accent }) {
+export function LiveCard({ job, label, accent, onStop }) {
   const idx = STAGES.indexOf(job.stage);
   const pct = Math.round(((idx + 0.5) / STAGES.length) * 100);
   const stills = job.stills || [], last = stills[stills.length - 1];
@@ -53,7 +53,18 @@ export function LiveCard({ job, label, accent }) {
         )}
         <Facts job={job} label={label} />
       </div>
-      <div className="side"><time>Started {ago(started)}</time></div>
+      <div className="side">
+        <time>Started {ago(started)}</time>
+        {!job.result && (  // a scene redo on a finished video can't be stopped halfway
+          <div className="actions">
+            <button type="button" className="btn del" onClick={e => {
+              if (!confirm(`Stop "${job.topic}"? The work done so far is thrown away.`)) return;
+              e.currentTarget.disabled = true;
+              onStop(job.id);
+            }}><Icon name="x" />Stop</button>
+          </div>
+        )}
+      </div>
     </article>
   );
 }

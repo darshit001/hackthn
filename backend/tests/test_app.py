@@ -169,3 +169,30 @@ def test_copy_stills_credits_and_tolerates_missing_files(tmp_path):
     (src / "gen0.png").write_bytes(b"png")
     got = pipeline._copy_stills(src, dst, [(0, "", "p"), (0, "b", "p"), (1, "", "p")], None)
     assert got == ["AI image, shared from the first language", None, None] and (dst / "gen0.png").exists()
+
+
+def test_stop_ends_a_running_job_and_keeps_its_card(monkeypatch, tmp_path):
+    import queue, threading, time
+    monkeypatch.setattr(appmod.pipeline, "OUT", tmp_path)
+    monkeypatch.setattr(appmod, "Q", queue.Queue())
+    reached = []
+
+    def make_video(topic, community, progress, job_id, **k):  # user stops mid-run; the next stage boundary ends it
+        (tmp_path / job_id).mkdir()
+        progress("images")
+        assert client.post(f"/jobs/{job_id}/stop").json() == {"stopped": job_id}
+        progress("voice")
+        reached.append("past stop")
+    monkeypatch.setattr(appmod.pipeline, "make_video", make_video)
+    jid = client.post("/generate", json={"topics": ["a"]}).json()["job_ids"][0]
+    threading.Thread(target=appmod._worker, daemon=True).start()
+    for _ in range(100):
+        if appmod.JOBS[jid].get("stopped") and not (tmp_path / jid).exists():
+            break
+        time.sleep(0.02)
+    j = appmod.JOBS[jid]
+    assert not reached and not (tmp_path / jid).exists()
+    assert (j["status"], j["stopped"], j["error"]) == ("failed", True, "images: Stopped by you")
+    assert client.post(f"/jobs/{jid}/stop").status_code == 409  # already stopped
+    assert client.delete(f"/jobs/{jid}").status_code == 200 and jid not in appmod.JOBS
+    assert client.post(f"/jobs/{jid}/stop").status_code == 404

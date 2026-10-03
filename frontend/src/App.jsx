@@ -33,6 +33,10 @@ export default function App() {
       refresh();
       return true;
     },
+    onStop: async id => {
+      try { await api.stop(id); say("Video stopped"); } catch { say("Could not stop it, it may have just finished"); }
+      refresh();
+    },
     onRetry: async j => {
       await api.generate({ topics: [j.topic], community: j.community, language: j.language, duration: j.duration, style: j.style || "photo" }).catch(() => say("Could not start it again"));
       refresh();
