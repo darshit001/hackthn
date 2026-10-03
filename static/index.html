@@ -80,6 +80,13 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 .hooks .why{display:block;color:var(--fg-2);font-size:12px;font-style:normal;margin-top:2px}
 .hooks .tag{flex:none;align-self:center}
 .beat{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);font-weight:600}
+.scenes input.title,.scenes textarea.nar{display:block;width:calc(100% + 12px);margin:0 -6px;padding:2px 6px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;line-height:1.45;color:var(--fg-2)}
+.scenes input.title{font-weight:500;color:var(--fg)}
+.scenes textarea.nar{resize:none;overflow:hidden}
+.scenes input.title:hover,.scenes textarea.nar:hover{border-color:var(--border)}
+.scenes input.title:focus,.scenes textarea.nar:focus{border-color:var(--border-2);background:var(--card);outline:none}
+.scenes .wc{display:block;text-align:right;font-size:11px;color:var(--fg-3)}
+.scenes .wc.over{color:var(--red);font-weight:500}
 .primary.small{width:auto;padding:7px 12px;font-size:13px;margin:0}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 6px 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12.5px;line-height:1.2;color:var(--fg-2);cursor:pointer;text-align:center;transition:border-color .15s,background .15s,color .15s}
@@ -315,6 +322,10 @@ function icon(name, cls = "i") { return `<svg class="${cls}" aria-hidden="true">
 function community() { return new FormData($("#intake")).get("community") || "general"; }
 function duration() { return +new FormData($("#intake")).get("duration") || 30; }
 function style() { return new FormData($("#intake")).get("style") || "photo"; }
+// scene word caps mirror llm.validate_plan: scene 1 may carry a long swapped hook
+function capOf(i) { return i === 0 ? 40 : 25; }
+function wc(s) { s = s.trim(); return s ? s.split(/\s+/).length : 0; }
+function grow(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
 let nLangs = 1;
 function allLangs() { return $("#all-langs").checked; }
 function videoCount() { return lines().length * (allLangs() ? nLangs : 1); }
@@ -400,14 +411,25 @@ $("#preview").onclick = async () => {
     const hooks = (previewPlan.hooks || []).filter(h => h && h.text);
     if (!hooks.some(h => h.text === previewPlan.hook)) hooks.unshift({text: previewPlan.hook});
     $("#preview-box").innerHTML = `<h2>Script for “${esc(topic)}”</h2>
-      <p class="hint">Pick the opening line. The scenes below stay as written.</p>
+      <p class="hint">Pick the opening line and edit any line. Nothing is spent until you generate.</p>
       <div class="hooks">${hooks.map(h => `<label><input type="radio" name="hook" value="${esc(h.text)}"${h.text === previewPlan.hook ? " checked" : ""}><span class="text">${esc(h.text)}${h.why ? `<em class="why">${esc(h.why)}</em>` : ""}</span>${h.formula ? `<span class="tag">${esc(FORMULA[h.formula] || h.formula)}</span>` : ""}${h.score ? `<small>${esc(h.score)}/10</small>` : ""}</label>`).join("")}</div>
-      <ol class="scenes">${previewPlan.scenes.map(sc => `<li>${sc.beat ? `<span class="beat">${esc(sc.beat)}</span> ` : ""}<b>${esc(sc.title || "")}</b> ${esc(sc.narration)}</li>`).join("")}</ol>
-      <div class="actions" style="justify-content:flex-start"><button type="button" class="primary small" id="make-preview">Generate with this hook</button><button type="button" class="btn" id="close-preview">Close</button></div>`;
+      <ol class="scenes">${previewPlan.scenes.map((sc, i) => `<li>${sc.beat ? `<span class="beat">${esc(sc.beat)}</span>` : ""}<input class="title" data-i="${i}" value="${esc(sc.title || "")}" aria-label="Scene ${i + 1} title"><textarea class="nar" data-i="${i}" rows="1" aria-label="Scene ${i + 1} narration">${esc(sc.narration)}</textarea><small class="wc${wc(sc.narration) > capOf(i) ? " over" : ""}" data-i="${i}">${wc(sc.narration)}/${capOf(i)}</small></li>`).join("")}</ol>
+      <div class="actions" style="justify-content:flex-start"><button type="button" class="primary small" id="make-preview">Generate this script</button><button type="button" class="btn" id="close-preview">Close</button></div>`;
     $("#preview-box").hidden = false;
+    document.querySelectorAll("#preview-box textarea.nar").forEach(grow);
   } catch (_) { $("#suggest-status").textContent = "Could not write the script right now. Try again or just generate the video."; }
   b.disabled = false; b.textContent = "Preview script";
 };
+// the word count follows every edit; the server still has the final say (400 "bad plan: scene n: ...")
+$("#preview-box").addEventListener("input", e => {
+  const t = e.target.closest("textarea.nar");
+  if (!t) return;
+  grow(t);
+  const i = +t.dataset.i, n = wc(t.value), w = $(`#preview-box .wc[data-i="${i}"]`);
+  w.textContent = `${n}/${capOf(i)}`; w.classList.toggle("over", n > capOf(i));
+});
+// the preview sits inside #intake: Enter in a title would submit the raw topic
+$("#preview-box").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("#preview-box input.title")) e.preventDefault(); });
 $("#topics").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") $("#intake").requestSubmit(); });
 
 $("#intake").onsubmit = async e => {
@@ -449,7 +471,13 @@ document.addEventListener("click", async e => {
   document.querySelectorAll("details.menu[open]").forEach(d => { if (!d.contains(e.target)) d.removeAttribute("open"); });
   if (e.target.id === "close-preview") { $("#preview-box").hidden = true; return; }
   if (e.target.id === "make-preview" && previewPlan) {
-    const fd = new FormData($("#intake")), plan = structuredClone(previewPlan), hook = fd.get("hook") || plan.hook, s0 = plan.scenes[0];
+    const fd = new FormData($("#intake")), plan = structuredClone(previewPlan), hook = fd.get("hook") || plan.hook;
+    plan.scenes.forEach((sc, i) => {  // an emptied field keeps the original line
+      const t = $(`#preview-box .title[data-i="${i}"]`), n = $(`#preview-box .nar[data-i="${i}"]`);
+      if (t && t.value.trim()) sc.title = t.value.trim();
+      if (n && n.value.trim()) sc.narration = n.value.trim().replace(/\s+/g, " ");
+    });
+    const s0 = plan.scenes[0];
     s0.narration = s0.narration.startsWith(plan.hook) ? hook + s0.narration.slice(plan.hook.length) : `${hook} ${s0.narration}`;
     plan.hook = hook;
     e.target.disabled = true;
