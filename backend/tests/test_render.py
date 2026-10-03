@@ -88,7 +88,7 @@ def test_compose_crossfades_scenes_into_the_end_card(monkeypatch, tmp_path):
     assert "[x1][s2]xfade=" in fc and "offset=3.500[x2]" in fc  # the end card fades in when the last word ends
     assert fc.endswith("[x2]ass=captions.ass:shaping=complex[v]")
     assert final[final.index("-map") + 1] == "[v]" and "3:a" in final  # voice is input 3, mapped straight through
-    assert final[final.index("-shortest_buf_duration") + 1] == "1"  # ffmpeg 7 would otherwise buffer 10 s of raw frames (the Railway OOM)
+    assert "-shortest" in final and "-shortest_buf_duration" not in final  # the container's ffmpeg 5.1 refuses that 6.1+ option
 
 
 def test_compose_mixes_music_under_the_voice(monkeypatch, tmp_path):
