@@ -46,7 +46,7 @@ def _worker():
             if scene is None:
                 meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid,
                                            language=job["language"], duration=job["duration"], plan=job.get("plan"),
-                                           style=job.get("style", "photo"))
+                                           style=job.get("style", "photo"), source=job.get("source"))
             else:
                 meta = pipeline.redo_scene(jid, scene, progress)
             with LOCK:
@@ -94,6 +94,7 @@ class GenerateIn(BaseModel):
     language: str = "en"
     duration: int = 30
     style: str = "photo"
+    all_languages: bool = False  # one job per language per topic; the siblings translate the first job's script and reuse its stills
     plan: dict | None = None  # a previewed plan (from POST /plan, hook possibly swapped); only used for a single topic
 
 
@@ -149,15 +150,19 @@ def generate(body: GenerateIn):
             llm.validate_plan(plan, (3, 9))
         except ValueError as e:
             raise HTTPException(400, f"bad plan: {e}")
+    langs = [body.language] + [k for k in LANGUAGES if k != body.language] if body.all_languages else [body.language]
     ids = []
     for t in topics:
-        jid = secrets.token_hex(4)
-        with LOCK:
-            JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": body.language,
-                         "duration": body.duration, "style": body.style, "status": "queued", "stage": None, "created": time.time(),
-                         "result": None, "error": None, "plan": plan}
-        Q.put((jid, None))
-        ids.append(jid)
+        source = None
+        for lang in langs:
+            jid = secrets.token_hex(4)
+            with LOCK:
+                JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": lang,
+                             "duration": body.duration, "style": body.style, "status": "queued", "stage": None, "created": time.time(),
+                             "result": None, "error": None, "plan": None if source else plan, "source": source}
+            Q.put((jid, None))
+            ids.append(jid)
+            source = source or jid  # the first language of a topic is the source the rest follow
     if not ids:
         raise HTTPException(400, "no topics")
     return {"job_ids": ids}

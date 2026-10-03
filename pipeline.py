@@ -2,6 +2,7 @@
     python pipeline.py "why sleep matters" tech en 30"""
 import json
 import secrets
+import shutil
 import subprocess
 import sys
 import time
@@ -18,18 +19,56 @@ MUSIC_DIR = Path(__file__).parent / "assets" / "music"
 STAGES = ["plan", "images", "voice", "visuals", "captions", "render"]
 
 
-def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None, style="photo"):
+def _source(job_id):
+    """(plan, meta) of the sibling job this one follows: its script is translated and its stills reused.
+    None when there is no source or it never wrote a plan; the job then plans itself and makes its own stills."""
+    if not job_id:
+        return None
+    sd = OUT / job_id
+    try:
+        p = json.loads((sd / "plan.json").read_text())
+    except (OSError, ValueError):
+        print(f"source {job_id}: no plan to translate, planning afresh", file=sys.stderr)
+        return None
+    try:
+        meta = json.loads((sd / f"{job_id}.json").read_text())
+    except (OSError, ValueError):
+        meta = {}  # the source failed after its stills were made: they are still worth reusing
+    return p, meta
+
+
+def _copy_stills(sd, d, tasks, image_model):
+    """The source's gen*.png into this job's directory, one credit per task in order, None where the source had no still.
+    Copies, not links: deleting the source must not break a redo here."""
+    got = []
+    for i, sfx, _ in tasks:
+        f = sd / f"gen{i}{sfx}.png"
+        if f.exists():
+            shutil.copy(f, d / f.name)
+            got.append(f"AI image, {image_model}" if image_model else "AI image")
+        else:
+            got.append(None)
+    return got
+
+
+def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None, style="photo", source=None):
     """Returns the meta dict that is also written to out/<id>/<id>.json. Raises on unrecoverable failure.
     plan: a previewed plan from llm.plan (hook possibly swapped by the user); None plans from scratch.
-    style: a key of presets.STYLES, the look of the AI stills."""
+    style: a key of presets.STYLES, the look of the AI stills.
+    source: id of a finished sibling job in another language; its script is translated and its stills reused."""
     job_id = job_id or secrets.token_hex(4)
     d = OUT / job_id
     d.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
 
     progress("plan")
-    p = llm.review(plan or llm.plan(topic, community, language, duration), language)  # softened or blocked before an image or a voice line is spent
+    src = _source(source)
+    if src:
+        p = llm.translate(src[0], language, duration)  # the source's review comes along with it
+    else:
+        p = llm.review(plan or llm.plan(topic, community, language, duration), language)  # softened or blocked before an image or a voice line is spent
     scenes = p["scenes"]
+    (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))  # siblings in other languages translate it from here
 
     progress("images")  # AI stills 3 at a time, every scene's first picture before any second one, so a quota hit never leaves a scene bare;
     # the voice lines record meanwhile in their own 2-thread pool (the ElevenLabs free tier allows 2 concurrent): both waits are network, so they overlap
@@ -38,7 +77,10 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     tasks += [(i, "b", sc["image_prompt_b"]) for i, sc in enumerate(scenes) if sc.get("image_prompt_b")]
     with ThreadPoolExecutor(2) as vpool, ThreadPoolExecutor(3) as ipool:
         voices = [vpool.submit(media.tts, sc["narration"], community, w, language) for sc, w in zip(scenes, wavs)]
-        got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png", style), tasks))
+        if src:
+            got = _copy_stills(OUT / source, d, tasks, src[1].get("image_model"))
+        else:
+            got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png", style), tasks))
     images = {(i, sfx): (d / f"gen{i}{sfx}.png", cr) for (i, sfx, _), cr in zip(tasks, got) if cr}  # (scene, "" or "b") -> (png, credit)
 
     progress("voice")
@@ -94,6 +136,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
         "style": style,
         "review": p.get("review"),
+        "source": source if src else None,
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),
         "caption": p["caption"], "hashtags": p["hashtags"], "posts": p.get("posts"),
         "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr)

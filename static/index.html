@@ -91,6 +91,8 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 .iconsel{position:relative}
 .iconsel .i{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--fg-2);pointer-events:none}
 .iconsel .sel{padding-left:34px}
+.check{display:flex;align-items:center;gap:8px;margin:-8px 0 16px;font-size:13px;color:var(--fg-2);cursor:pointer}
+.check input{accent-color:var(--acc);margin:0}
 .sel{width:100%;appearance:none;-webkit-appearance:none;padding:9px 32px 9px 11px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath d=%27M2.5 4.5l3.5 3.5 3.5-3.5%27 fill=%27none%27 stroke=%27%23141414%27 stroke-width=%271.5%27/%3E%3C/svg%3E") no-repeat right 11px center;border:1px solid var(--border-2);border-radius:var(--r)}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .seg label{position:relative;text-align:center;border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--fg-2);cursor:pointer;transition:border-color .15s,background .15s}
@@ -259,6 +261,7 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
 
     <div class="field"><span>2. Community</span><div class="tiles" id="community" role="radiogroup" aria-label="Community"></div></div>
     <label class="field"><span>3. Language</span><div class="iconsel"><svg class="i"><use href="#i-globe"/></svg><select class="sel" name="language" id="language"></select></div></label>
+    <label class="check"><input type="checkbox" id="all-langs"> Also make it in the other languages (same visuals)</label>
     <div class="field"><span>4. Length</span><div class="seg" id="durations" role="radiogroup" aria-label="Length"></div></div>
     <div class="field"><span>5. Look</span><div class="seg" id="styles" role="radiogroup" aria-label="Look"></div></div>
 
@@ -312,6 +315,9 @@ function icon(name, cls = "i") { return `<svg class="${cls}" aria-hidden="true">
 function community() { return new FormData($("#intake")).get("community") || "general"; }
 function duration() { return +new FormData($("#intake")).get("duration") || 30; }
 function style() { return new FormData($("#intake")).get("style") || "photo"; }
+let nLangs = 1;
+function allLangs() { return $("#all-langs").checked; }
+function videoCount() { return lines().length * (allLangs() ? nLangs : 1); }
 function ago(ts) {
   const s = Date.now() / 1000 - ts;
   for (const [unit, sec] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (s >= sec) return RTF.format(-Math.floor(s / sec), unit);
@@ -322,6 +328,7 @@ function mmss(sec) { sec = Math.round(sec); return `${Math.floor(sec / 60)}:${St
 fetch("/presets").then(r => r.json()).then(p => {
   p.communities.forEach(x => labels[x.slug] = LABEL[x.slug] || x.label);
   p.languages.forEach(x => labels[x.slug] = x.label);
+  nLangs = p.languages.length;
   $("#community").innerHTML = p.communities.map((x, i) => `<label class="tile"><input type="radio" name="community" value="${x.slug}" data-language="${x.language}"${i === 0 ? " checked" : ""}>${icon(ICON[x.slug] || "folder")}<span>${esc(label(x.slug))}</span></label>`).join("");
   $("#language").innerHTML = p.languages.map(x => `<option value="${x.slug}"${x.slug === "en" ? " selected" : ""}>${esc(x.label)}</option>`).join("");
   $("#durations").innerHTML = p.durations.map(d => `<label><input type="radio" name="duration" value="${d}"${d === 30 ? " checked" : ""}><span>${d} s</span></label>`).join("");
@@ -369,13 +376,14 @@ $("#trends").onclick = async () => {
 };
 
 $("#topics").addEventListener("input", () => {
-  const n = lines().length;
+  const n = lines().length, k = videoCount();
   $("#start").disabled = n === 0;
-  $("#start-label").textContent = n <= 1 ? "Generate video" : `Generate ${n} videos`;
+  $("#start-label").textContent = k <= 1 ? "Generate video" : `Generate ${k} videos`;
   $("#count").textContent = `${n}/10`;
   $("#preview").disabled = n !== 1;  // a script preview is for one topic at a time
   $("#preview-box").hidden = true;
 });
+$("#all-langs").addEventListener("change", () => $("#topics").dispatchEvent(new Event("input")));
 
 // script preview: the exact plan the pipeline would use, with the three scored hooks to pick from
 let previewPlan = null, previewTopic = "";
@@ -406,11 +414,11 @@ $("#intake").onsubmit = async e => {
   e.preventDefault();
   const topics = lines();
   if (!topics.length) return;
-  const body = {topics, community: community(), language: $("#language").value, duration: duration(), style: style()};
+  const body = {topics, community: community(), language: $("#language").value, duration: duration(), style: style(), all_languages: allLangs()};
   $("#start").disabled = true;
   const r = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   if (!r.ok) { $("#suggest-status").textContent = "Could not start: " + (await r.text()); $("#start").disabled = false; return; }
-  toast(topics.length === 1 ? "Generating 1 video" : `Generating ${topics.length} videos`);
+  toast(allLangs() ? `Generating ${videoCount()} videos in ${nLangs} languages` : topics.length === 1 ? "Generating 1 video" : `Generating ${topics.length} videos`);
   $("#topics").value = ""; $("#topics").dispatchEvent(new Event("input"));
   poll();
 };
@@ -446,9 +454,9 @@ document.addEventListener("click", async e => {
     plan.hook = hook;
     e.target.disabled = true;
     const r = await fetch("/generate", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({topics: [previewTopic], community: community(), language: $("#language").value, duration: duration(), style: style(), plan})});
+      body: JSON.stringify({topics: [previewTopic], community: community(), language: $("#language").value, duration: duration(), style: style(), plan, all_languages: allLangs()})});
     if (!r.ok) { $("#suggest-status").textContent = "Could not start: " + (await r.text()); e.target.disabled = false; return; }
-    toast("Generating 1 video with your hook");
+    toast(allLangs() ? `Generating ${nLangs} videos in ${nLangs} languages with your script` : "Generating 1 video with your script");
     $("#preview-box").hidden = true; $("#topics").value = ""; $("#topics").dispatchEvent(new Event("input"));
     poll();
     return;
@@ -564,7 +572,7 @@ function readyCard(j) {
       <span class="status ready">Ready</span>
       <h3>${esc(j.topic)}</h3>
       <p class="desc">${esc(m.hook)} ${esc(m.caption)}</p>
-      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>${m.hook_formula ? `<li>${icon("bolt")}${esc(FORMULA[m.hook_formula] || m.hook_formula)} hook, ${esc(m.hook_score)}/10</li>` : ""}${m.style && m.style !== "photo" ? `<li>${icon("image")}${esc(label(m.style))} look</li>` : ""}${reviewFact(m)}`)}
+      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>${m.hook_formula ? `<li>${icon("bolt")}${esc(FORMULA[m.hook_formula] || m.hook_formula)} hook, ${esc(m.hook_score)}/10</li>` : ""}${m.style && m.style !== "photo" ? `<li>${icon("image")}${esc(label(m.style))} look</li>` : ""}${reviewFact(m)}${m.source ? `<li>${icon("copy")}Visuals shared with ${esc(label((allJobs.find(x => x.id === m.source) || {}).language || "the first version"))}</li>` : ""}`)}
       <div class="tags">${m.hashtags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
     </div>
     <div class="side">

@@ -200,3 +200,37 @@ def test_review_is_skipped_when_every_model_is_down(monkeypatch):
     p = llm.review(good(), "en")
     assert p["review"]["verdict"] == "skipped" and "boom" in p["review"]["notes"][0]
     assert p["scenes"][1]["narration"] == "Sentence number 1 goes here."
+
+
+def test_translate_keeps_the_visuals_and_the_review_and_pins_the_scene_count(monkeypatch):
+    import json
+    src = dict(good(), model="test", review={"verdict": "ok", "notes": []})
+    seen = {}
+
+    def fake(base, validate, temperature=0.8):
+        seen.update(system=base[0]["content"], user=base[1]["content"], temperature=temperature)
+        q = json.loads(json.dumps(good()))
+        for s in q["scenes"]:  # a model that "helpfully" rewrites the visuals is corrected, not retried
+            s.update(narration="नमस्ते " + s["narration"], title="शीर्षक", query="changed", image_prompt="changed", beat="twist")
+        q["hooks"][0]["score"] = 1
+        q["hashtags"] = ["#changed"]
+        validate(q)
+        return q
+    monkeypatch.setattr(llm, "_ask", fake)
+    out = llm.translate(src, "hi", 30)
+    assert [s["query"] for s in out["scenes"]] == ["city night"] * 5 and [s["beat"] for s in out["scenes"]] == [s["beat"] for s in src["scenes"]]
+    assert all(s.get("image_prompt") is None for s in out["scenes"])  # the source had none, so none is invented
+    assert out["hooks"][0]["score"] == 8 and out["hashtags"] == src["hashtags"] and out["review"] == src["review"]
+    assert out["scenes"][0]["narration"].startswith("नमस्ते") and out["scenes"][0]["title"] == "शीर्षक"
+    assert seen["temperature"] == 0.5 and "Devanagari" in seen["system"] and "30 second" in seen["system"]
+    assert '"model"' not in seen["user"] and '"review"' not in seen["user"] and "Sentence number 0" in seen["user"]
+
+
+def test_translate_rejects_a_different_scene_count(monkeypatch):
+    def fake(base, validate, temperature=0.8):
+        q = good(); q["scenes"] = q["scenes"][:4]
+        validate(q)
+        return q
+    monkeypatch.setattr(llm, "_ask", fake)
+    with pytest.raises(ValueError, match="need 5-5 scenes"):
+        llm.translate(good(), "gu", 30)

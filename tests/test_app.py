@@ -132,3 +132,17 @@ def test_generate_takes_a_look_and_rejects_an_unknown_one(monkeypatch):
     assert appmod.JOBS.pop(jid)["style"] == "anime"
     jid = client.post("/generate", json={"topics": ["x"]}).json()["job_ids"][0]
     assert appmod.JOBS.pop(jid)["style"] == "photo"
+
+
+def test_generate_all_languages_queues_a_sibling_per_language(monkeypatch):
+    queued = []
+    monkeypatch.setattr(appmod.Q, "put", queued.append)
+    plan = good_plan()
+    ids = client.post("/generate", json={"topics": ["chai"], "language": "hi", "style": "anime", "plan": plan, "all_languages": True}).json()["job_ids"]
+    jobs = [appmod.JOBS.pop(i) for i in ids]
+    assert [j["language"] for j in jobs] == ["hi", "en", "hinglish", "gu"]  # the chosen language leads; the others follow it
+    assert jobs[0]["source"] is None and jobs[0]["plan"] == plan
+    assert all(j["source"] == ids[0] and j["plan"] is None and j["style"] == "anime" for j in jobs[1:])
+    assert [q for q, _ in queued[-4:]] == ids
+    ids = client.post("/generate", json={"topics": ["a", "b"], "all_languages": True}).json()["job_ids"]
+    assert len(ids) == 8 and [appmod.JOBS.pop(i)["source"] for i in ids] == [None, ids[0], ids[0], ids[0], None, ids[4], ids[4], ids[4]]

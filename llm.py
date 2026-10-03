@@ -45,6 +45,24 @@ about a named real person (an unverified negative claim about a person is "fixed
 "fixed", never "blocked". notes: one line saying why. changes [].
 """
 
+TRANSLATE_SYSTEM = """You adapt a finished script for a {duration} second vertical short video into another language for the
+Qoneqt Global Feed. You get the script as a JSON object. Return ONLY the same JSON object with these fields rewritten in
+{language}: hooks[].text, hooks[].why, hook, scenes[].narration, scenes[].title, caption, posts.youtube_title,
+posts.youtube_description, posts.instagram. Copy every other field unchanged (beat, query, image_prompt, image_prompt_b,
+formula, score, hashtags). Keep the same number of scenes, in the same order.
+Rules:
+- Adapt, do not transliterate: it must read like a script written for this audience in this language.
+- hook is the text of the highest-scoring hook, copied exactly. Scene 1 narration must begin with the hook, word for word.
+- Each narration is 1-2 spoken sentences, at most 25 words. Total across all scenes: {words_lo}-{words_hi} words
+  (this language is spoken at its own pace, so the total differs from the source).
+- Never open a hook with "Did you know", "In this video", "Today we", "Have you ever wondered", "Welcome to",
+  "Kya aap jaante hain", "Kya aapko pata hai", "क्या आप जानते हैं" or "क्या आपको पता है".
+- Write numbers as spoken words. Each title is a 2-5 word on-screen headline.
+- youtube_title: at most 70 characters, no hashtags. youtube_description: 1-3 lines ending with three hashtags.
+  instagram: 1-3 lines, emoji welcome, no hashtags.
+"""
+KEEP_SCENE = ("beat", "query", "image_prompt", "image_prompt_b")  # a sibling reuses the source's stills, so these never change
+
 SYSTEM = """You write scripts for {duration} second vertical short videos for the Qoneqt Global Feed.
 Return ONLY a JSON object with exactly these keys:
 {{
@@ -302,6 +320,39 @@ def plan(topic, community="general", language="en", duration=30):
     p = _ask(base, lambda q: validate_plan(q, (lo, hi)))
     p["hook"] = p["hook"].strip()  # the UI picks the chosen hook by exact text match
     p["hashtags"] = list(dict.fromkeys(t.strip() for t in p["hashtags"] + preset["hashtags"]))
+    return p
+
+
+def _merge(q, src):
+    """Copy the visual and structural fields of the source plan over a translation, so the model can only change words.
+    Runs before validation, so a model that renames a query or a beat is corrected rather than retried."""
+    if isinstance(q, dict):
+        if isinstance(q.get("scenes"), list):
+            for s, o in zip(q["scenes"], src["scenes"]):
+                if isinstance(s, dict):
+                    s.update({k: o.get(k) for k in KEEP_SCENE})
+        if isinstance(q.get("hooks"), list):
+            for h, o in zip(q["hooks"], src["hooks"]):
+                if isinstance(h, dict):
+                    h.update(formula=o["formula"], score=o["score"])
+        q["hashtags"] = src["hashtags"]
+        if "review" in src:
+            q["review"] = src["review"]
+    return q
+
+
+def translate(src, language, duration=30):
+    """The source plan in another language: words rewritten by the model, visuals, structure, hashtags and review copied
+    from `src`. Validated like a fresh plan with the scene count pinned, so the sibling's stills line up."""
+    lang = LANGUAGES[language]
+    n = len(src["scenes"])
+    _, _, wlo, whi = budget(duration, lang["wps"])
+    system = TRANSLATE_SYSTEM.format(duration=duration, language=lang["instruction"], words_lo=wlo, words_hi=whi)
+    body = {k: v for k, v in src.items() if k not in ("model", "review")}
+    base = [{"role": "system", "content": system},
+            {"role": "user", "content": f"Script:\n{json.dumps(body, ensure_ascii=False)}\nReturn the JSON now."}]
+    p = _ask(base, lambda q: validate_plan(_merge(q, src), (n, n)), temperature=0.5)
+    p["hook"] = p["hook"].strip()
     return p
 
 
