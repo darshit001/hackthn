@@ -23,38 +23,37 @@ export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete, onSave
   const close = e => e.currentTarget.closest("details")?.removeAttribute("open");
 
   return (
-    <article className="card">
+    <article className="card tile">
       <button type="button" className="thumb" aria-label={`Play ${job.topic}`} onClick={() => onPlay({ id: job.id, video, thumb, topic: job.topic })}
         onMouseEnter={() => PREVIEW && setHover(true)} onMouseLeave={() => setHover(false)}>
         <img src={thumb} alt="" />
         {hover && <video className="peek" src={video} muted loop playsInline autoPlay />}
         <Icon name="play" className="i fill play" />
+        {m.presenter ? <span className="badge">{talked(m)}</span>
+          : m.style && m.style !== "photo" && <span className="badge">{label(m.style)}</span>}
         <span className="dur">{mmss(m.duration)}</span>
       </button>
+      <SaveButton saved={!!job.saved} onClick={() => onSave(job.id, !job.saved)} />
       <div className="body">
-        <div className="meta">
-          <Facts job={job} label={label} length={false}>
-            {m.presenter ? <li>{talked(m)}</li>
-              : m.style && m.style !== "photo" && <li><Icon name="image" />{label(m.style)} look</li>}
-          </Facts>
-          <time>{ago(job.created)}</time>
-        </div>
-        <h3>{job.topic}</h3>
-        <p className="desc">{m.hook} {m.caption}</p>
-        <div className="actions">
-          <button type="button" className="btn icon" aria-label="Copy post text" title="Copy post text" onClick={() => onCopy(postText(m), "Post text copied")}><Icon name="copy" /></button>
-          <a className="btn icon" href={`/jobs/${job.id}/download`} download aria-label="Download video, cover and caption as a ZIP" title="Download video, cover and caption (ZIP)"><Icon name="download" /></a>
-          <details className="menu">
-            <summary className="btn icon" aria-label="More actions"><Icon name="more" className="i fill" /></summary>
-            <div className="pop">
-              {m.scenes.map((sc, i) => (
-                <button type="button" key={i} onClick={e => { close(e); onRedo(job.id, i); }}>Redo scene {i + 1}: {sc.title || sc.query}</button>
-              ))}
-              <hr />
-              <button type="button" className="del" onClick={e => { setAsk(e.currentTarget.closest("details").querySelector("summary")); close(e); }}>Delete video</button>
-            </div>
-          </details>
-          <SaveButton saved={!!job.saved} onClick={() => onSave(job.id, !job.saved)} />
+        <h3 title={`${m.hook} ${m.caption}`}>{job.topic}</h3>
+        <div className="foot">
+          <Facts job={job} label={label} length={false} />
+          <div className="actions">
+            <a className="btn icon" href={`/jobs/${job.id}/download`} download aria-label="Download video, cover and caption as a ZIP" title="Download video, cover and caption (ZIP)"><Icon name="download" /></a>
+            <details className="menu">
+              <summary className="btn icon" aria-label="More actions" title="More actions"><Icon name="more" className="i fill" /></summary>
+              <div className="pop">
+                <div className="pophead">Made {ago(job.created)}</div>
+                <button type="button" onClick={e => { close(e); onCopy(postText(m), "Post text copied"); }}>Copy post text</button>
+                <hr />
+                {m.scenes.map((sc, i) => (
+                  <button type="button" key={i} onClick={e => { close(e); onRedo(job.id, i); }}>Redo scene {i + 1}: {sc.title || sc.query}</button>
+                ))}
+                <hr />
+                <button type="button" className="del" onClick={e => { setAsk(e.currentTarget.closest("details").querySelector("summary")); close(e); }}>Delete video</button>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
       {ask && <Confirm title={`Delete "${job.topic}"?`} text="The video and its post text are removed from the server. This can't be undone."
