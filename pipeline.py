@@ -43,11 +43,12 @@ def _copy_stills(sd, d, tasks, image_model):
     got = []
     for i, sfx, _ in tasks:
         f = sd / f"gen{i}{sfx}.png"
-        if f.exists():
+        try:
             shutil.copy(f, d / f.name)
-            got.append(f"AI image, {image_model}" if image_model else "AI image")
-        else:
+        except FileNotFoundError:  # never made, or the source was deleted mid-copy: no still for this scene
             got.append(None)
+            continue
+        got.append(f"AI image, {image_model or 'shared from the first language'}")  # the meta's image_model splits on ", "
     return got
 
 

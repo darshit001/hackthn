@@ -146,3 +146,11 @@ def test_generate_all_languages_queues_a_sibling_per_language(monkeypatch):
     assert [q for q, _ in queued[-4:]] == ids
     ids = client.post("/generate", json={"topics": ["a", "b"], "all_languages": True}).json()["job_ids"]
     assert len(ids) == 8 and [appmod.JOBS.pop(i)["source"] for i in ids] == [None, ids[0], ids[0], ids[0], None, ids[4], ids[4], ids[4]]
+
+
+def test_copy_stills_credits_and_tolerates_missing_files(tmp_path):
+    src, dst = tmp_path / "src", tmp_path / "dst"
+    src.mkdir(); dst.mkdir()
+    (src / "gen0.png").write_bytes(b"png")
+    got = pipeline._copy_stills(src, dst, [(0, "", "p"), (0, "b", "p"), (1, "", "p")], None)
+    assert got == ["AI image, shared from the first language", None, None] and (dst / "gen0.png").exists()
