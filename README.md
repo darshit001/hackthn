@@ -94,6 +94,16 @@ flowchart LR
 - ✂️ **Crossfades and mid-scene cuts**: scenes crossfade into each other and the end card; scenes over 4 s cut between two AI shots halfway through the sentence
 - 📷 **A different shot per scene**: wide, close-up, portrait, action, aftermath, so AI stills never look alike
 - 📋 **Post text for three platforms**: Qoneqt caption, YouTube Shorts title + description, Instagram caption
+- 🌍 **One topic, every language**: tick one box and the video is also made in the other three languages; those versions translate the script (keeping your chosen hook) and reuse the first video's stills, so they cost no image quota and finish faster
+- 🎨 **Four looks**: Photo, Anime, Infographic or Cinematic stills, picked in the form
+- 🛡️ **Safety and claim review**: an editor pass softens unverifiable or medical/financial certainty and blocks unsafe scripts before a single image or voice line is spent; the card says "Brand-safe" or how many lines were softened
+- ✏️ **Editable script**: every title and narration line in the preview can be edited, with a live word count, before generating
+- ⚡ **Voice records while the images generate**: a 15 s video in about 45 s
+
+<p align="center">
+  <img src="docs/screens/look-step.png" alt="The form with the Look step and the every-language box" width="420">
+  <img src="docs/screens/preview-edit.png" alt="The script preview with editable lines and word counts" width="420">
+</p>
 - 🌐 **4 languages**: English, हिन्दी (Devanagari), Hinglish (Roman script) and ગુજરાતી
 - 👥 **6 community presets**: General, Tech & AI, Fitness & Health, Motivation, Money & Finance, Hinglish Fun
 - ⏱️ **4 lengths**: 15 / 30 / 45 / 60 s; the scene count and word budget scale with the length
@@ -143,8 +153,8 @@ flowchart TD
 
 | # | Stage | What happens | Output |
 |---|---|---|---|
-| 1 | **Plan** | The LLM returns strict JSON: three hooks, each with a formula, a score and a one-line why; scenes sized to the length (word budget = length × the language's measured speaking pace), each with a beat and two image prompts from different shots; the Qoneqt caption and hashtags; YouTube and Instagram post text. The JSON is validated (banned openers, beat order, every field), and a bad plan gets one guided retry before the next model is tried. | `plan` dict |
-| 2 | **Images** | Two FLUX stills per scene (`image_prompt`, then `image_prompt_b`), 3 at a time, every scene's first picture before any second one. If every provider is down this stage is skipped and stage 4 uses stock. | `gen<i>.png` |
+| 1 | **Plan** | The LLM returns strict JSON: three hooks, each with a formula, a score and a one-line why; scenes sized to the length (word budget = length × the language's measured speaking pace), each with a beat and two image prompts from different shots; the Qoneqt caption and hashtags; YouTube and Instagram post text. The JSON is validated (banned openers, beat order, every field), and a bad plan gets one guided retry before the next model is tried. A safety and claim review then softens or blocks the script. A version in another language translates the source video's plan instead: beats, visuals and hashtags are copied, only the words change, and the text must be in the target script. | `plan` dict |
+| 2 | **Images** | Two FLUX stills per scene (`image_prompt`, then `image_prompt_b`), 3 at a time, every scene's first picture before any second one. The look (photo, anime, infographic, cinematic) leads every prompt. The voice lines record in parallel. A version in another language copies the source's stills instead. If every provider is down this stage is skipped and stage 4 uses stock. | `gen<i>.png` |
 | 3 | **Voice** | Each scene's narration becomes speech. The voice is chosen by community (gender) and language, then normalised. | `voice<i>.wav`, `voice.wav` |
 | 4 | **Visuals** | Each scene becomes a clip as long as its voice line plus a 0.35 s tail for the crossfade: a Ken Burns zoom on the AI still, else real stock footage, else a CC-licensed photo. Scenes of 4 s or more cut from shot A to shot B halfway. | `clip<i>.mp4` |
 | 5 | **Captions** | Whisper runs once per scene with that scene's narration as its prompt, so timings land on the right words. They become ASS karaoke lines with the active word in the community's accent colour. | `captions.ass` |
@@ -274,7 +284,7 @@ stateDiagram-v2
 | Captions | **ASS** subtitle format with karaoke tags, **Noto** fonts (Latin, Devanagari, Gujarati) |
 | Music | 4 tracks by Kevin MacLeod (incompetech.com, CC BY 4.0) in `backend/assets/music/`, 75 s, mono 64 kbps |
 | Frontend | **React 19** + **Vite** in `frontend/`, plain CSS; built into `frontend/dist` and served by FastAPI |
-| Tests | **pytest** (80 unit tests) |
+| Tests | **pytest** (105 unit tests) |
 | Container | **Docker**, two stages: `node:22-slim` builds the UI, `python:3.11-slim` + ffmpeg + fonts runs it |
 | Hosting | **Hugging Face Spaces** (Docker, free CPU) |
 
@@ -411,7 +421,7 @@ Run these from `backend/`:
 ```bash
 python -m app.pipeline "why sleep matters" tech en 30   # one video end-to-end → out/<id>/<id>.mp4
 python -m app.llm suggest tech hi                       # topic ideas for a community + language
-python -m pytest -q                                     # 80 unit tests
+python -m pytest -q                                     # 105 unit tests
 ```
 
 ### Environment variables
@@ -469,10 +479,10 @@ flowchart LR
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | `GET` | `/` | | Studio UI |
-| `GET` | `/presets` | | communities (with each one's caption accent colour), languages, durations |
+| `GET` | `/presets` | | communities (with each one's caption accent colour), languages, durations, looks |
 | `GET` | `/suggest` | `?community=tech&language=hi&trends_only=1` | 6 topic ideas (trend-aware; `trends_only` makes them all trend-led) |
 | `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks with formula and why, scenes with beats, caption, hashtags, YouTube and Instagram post text |
-| `POST` | `/generate` | `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "plan": {...}}` (1–10 topics; `plan` optional, from `/plan`) | `{"job_ids": [...]}` |
+| `POST` | `/generate` | `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "style": "photo", "all_languages": false, "plan": {...}}` (1–10 topics; `plan` optional, from `/plan`; `all_languages` adds one video per other language) | `{"job_ids": [...]}` |
 | `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual and re-renders |
 | `GET` | `/jobs` | | every job with status and stage; a running job also carries `started`, and once planned its `hook`, scene titles, `shots` and the `stills` painted so far |
 | `GET` | `/jobs/{id}` | | one job + result meta |
