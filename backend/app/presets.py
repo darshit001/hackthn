@@ -80,6 +80,19 @@ STYLES = {  # slug -> (label, phrase that leads every image prompt: FLUX weights
     "cinematic": ("Cinematic", "Cinematic 35mm film still, dramatic lighting, shallow depth of field, moody colour grade"),
 }
 
+# The user's photo, restyled by FLUX.2 before it talks: slug -> (label, what they wear, the background behind them)
+OUTFITS = {
+    "smart": ("Smart casual", "a well-fitted navy blazer over a plain white t-shirt", "a bright modern office"),
+    "formal": ("Formal", "a tailored charcoal suit, crisp white shirt and a dark tie", "a sleek glass-walled boardroom"),
+    "street": ("Streetwear", "a clean oversized hoodie and a simple chain", "a colourful city street at golden hour"),
+    "sporty": ("Sporty", "a fitted athletic t-shirt and a sports watch", "a modern gym with soft window light"),
+}
+OUTFIT_FOR = {"finance": "formal", "fitness": "sporty", "hinglish_fun": "street", "motivation": "smart", "tech": "smart", "general": "smart"}
+
+# How a talking video mixes the user with the AI pictures. The first and last scenes are always the user talking
+# full-screen; the middle scenes show the user inside the AI picture, a talking bubble over it, or both.
+LAYOUTS = {"both": "You + bubble", "scenes": "You in scenes", "bubble": "Bubble only"}
+
 COMMUNITIES = {
     "general": dict(
         label="Global Feed (General)",

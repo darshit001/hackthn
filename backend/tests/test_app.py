@@ -196,3 +196,52 @@ def test_stop_ends_a_running_job_and_keeps_its_card(monkeypatch, tmp_path):
     assert client.post(f"/jobs/{jid}/stop").status_code == 409  # already stopped
     assert client.delete(f"/jobs/{jid}").status_code == 200 and jid not in appmod.JOBS
     assert client.post(f"/jobs/{jid}/stop").status_code == 404
+
+
+def test_generate_with_a_photo_needs_consent_and_an_image(monkeypatch, tmp_path):
+    import base64
+    import subprocess
+    monkeypatch.setattr(appmod.Q, "put", lambda item: None)
+    monkeypatch.setattr(pipeline, "OUT", tmp_path)
+    png = tmp_path / "me.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=600x900", "-frames:v", "1", png], check=True)
+    url = "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode()
+    assert client.post("/generate", json={"topics": ["a"], "photo": url}).status_code == 400  # no consent
+    bad = "data:image/png;base64," + base64.b64encode(b"not an image").decode()
+    assert client.post("/generate", json={"topics": ["a"], "photo": bad, "photo_consent": True}).status_code == 400
+    r = client.post("/generate", json={"topics": ["a"], "photo": url, "photo_consent": True})
+    assert r.status_code == 200
+    jid = r.json()["job_ids"][0]
+    wh = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", tmp_path / jid / "photo.png"],
+                        capture_output=True, text=True).stdout.strip()
+    assert wh == "%d,%d" % appmod.media.PORTRAIT
+    j = client.get(f"/jobs/{jid}").json()
+    assert (j["presenter"], j["layout"]) == (True, "scenes")
+    assert client.post("/generate", json={"topics": ["a"], "photo": url, "photo_consent": True, "layout": "x"}).status_code == 400
+
+
+def test_restyle_returns_a_photo_or_503(monkeypatch, tmp_path):
+    import base64
+    import subprocess
+    png = tmp_path / "me.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=640x480", "-frames:v", "1", png], check=True)
+    url = "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode()
+
+    def fake(src, outfit, out):
+        open(out, "wb").write(b"jpeg!")
+        return __import__("pathlib").Path(out)
+    monkeypatch.setattr(appmod.media, "restyle", fake)
+    r = client.post("/photo/restyle", json={"photo": url, "outfit": "formal"})
+    assert r.json()["photo"] == "data:image/jpeg;base64," + base64.b64encode(b"jpeg!").decode()
+    assert client.post("/photo/restyle", json={"photo": url, "outfit": "pyjamas"}).status_code == 400
+
+    def down(src, outfit, out):
+        raise RuntimeError("Client error '429 Too Many Requests' for url 'https://api.cloudflare.com/...'")
+    monkeypatch.setattr(appmod.media, "restyle", down)
+    r = client.post("/photo/restyle", json={"photo": url})
+    assert r.status_code == 503 and "05:30" in r.json()["detail"]  # the daily free quota, said plainly
+
+    def broken(src, outfit, out):
+        raise RuntimeError("Server error '500 Internal Server Error'")
+    monkeypatch.setattr(appmod.media, "restyle", broken)
+    assert "05:30" not in client.post("/photo/restyle", json={"photo": url}).json()["detail"]

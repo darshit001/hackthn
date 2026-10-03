@@ -17,6 +17,7 @@ export const api = {
   jobs: () => call("/jobs"),
   suggest: (community, language) => call(`/suggest?${new URLSearchParams({ community, language })}`),
   plan: opts => post("/plan", opts),
+  restyle: (photo, outfit) => post("/photo/restyle", { photo, outfit }),
   generate: opts => post("/generate", opts),
   redo: (id, scene) => post(`/jobs/${id}/redo/${scene}`),
   stop: id => post(`/jobs/${id}/stop`),

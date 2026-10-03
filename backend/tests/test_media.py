@@ -108,3 +108,90 @@ def test_gen_image_leads_with_the_look_and_keeps_the_common_suffix(monkeypatch, 
     media.gen_image("Wide shot: a cat on a roof", tmp_path / "b.png")
     assert seen[0] == "Anime illustration, cel shading, vivid colours, clean line art. Wide shot: a cat on a roof" + media.IMAGE_SUFFIX
     assert seen[1].startswith("Photograph, cinematic soft light. Wide shot: a cat on a roof") and seen[1].endswith("no text, no watermark, no logo")
+
+
+def _ff(*args):
+    import subprocess
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *map(str, args)], check=True)
+
+
+def _probe(path):
+    import subprocess
+    return subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", path],
+                          capture_output=True, text=True).stdout.strip()
+
+
+def test_presenter_and_bubble_clips_fall_through_the_chain(monkeypatch, tmp_path):
+    portrait, face, scene = tmp_path / "photo.png", tmp_path / "face.mp4", tmp_path / "clip1.mp4"
+    _ff("-f", "lavfi", "-i", "color=c=orange:s=%dx%d" % media.PORTRAIT, "-frames:v", "1", portrait)
+    head = media.head_png(portrait, tmp_path / "head.png")
+    _ff("-f", "lavfi", "-i", "testsrc=s=512x512:r=25:d=1", "-pix_fmt", "yuv420p", face)
+    calls = []
+
+    def leap(p, w, sec):
+        calls.append("leap")
+        raise RuntimeError("You have exceeded your free ZeroGPU quota")
+
+    def moda(p, w, sec):
+        calls.append("moda")
+        return str(face)
+
+    monkeypatch.setattr(media, "FACE_CHAIN", [("leaptalk", "LeapTalk", leap), ("moda", "MoDA", moda)])
+    monkeypatch.setattr(media, "_face_down", {})
+    out = tmp_path / "clip0.mp4"
+    assert media.presenter_clip(portrait, head, tmp_path / "v.wav", out, 1.0) == "moda"
+    assert _probe(out) == f"{media.W},{media.H}"
+    assert media.duration(out) >= 1.0 + media.XFADE_SEC - 0.05  # the last frame holds through the crossfade tail
+    media._still_to_clip(portrait, 1.4, scene)
+    assert media.bubble_clip(scene, head, tmp_path / "v.wav", 1.0) == "moda"
+    assert _probe(scene) == f"{media.W},{media.H}"
+    assert calls == ["leap", "moda", "moda"]  # the out-of-quota Space rests
+
+    monkeypatch.setattr(media, "FACE_CHAIN", [("moda", "MoDA", leap)])
+    monkeypatch.setattr(media, "_face_down", {})
+    assert media.presenter_clip(portrait, head, tmp_path / "v.wav", out, 1.0) is None  # still portrait, zooming
+    assert media.bubble_clip(scene, head, tmp_path / "v.wav", 1.0) is None  # still face in the bubble
+    assert _probe(out) == _probe(scene) == f"{media.W},{media.H}"
+
+
+def test_gen_image_puts_the_user_in_or_falls_back_to_plain_flux(monkeypatch, tmp_path):
+    monkeypatch.setattr(media, "_image_down", {})
+    monkeypatch.setattr(media, "IMAGE_CHAIN", [("plain", lambda p, o: "AI image, plain")])
+    monkeypatch.setattr(media, "flux2", lambda p, ref, o: "flux-2-klein-9b")
+    assert media.gen_image("a stadium", tmp_path / "a.png", ref=tmp_path / "ref.png") == "AI image with you, FLUX.2 klein-9b via Cloudflare Workers AI"
+    assert media.gen_image("a stadium", tmp_path / "a.png") == "AI image, plain"  # no ref: no FLUX.2
+
+    def quota(p, ref, o):
+        raise RuntimeError("HTTP 429 neurons")
+    monkeypatch.setattr(media, "flux2", quota)
+    assert media.gen_image("a stadium", tmp_path / "a.png", ref=tmp_path / "ref.png") == "AI image, plain"
+    assert "flux2" in media._image_down
+
+
+def test_space_call_rotates_tokens_on_quota_only(monkeypatch):
+    import gradio_client
+    seen = []
+
+    class FakeJob:
+        def __init__(self, token):
+            self.token = token
+
+        def result(self, timeout=None):
+            if self.token != "t2":
+                raise RuntimeError("You have exceeded your free ZeroGPU quota (180s requested vs. 87s left)")
+            return {"video": "/tmp/v.mp4"}
+
+    class FakeClient:
+        def __init__(self, space, token=None, verbose=True):
+            seen.append(token)
+            self.token = token
+
+        def submit(self, *args, api_name=None):
+            return FakeJob(self.token)
+
+    monkeypatch.setattr(gradio_client, "Client", FakeClient)
+    monkeypatch.setenv("HF_TOKEN", "t1")
+    monkeypatch.setenv("HF_TOKEN_2", "t2")
+    monkeypatch.delenv("HF_TOKEN_3", raising=False)
+    assert media._space_call("x/y", "/go", []) == "/tmp/v.mp4"
+    assert seen == ["t1", "t2"]

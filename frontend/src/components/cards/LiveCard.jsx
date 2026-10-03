@@ -21,8 +21,10 @@ export function LiveCard({ job, label, accent, onStop }) {
   const idx = STAGES.indexOf(job.stage);
   const pct = Math.round(((idx + 0.5) / STAGES.length) * 100);
   const stills = job.stills || [], last = stills[stills.length - 1];
-  const [word, verb] = STEP[job.stage] || [cap(job.stage || ""), cap(job.stage || "")];
-  const count = job.stage === "images" && job.shots ? `${stills.length} of ${job.shots}` : "";
+  const talking = job.presenter && job.stage === "visuals";  // the slow step of a talking video: one scene at a time on a free GPU
+  const [word, verb] = talking ? ["Face", "Making your photo talk"] : STEP[job.stage] || [cap(job.stage || ""), cap(job.stage || "")];
+  const [count, noun] = talking && job.scenes ? [`${job.faces || 0} of ${job.scenes.length}`, "scenes"]
+    : job.stage === "images" && job.shots ? [`${stills.filter(f => f.startsWith("gen")).length} of ${job.shots}`, "stills"] : ["", ""];
   const src = f => `/out/${job.id}/${f}?${job.stage}${stills.length}`;
   const started = job.started || job.created;
 
@@ -33,7 +35,7 @@ export function LiveCard({ job, label, accent, onStop }) {
           <Still key={src(last)} className="still" src={src(last)} />
           <i className="bar" style={{ "--fill": `${pct}%` }} />
         </> : <i className="fill" style={{ "--fill": `${pct}%` }} />}
-        <span className="stage swap" key={job.stage}>{word}{count && <small>{count} stills</small>}</span>
+        <span className="stage swap" key={job.stage}>{word}{count && <small>{count} {noun}</small>}</span>
       </div>
       <div className="body">
         <div className="meta">
