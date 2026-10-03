@@ -8,7 +8,9 @@ app_port: 7860
 pinned: false
 ---
 
-# 🎬 Qoneqt Video Factory
+<p align="center"><img src="docs/logo.png" alt="Qoneqt Video Factory" width="320"></p>
+
+# Qoneqt Video Factory
 
 > **Topic in → publish-ready Qoneqt Global Feed short out.**
 > An LLM-powered pipeline that turns a topic, idea or trend into a 9:16 vertical video with an AI script, AI voice,
@@ -102,7 +104,7 @@ flowchart LR
 - 🌐 **4 languages**: English, हिन्दी (Devanagari), Hinglish (Roman script) and ગુજરાતી
 - 👥 **6 community presets**: General, Tech & AI, Fitness & Health, Motivation, Money & Finance, Hinglish Fun
 - ⏱️ **4 lengths**: 15 / 30 / 45 / 60 s; the scene count and word budget scale with the length
-- 📈 **Trend-aware ideas**: Google Trends India → LLM → 6 topic ideas that fit the community, or **Make 5 from trends** in one click
+- 📈 **Trend-aware ideas**: Google Trends India → LLM → 6 topic ideas that fit the community
 - 👀 **Script preview**: see the 3 scored hooks and every scene before rendering, pick the opening line, then make the video
 - 🎵 **Music bed**: a mood-matched track per community, ducked under the narration with `sidechaincompress`
 - 🔁 **Redo a scene**: regenerate one scene's visual on a finished video and re-render in under a minute
@@ -411,8 +413,8 @@ cd ../backend && uvicorn app.main:app --reload --port 7860
 # → open http://localhost:7860
 ```
 
-Working on the UI? Run the backend on port 8000 (`uvicorn app.main:app --reload --port 8000` in `backend/`) and
-`npm run dev` in `frontend/`, then open http://localhost:5173. Vite reloads on save and proxies every API call to :8000.
+Working on the UI? Keep the backend running on port 7860 (step 4) and run `npm run dev` in `frontend/`,
+then open http://localhost:8000. Vite reloads on save and proxies every API call to :7860.
 
 ### Useful commands
 
@@ -517,7 +519,7 @@ curl -X POST localhost:7860/generate -H 'content-type: application/json' \
 │   └── .env.example
 ├── frontend/                 React + Vite studio UI
 │   ├── index.html
-│   ├── vite.config.js        dev server on :5173, proxies the API to :8000
+│   ├── vite.config.js        dev server on :8000, proxies the API to :7860
 │   └── src/
 │       ├── App.jsx           page layout, card actions, toast, player
 │       ├── components/       Header, VideoList, Pager, PlayerDialog, Toast, Icon

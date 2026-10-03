@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { ICON, MAX_TOPICS } from "../../lib/constants";
 import { reducedMotion } from "../../lib/format";
@@ -13,6 +13,8 @@ const escToClose = e => { if (e.key === "Escape" && e.currentTarget.open) { e.pr
 const reveal = d => d.open && d.querySelector(".pop").scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
 const toLines = text => text.split("\n").map(s => s.trim()).filter(Boolean).slice(0, MAX_TOPICS);
 
+const SKELETON = ["78%", "62%", "85%", "55%", "70%", "66%"];
+
 export function CreateForm({ presets, onStarted }) {
   const [text, setText] = useState("");
   const [community, setCommunity] = useState("general");
@@ -25,6 +27,7 @@ export function CreateForm({ presets, onStarted }) {
   const [busy, setBusy] = useState("");  // the button that is working: suggest | preview | start
   const [preview, setPreview] = useState(null);  // {topic, plan}
   const form = useRef();
+  const want = useRef("");  // the community|language the ideas are for; a late answer for an old pick is dropped
   const topics = toLines(text);
   const options = { community, language, duration, style };
   const count = topics.length;
@@ -52,14 +55,27 @@ export function CreateForm({ presets, onStarted }) {
   };
 
   const suggest = async () => {
+    const key = `${community}|${language}`;
     setBusy("suggest");
     try {
       const s = await api.suggest(community, language);
+      if (want.current !== key) return;
       setIdeas(s.topics.map(t => ({ text: t, added: topics.includes(t) })));
       setIdeasNote(s.trends.length ? "With today's trends in India" : `Ideas for ${presets.label(community)}`);
-    } catch { setIdeas([]); setIdeasNote("Suggestions are unavailable right now. Type a topic instead."); }
+    } catch {
+      if (want.current !== key) return;
+      setIdeas([]); setIdeasNote("Suggestions are unavailable right now. Type a topic instead.");
+    }
     setBusy("");
   };
+
+  // today's ideas are fetched as soon as the pick settles: they become the topic box's placeholder and the dropdown opens on them
+  // ponytail: no per-pick cache, so switching back refetches; cache by key if the free LLM quota gets tight
+  useEffect(() => {
+    want.current = `${community}|${language}`;
+    const t = setTimeout(suggest, 700);
+    return () => clearTimeout(t);
+  }, [community, language]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const addIdea = idea => {
     if (!topics.includes(idea)) changeText([...topics, idea].join("\n"));
@@ -93,7 +109,7 @@ export function CreateForm({ presets, onStarted }) {
       <div className="field"><span className="lbl"><b>1</b>Community</span>
         <div className="chips three" role="radiogroup" aria-label="Community">
           {presets.communities.map(c => (
-            <label className="chip comm" key={c.slug} style={{ "--c": c.accent }}>
+            <label className="chip comm" key={c.slug}>
               <input type="radio" name="community" value={c.slug} checked={community === c.slug} onChange={() => pickCommunity(c)} />
               <Icon name={ICON[c.slug] || "folder"} /><span>{presets.label(c.slug)}</span>
             </label>
@@ -120,10 +136,12 @@ export function CreateForm({ presets, onStarted }) {
             <div className="pop ideas" aria-busy={busy === "suggest"}>
               <div className="pophead">
                 <span>{busy === "suggest" ? "Finding ideas…" : <>{ideasNote.startsWith("With") && <Icon name="trending" />}{ideasNote}</>}</span>
-                <button type="button" className="link" disabled={busy === "suggest"} onClick={suggest}><Icon name="refresh" />New ideas</button>
+                <button type="button" className="link" disabled={busy === "suggest"} onClick={suggest}><Icon name="refresh" className={`i${busy === "suggest" ? " spin" : ""}`} />New ideas</button>
               </div>
+              {/* six ideas come back, so six placeholder rows hold their place while they are written */}
+              {busy === "suggest" && SKELETON.map((w, n) => <span key={n} className="skel" style={{ "--w": w, "--n": n }} aria-hidden="true" />)}
               {busy !== "suggest" && ideas.map(i => (
-                <button type="button" key={i.text} className={i.added ? "added" : ""} disabled={i.added} onClick={() => addIdea(i.text)}
+                <button type="button" key={i.text} className={i.added ? "added" : ""} disabled={i.added} onClick={e => { addIdea(i.text); e.currentTarget.closest("details").open = false; form.current.topics.focus(); }}
                   aria-label={i.added ? `${i.text}, added` : `Add ${i.text}`}>
                   <span>{i.text}</span><Icon name={i.added ? "check" : "plus"} />
                 </button>
@@ -132,7 +150,7 @@ export function CreateForm({ presets, onStarted }) {
           </details>
         </div>
         <textarea id="topics" className="topics" rows={3} value={text} aria-describedby="topics-hint"
-          placeholder={presets.communities.find(c => c.slug === community)?.examples.join("\n")}
+          placeholder={(ideas.length ? ideas.slice(0, 3).map(i => i.text) : presets.communities.find(c => c.slug === community)?.examples || []).join("\n")}
           onChange={e => changeText(e.target.value)}
           onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") form.current.requestSubmit(); }} />
         <p className="hint" id="topics-hint"><span>{status}</span><span className="count">{topics.length}/{MAX_TOPICS}</span></p>

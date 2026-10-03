@@ -38,8 +38,8 @@ export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete
         <h3>{job.topic}</h3>
         <p className="desc">{m.hook} {m.caption}</p>
         <div className="actions">
-          <button type="button" className="btn" onClick={() => onCopy(postText(m, "post"), COPIED.post)}><Icon name="copy" /><span>Copy<span className="w"> text</span></span></button>
-          <a className="btn" href={m.video} download={fileName(job.topic)}><Icon name="download" /><span>Download<span className="w"> MP4</span></span></a>
+          <button type="button" className="btn icon" aria-label="Copy post text" title="Copy post text" onClick={() => onCopy(postText(m, "post"), COPIED.post)}><Icon name="copy" /></button>
+          <a className="btn icon" href={m.video} download={fileName(job.topic)} aria-label="Download MP4" title="Download MP4"><Icon name="download" /></a>
           <details className="menu">
             <summary className="btn icon" aria-label="More actions"><Icon name="more" className="i fill" /></summary>
             <div className="pop">

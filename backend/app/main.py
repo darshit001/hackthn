@@ -234,7 +234,7 @@ def delete_job(jid: str):
 
 
 # The React build (frontend/dist, from `npm run build`) is served last so it never shadows an API route.
-# In development Vite serves the UI on :5173 and proxies the API here, so the folder may not exist.
+# In development Vite serves the UI on :8000 and proxies the API here, so the folder may not exist.
 WEB = pipeline.BACKEND.parent / "frontend" / "dist"
 if WEB.is_dir():
     app.mount("/", StaticFiles(directory=WEB, html=True), name="web")

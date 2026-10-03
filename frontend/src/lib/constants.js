@@ -16,4 +16,3 @@ export const FORMULA = { question: "Question", bold_claim: "Bold claim", number:
 
 export const PER_PAGE = 12;  // fills whole rows at one, two or three columns
 export const MAX_TOPICS = 10;
-export const FEED_URL = "https://qoneqt.com/networks/global-feed";
