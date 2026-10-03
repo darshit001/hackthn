@@ -34,7 +34,7 @@ export default function App() {
       return true;
     },
     onRetry: async j => {
-      await api.generate({ topics: [j.topic], community: j.community, language: j.language, duration: j.duration }).catch(() => say("Could not start it again"));
+      await api.generate({ topics: [j.topic], community: j.community, language: j.language, duration: j.duration, style: j.style || "photo" }).catch(() => say("Could not start it again"));
       refresh();
     },
   }), [refresh, say]);

@@ -12,13 +12,17 @@ export function CreateForm({ presets, onStarted }) {
   const [community, setCommunity] = useState("general");
   const [language, setLanguage] = useState("en");
   const [duration, setDuration] = useState(30);
+  const [style, setStyle] = useState("photo");
+  const [every, setEvery] = useState(false);  // also make it in every other language
   const [status, setStatus] = useState(HINT);
   const [ideas, setIdeas] = useState([]);
   const [busy, setBusy] = useState("");  // the button that is working: suggest | trends | preview | start
   const [preview, setPreview] = useState(null);  // {topic, plan}
   const form = useRef();
   const topics = toLines(text);
-  const options = { community, language, duration };
+  const options = { community, language, duration, style };
+  const langs = presets.languages.length;
+  const count = topics.length * (every ? langs : 1);
 
   const changeText = value => { setText(value); setPreview(null); };
   const dropIdeas = () => { setIdeas([]); setPreview(null); };
@@ -35,6 +39,7 @@ export function CreateForm({ presets, onStarted }) {
       await api.generate(body);
       onStarted(message);
       changeText("");
+      setEvery(false);  // a forgotten tick would silently make the next batch one per language
       return true;
     } catch (e) {
       setStatus("Could not start: " + e.message);
@@ -71,6 +76,7 @@ export function CreateForm({ presets, onStarted }) {
 
   const showScript = async () => {
     setBusy("preview");
+    setPreview(null);  // remount the preview so a fresh plan does not inherit the old edits
     try { setPreview({ topic: topics[0], plan: await api.plan({ topic: topics[0], ...options }) }); }
     catch { setStatus("Could not write the script right now. Try again or just generate the video."); }
     setBusy("");
@@ -80,7 +86,8 @@ export function CreateForm({ presets, onStarted }) {
     e.preventDefault();
     if (!topics.length) return;
     setBusy("start");
-    await start({ topics, ...options }, topics.length === 1 ? "Generating 1 video" : `Generating ${topics.length} videos`);
+    const message = every ? `Generating ${count} videos in ${langs} languages` : count === 1 ? "Generating 1 video" : `Generating ${count} videos`;
+    await start({ topics, ...options, all_languages: every }, message);
     setBusy("");
   };
 
@@ -114,7 +121,8 @@ export function CreateForm({ presets, onStarted }) {
         )}
         {preview && (
           <ScriptPreview key={preview.topic} {...preview} onClose={() => setPreview(null)}
-            onMake={plan => start({ topics: [preview.topic], ...options, plan }, "Generating 1 video with your hook")} />
+            onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan },
+              every ? `Generating ${langs} videos in ${langs} languages with your script` : "Generating 1 video with your script")} />
         )}
       </div>
 
@@ -135,11 +143,23 @@ export function CreateForm({ presets, onStarted }) {
           </select>
         </div>
       </label>
+      <label className="check">
+        <input type="checkbox" checked={every} onChange={e => setEvery(e.target.checked)} />Also make it in the other languages (same visuals)
+      </label>
       <div className="field"><span>4. Length</span>
         <div className="seg" role="radiogroup" aria-label="Length">
           {presets.durations.map(d => (
             <label key={d}>
               <input type="radio" name="duration" value={d} checked={duration === d} onChange={() => setDuration(d)} /><span>{d} s</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="field"><span>5. Look</span>
+        <div className="seg" role="radiogroup" aria-label="Look">
+          {presets.styles.map(s => (
+            <label key={s.slug}>
+              <input type="radio" name="style" value={s.slug} checked={style === s.slug} onChange={() => setStyle(s.slug)} /><span>{s.label}</span>
             </label>
           ))}
         </div>
@@ -151,7 +171,7 @@ export function CreateForm({ presets, onStarted }) {
           {busy === "preview" ? "Writing…" : "Preview script"}
         </button>
         <button type="submit" className="primary" disabled={!topics.length || busy === "start"}>
-          <Icon name="play" className="i fill" /><span>{topics.length <= 1 ? "Generate video" : `Generate ${topics.length} videos`}</span>
+          <Icon name="play" className="i fill" /><span>{count <= 1 ? "Generate video" : `Generate ${count} videos`}</span>
         </button>
       </div>
       <p className="after">

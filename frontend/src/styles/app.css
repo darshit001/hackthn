@@ -65,7 +65,13 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .hooks small{color:var(--fg-2);margin-left:auto;white-space:nowrap;font-size:12px}
 .scenes{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--fg-2)}
 .scenes li{margin-bottom:4px}
-.scenes b{color:var(--fg);font-weight:500}
+.scenes input.title,.scenes textarea.nar{display:block;width:calc(100% + 12px);margin:0 -6px;padding:2px 6px;border:1px solid transparent;border-radius:4px;background:none;font:inherit;line-height:1.45;color:var(--fg-2)}
+.scenes input.title{font-weight:500;color:var(--fg)}
+.scenes textarea.nar{resize:none;overflow:hidden}
+.scenes input.title:hover,.scenes textarea.nar:hover{border-color:var(--border)}
+.scenes input.title:focus,.scenes textarea.nar:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99,235,.14);background:var(--card);outline:none}
+.scenes .wc{display:block;text-align:right;font-size:11px;color:var(--fg-3)}
+.scenes .wc.over{color:var(--red);font-weight:500}
 .hooks .text{flex:1}
 .hooks .why{display:block;color:var(--fg-2);font-size:12px;font-style:normal;margin-top:2px}
 .hooks .tag{flex:none;align-self:center}
@@ -87,6 +93,8 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .seg input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
 .seg span{display:block;padding:8px 0}
 .seg label:has(input:checked){border-color:var(--acc);background:var(--acc-bg);color:var(--acc-fg);font-weight:500}
+.check{display:flex;align-items:center;gap:8px;margin:-8px 0 16px;font-size:13px;color:var(--fg-2);cursor:pointer}
+.check input{accent-color:var(--acc);margin:0}
 .go{display:flex;gap:8px;margin-top:4px}
 .go .btn{padding:10px 12px;border-radius:var(--r-md)}
 .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:13px 16px;border:1px solid var(--fg);border-radius:var(--r-md);background:var(--fg);color:#fff;font-weight:500;font-size:15px}

@@ -10,12 +10,20 @@ function postText(m, kind) {
   if (kind === "ig") return `${m.posts.instagram}\n\n${m.hashtags.join(" ")}`;
   return `${m.hook}\n\n${m.caption}\n\n${m.hashtags.join(" ")}`;
 }
+// the brand-safety pass: nothing when it did not run (older videos, or the reviewer was unavailable)
+function reviewText(r) {
+  if (!r || r.verdict === "skipped") return "";
+  if (r.verdict === "ok") return "Brand-safe";
+  const n = r.changed ?? r.notes.length;
+  return n > 0 ? `Reviewed, ${n} line${n === 1 ? "" : "s"} softened` : "Reviewed";
+}
 const COPIED = { yt: "YouTube text copied", ig: "Instagram text copied", post: "Post text copied" };
 const PREVIEW = canHover() && !reducedMotion();  // hovering a thumbnail plays it silently, the way a feed does
 
-export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {
+export function ReadyCard({ job, label, sourceJob, onPlay, onCopy, onRedo, onDelete }) {
   const m = job.result, v = m.updated || 0;
   const video = `${m.video}?v=${v}`, thumb = `${m.thumb}?v=${v}`;
+  const review = reviewText(m.review);
   const voice = VOICE[m.scenes[0].voice] || m.scenes[0].voice;
   const [hover, setHover] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -38,6 +46,9 @@ export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {
           <li><Icon name="mic" />{voice} voice</li>
           {m.hook_formula && <li><Icon name="bolt" />{FORMULA[m.hook_formula] || m.hook_formula} hook, {m.hook_score}/10</li>}
           {m.seconds_to_make && <li><Icon name="timer" />Made in {mmss(m.seconds_to_make)}</li>}
+          {m.style && m.style !== "photo" && <li><Icon name="image" />{label(m.style)} look</li>}
+          {review && <li title={m.review.notes.join("\n")}><Icon name="shield" />{review}</li>}
+          {m.source && <li><Icon name="copy" />Visuals shared with {(sourceJob && label(sourceJob.language)) || "the first version"}</li>}
         </Facts>
         <div className="tags">{m.hashtags.map(t => <span className="tag" key={t}>{t}</span>)}</div>
       </div>
