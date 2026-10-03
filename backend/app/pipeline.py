@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import llm, media, render
-from .presets import COMMUNITIES, MUSIC, MUSIC_CREDIT
+from .presets import COMMUNITIES, LANGUAGES, MUSIC, MUSIC_CREDIT
 
 BACKEND = Path(__file__).resolve().parent.parent  # backend/: out/ and assets/ live beside the app package
 OUT = BACKEND / "out"
@@ -213,12 +213,15 @@ def _prompt(meta, i):
 
 def _poster(d, job_id, meta, i, pic):
     """Draw slide i: <id>.png for a single picture, <id>-<n>.png in a carousel with its "2/3 →" mark; slide 1 also makes
-    the <id>.jpg thumbnail. Returns the slide's URL."""
-    n = len(meta["slides"])
+    the <id>.jpg thumbnail. A single picture and a carousel's last slide send the reader to the caption (and, on the
+    carousel, ask for a follow) in the post's language. Returns the slide's URL."""
+    n, text = len(meta["slides"]), meta.get("headline_on", True)
     png = f"{job_id}.png" if n == 1 else f"{job_id}-{i + 1}.png"
     page = f"{i + 1}/{n}" + (" →" if i < n - 1 else "") if n > 1 else None
-    render.poster(pic, meta["slides"][i]["text"] if meta.get("headline_on", True) else "", d / png,
-                  d / f"{job_id}.jpg" if i == 0 else None, page=page, body=i > 0)
+    one, last, follow = LANGUAGES[meta.get("language", "en")]["cta"]
+    cta = None if not text or i < n - 1 else one if n == 1 else f"{last}\n{follow}"
+    render.poster(pic, meta["slides"][i]["text"] if text else "", d / png,
+                  d / f"{job_id}.jpg" if i == 0 else None, page=page, body=i > 0, cta=cta)
     return f"/out/{job_id}/{png}"
 
 

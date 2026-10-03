@@ -11,9 +11,20 @@ from app.presets import LANGUAGES
 client = TestClient(appmod.app)
 
 
+CAPTION = ("Your phone is not old, it is just carrying too much in the background.\n"
+           "📱 Apps you never open still refresh, sync and use memory all day.\n"
+           "🧹 Clear the app cache once a week from Settings, Storage.\n"
+           "🔋 Turn off background refresh for apps that do not need it.\n"
+           "Which app do you think slows your phone the most?\n"
+           "Follow for more phone tips like this")
+HI_CAPTION = ("फ़ोन पुराना नहीं, बस पीछे बहुत कुछ चल रहा है।\n📱 जो ऐप्स आप नहीं खोलते, वे भी पूरे दिन मेमोरी लेते हैं।\n"
+              "🧹 हफ़्ते में एक बार सेटिंग्स में जाकर कैश साफ़ करें।\n🔋 ज़रूरत न हो तो बैकग्राउंड रिफ़्रेश बंद करें।\n"
+              "आपका फ़ोन कौन सा ऐप धीमा करता है?\nऐसी और टेक टिप्स के लिए फ़ॉलो करें")
+
+
 def post():
     return {"headline": "Your phone is slow for one reason", "image_prompt": "Close-up: a phone on a cafe table, soft window light",
-            "query": "phone cafe table", "caption": "Background apps eat your RAM. Close them once a day.\nWhat slows yours?",
+            "query": "phone cafe table", "caption": CAPTION,
             "hashtags": ["#tech", "#phone", "#tips"], "alt": "A phone lying on a wooden cafe table."}
 
 
@@ -46,7 +57,7 @@ def test_validate_image_plan_names_the_broken_rule(change, msg):
 def test_validate_image_plan_wants_the_language_script():
     with pytest.raises(ValueError, match="script"):
         llm.validate_image_plan(post(), LANGUAGES["hi"]["script"])
-    llm.validate_image_plan({**post(), "headline": "आपका फ़ोन धीमा क्यों है", "caption": "बैकग्राउंड ऐप्स बंद करें।"}, LANGUAGES["hi"]["script"])
+    llm.validate_image_plan({**post(), "headline": "आपका फ़ोन धीमा क्यों है", "caption": HI_CAPTION}, LANGUAGES["hi"]["script"])
 
 
 def test_review_post_keeps_the_headline_and_takes_the_softened_caption(monkeypatch):
@@ -64,7 +75,8 @@ def test_review_post_keeps_the_headline_and_takes_the_softened_caption(monkeypat
     got = llm.review_post(p, "en")
     assert seen == {"hook": texts[0], "scenes": [*texts, *post()["caption"].split("\n")]}
     assert [x["text"] for x in got["slides"]] == [texts[0], "Point 2 may matter a little.", texts[2]]
-    assert (got["caption"], got["review"]["verdict"]) == ("Closing apps may help a little.\nWhat slows yours?", "fixed")  # the untouched line and the break stay
+    assert (got["caption"], got["review"]["verdict"]) == (  # the untouched lines and the breaks stay
+        "\n".join(["Closing apps may help a little.", *CAPTION.split("\n")[1:]]), "fixed")
 
 
 def test_poster_is_4_by_5_with_a_thumbnail(tmp_path):
@@ -115,7 +127,7 @@ def test_load_done_jobs_picks_up_image_posts(monkeypatch, tmp_path):
 
 
 def carousel(**change):
-    return {"look": "Same young woman, same cafe, warm window light", "query": "phone cafe", "caption": "Line one.\nAsk?",
+    return {"look": "Same young woman, same cafe, warm window light", "query": "phone cafe", "caption": CAPTION,
             "alt": "A woman with a phone.", "hashtags": ["#a", "#b", "#c"],
             "slides": [{"text": "Your phone is slow for one reason", "image_prompt": "Close-up of a phone"},
                        {"text": "Background apps keep running and eat memory, and that is only half of it", "image_prompt": "Wide shot"}],
@@ -178,3 +190,30 @@ def test_load_done_jobs_picks_up_a_carousel(monkeypatch, tmp_path):
     monkeypatch.setattr(appmod, "JOBS", {})
     appmod.load_done_jobs()
     assert appmod.JOBS["ab12cd34"]["slides"] == 2
+
+
+def test_a_thin_caption_is_sent_back():
+    with pytest.raises(ValueError, match="5-8 lines"):
+        llm.validate_image_plan({**post(), "caption": "Close apps.\nWhat slows yours?"})
+    with pytest.raises(ValueError, match="at least 40 words"):
+        llm.validate_image_plan({**post(), "caption": "Close.\nApps.\nNow.\nWhy?\nFollow."})
+    with pytest.raises(ValueError, match="5-8 lines"):
+        llm.validate_carousel_plan(carousel(caption="Line one.\nAsk?"), 2)
+    hi = {**post(), "headline": "आपका फ़ोन धीमा क्यों है", "caption": HI_CAPTION.rsplit("\n", 1)[0] + "\nFollow for more tech tips"}
+    with pytest.raises(ValueError, match="follow line"):
+        llm.validate_image_plan(hi, LANGUAGES["hi"]["script"])
+
+
+def test_the_caption_line_goes_on_a_single_picture_and_the_last_slide_only(monkeypatch, tmp_path):
+    monkeypatch.setattr(pipeline, "OUT", tmp_path)
+    monkeypatch.setattr(llm, "review_post", lambda p, lang: dict(p, review={"verdict": "ok"}))
+    monkeypatch.setattr(pipeline.media, "gen_image", lambda *a: None)
+    monkeypatch.setattr(pipeline.media, "_wikimedia", lambda *a: (_ for _ in ()).throw(LookupError("none")))
+    one, last, follow = LANGUAGES["hi"]["cta"]
+    monkeypatch.setattr(llm, "image_plan", lambda *a: planned())
+    pipeline.make_image("t", "tech", job_id="one", language="hi")
+    assert one in (tmp_path / "one" / "one.ass").read_text()
+    monkeypatch.setattr(llm, "image_plan", lambda *a: planned(3))
+    pipeline.make_image("t", "tech", job_id="car", language="hi", slides=3)
+    ass = [(tmp_path / "car" / f"car-{i}.ass").read_text() for i in (1, 2, 3)]
+    assert not any(last in a or follow in a for a in ass[:2]) and last in ass[2] and follow in ass[2]

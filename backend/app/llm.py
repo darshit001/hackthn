@@ -415,6 +415,18 @@ def _suggest_prompt(preset, lang, trend_titles, trends_only=False):
             f"Language: write every topic in {lang['instruction']}. This is mandatory.\nReturn the JSON now.")
 
 
+# The pictures say "full story in the caption", so the caption has to carry it; both image prompts share this rule
+CAPTION_RULES = """- caption: the post text under the pictures. The pictures send readers here, so it delivers everything the headline
+  promises and goes deeper than the text on the pictures. 5-8 lines, separated by newlines:
+  line 1: an opening that picks up the headline's promise in new words (never repeat the headline);
+  then 3-5 lines of concrete substance specific to this topic (steps, numbers, examples, the real answer), one point per
+  line, each starting with a fitting emoji;
+  then one easy question people can answer in the comments;
+  last line: a follow line naming the topic area, written in the caption's language like every other line (in English it
+  would read "Follow for more money tips like this"; never leave it in English for another language).
+  No filler ("this is important", "let's dive in"), no hashtags inside. Keep facts general and true; soften anything uncertain.
+"""
+
 IMAGE_SYSTEM = """You write single-image posts for the Qoneqt Global Feed, a community-first Indian social app. One picture
 with a short headline drawn on it, and the post text under it. Return ONLY a JSON object with exactly these keys:
 {"headline": "...", "image_prompt": "...", "query": "...", "caption": "...", "hashtags": ["#...", ...], "alt": "..."}
@@ -425,11 +437,21 @@ Rules:
   of the frame calm and uncluttered (sky, wall, soft background), because the headline sits there. No text, letters,
   brand names or logos in the picture.
 - query: 2-4 plain English words naming something visual and generic a stock photo site has, e.g. "woman laptop cafe".
-- caption: 2-4 short lines of post text that deliver the value the headline promises: the fact, tip or answer, then a
-  question that invites comments. Emoji welcome, no hashtags inside.
-- hashtags: 3 to 8 items, each starting with #.
+""" + CAPTION_RULES + """- hashtags: 3 to 8 items, each starting with #.
 - alt: one plain English sentence describing the picture for people who cannot see it.
 The headline and caption are written in the requested language; image_prompt, query and alt are always English."""
+
+
+def _check_caption(caption, script=None):
+    """An image post's caption is where the picture sends people, so a thin one is sent back. Indic scripts pack more into
+    a word, so they need fewer. Pure; unit-tested through the two validators."""
+    lines, words, floor = [x for x in caption.split("\n") if x.strip()], len(caption.split()), 30 if script else 40
+    if not 5 <= len(lines) <= 9:
+        raise ValueError("caption must be 5-8 lines: an opening, 3-5 lines of detail, a question, then a follow line")
+    if words < floor:
+        raise ValueError(f"caption must be at least {floor} words: give the concrete detail the headline promises")
+    if script and not re.search(f"[{script}]", lines[-1]):  # models copy the English example into a Hindi caption
+        raise ValueError("the last line, the follow line, must be written in the requested language's script too")
 
 
 def validate_image_plan(p, script=None):
@@ -448,6 +470,7 @@ def validate_image_plan(p, script=None):
         raise ValueError("hashtags must be 3-8 strings starting with #")
     if script and not all(re.search(f"[{script}]", p[k]) for k in ("headline", "caption")):
         raise ValueError("headline and caption must be written in the requested language's script")
+    _check_caption(p["caption"], script)
 
 
 CAROUSEL_SYSTEM = """You write swipeable carousel posts for the Qoneqt Global Feed, a community-first Indian social app: {n} pictures in
@@ -466,8 +489,7 @@ Rules:
 - image_prompt: 15-35 English words for that slide's picture: what changes on this slide (action, angle, detail).
   Keep the top third calm (sky, wall, soft background): the text sits there. No text, letters, brand names or logos.
 - query: 2-4 plain English words naming something visual and generic a stock photo site has.
-- caption: 2-4 short lines of post text for the whole carousel, ending with a question. Emoji welcome, no hashtags inside.
-- hashtags: 3 to 8 items, each starting with #.
+""" + CAPTION_RULES.replace("{", "{{").replace("}", "}}") + """- hashtags: 3 to 8 items, each starting with #.
 - alt: one plain English sentence describing the pictures for people who cannot see them.
 Slide texts and caption are written in the requested language; look, image_prompt, query and alt are always English."""
 
@@ -495,6 +517,7 @@ def validate_carousel_plan(p, n, script=None):
         raise ValueError("hashtags must be 3-8 strings starting with #")
     if script and not all(re.search(f"[{script}]", t) for t in [x["text"] for x in sl] + [p["caption"]]):
         raise ValueError("every slide text and the caption must be written in the requested language's script")
+    _check_caption(p["caption"], script)
 
 
 def image_plan(topic, community="general", language="en", slides=1):
