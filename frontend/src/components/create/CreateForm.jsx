@@ -139,7 +139,7 @@ export function CreateForm({ presets, onStarted }) {
           </details>
         </div>
         <textarea id="topics" className="topics" rows={3} value={text} aria-describedby="topics-hint"
-          placeholder={"why sleep matters\n5 AI tools every student should know\nchai vs coffee"}
+          placeholder={presets.communities.find(c => c.slug === community)?.examples.join("\n")}
           onChange={e => changeText(e.target.value)}
           onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") form.current.requestSubmit(); }} />
         <p className="hint" id="topics-hint"><span>{status}</span><span className="count">{topics.length}/{MAX_TOPICS}</span></p>

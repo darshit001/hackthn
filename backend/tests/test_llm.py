@@ -291,3 +291,9 @@ def test_groq_asks_qwen_for_what_the_free_tier_allows(monkeypatch):
     llm._call_groq("qwen/qwen3.8-27b", [], 0.5)
     llm._call_groq("openai/gpt-oss-120b", [], 0.5)
     assert sent == [1000, 4000]
+
+
+def test_suggest_prompt_anchors_the_community_subject():
+    p = _suggest_prompt(COMMUNITIES["tech"], LANGUAGES["en"], [])
+    assert "Example topics: 5 AI tools every student should know;" in p and "why sleep matters" not in p
+    assert all(len(c["examples"]) == 3 for c in COMMUNITIES.values())

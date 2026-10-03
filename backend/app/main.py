@@ -107,7 +107,7 @@ class PlanIn(BaseModel):
 
 @app.get("/presets")
 def presets():
-    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"], "accent": "#" + v["accent"]} for k, v in COMMUNITIES.items()],
+    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"], "accent": "#" + v["accent"], "examples": v["examples"]} for k, v in COMMUNITIES.items()],
             "languages": [{"slug": k, "label": v["label"]} for k, v in LANGUAGES.items()],
             "durations": DURATIONS,
             "styles": [{"slug": k, "label": v[0]} for k, v in STYLES.items()]}

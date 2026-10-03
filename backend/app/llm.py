@@ -110,6 +110,7 @@ Rules:
 - When trending searches are given, 3 or 4 topics must be inspired by trends that genuinely fit the community.
   Skip trends that do not fit, and skip trends written in a language other than English or the requested language.
 - The remaining topics are evergreen ideas this community always engages with.
+- Every topic stays on the community's subject, like its example topics (never repeat an example). A trend that does not fit is skipped, never bent to fit.
 - Write every topic in the requested language."""
 
 
@@ -409,7 +410,7 @@ def _suggest_prompt(preset, lang, trend_titles, trends_only=False):
     tr = "\n".join(f"- {t}" for t in trend_titles) or "(none available right now)"
     rule = ("Every topic must be inspired by one of the trending searches below that fits the community; "
             "if fewer than six fit, fill the rest with evergreen ideas.\n") if trends_only and trend_titles else ""
-    return (f"Community: {preset['label']}\nTone: {preset['tone']}\n{rule}"
+    return (f"Community: {preset['label']}\nTone: {preset['tone']}\nExample topics: {'; '.join(preset['examples'])}\n{rule}"
             f"Trending searches in India right now:\n{tr}\n"
             f"Language: write every topic in {lang['instruction']}. This is mandatory.\nReturn the JSON now.")
 

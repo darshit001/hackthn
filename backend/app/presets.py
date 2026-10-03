@@ -83,6 +83,7 @@ STYLES = {  # slug -> (label, phrase that leads every image prompt: FLUX weights
 COMMUNITIES = {
     "general": dict(
         label="Global Feed (General)",
+        examples=["why sleep matters", "5 quick hacks for Indian kitchen storage", "why we yawn when someone else yawns"],  # placeholder in the form and the subject anchor for suggestions
         tone="Clear, friendly, curiosity-driven for a broad Indian audience. One surprising fact or idea per scene.",
         language="en",
         caption_style="Two short lines: a bold claim or question, then an invitation to comment.",
@@ -95,6 +96,7 @@ COMMUNITIES = {
     ),
     "tech": dict(
         label="Tech & AI",
+        examples=["5 AI tools every student should know", "how UPI moves your money in seconds", "is your phone really listening to you"],
         tone="Punchy and concrete. One real fact, number, or tool per scene. No hype words.",
         language="en",
         caption_style="One-line insight, then 'Save this for later.'",
@@ -107,6 +109,7 @@ COMMUNITIES = {
     ),
     "fitness": dict(
         label="Fitness & Health",
+        examples=["a 10-minute workout with no equipment", "how much water you really need in a day", "3 stretches for people who sit all day"],
         tone="Energetic coach voice. Second person, imperative, short sentences.",
         language="en",
         caption_style="One challenge line, then ask viewers to tag a friend.",
@@ -119,6 +122,7 @@ COMMUNITIES = {
     ),
     "motivation": dict(
         label="Motivation",
+        examples=["the 2-minute rule to beat procrastination", "why discipline beats motivation", "small wins that build big habits"],
         tone="Warm, story-led, builds to one takeaway line at the end.",
         language="en",
         caption_style="One quotable line, then ask what viewers are working on.",
@@ -131,6 +135,7 @@ COMMUNITIES = {
     ),
     "finance": dict(
         label="Money & Finance",
+        examples=["the 50-30-20 rule for your first salary", "SIP vs FD for beginners", "how to build an emergency fund"],
         tone="Plain money tips for young Indians. Spell every number out in words for the narrator.",
         language="en",
         caption_style="One actionable tip, then 'Not financial advice.'",
@@ -143,6 +148,7 @@ COMMUNITIES = {
     ),
     "hinglish_fun": dict(
         label="Hinglish Fun",
+        examples=["chai vs coffee", "har family WhatsApp group ke 5 log", "Monday morning vs Friday evening mood"],
         tone="Playful, desi references, light humour, the way young Indians talk to friends.",
         language="hinglish",
         caption_style="One funny line, then 'Comment karo agar relate kiya.'",
