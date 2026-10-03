@@ -147,8 +147,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .ver.make:focus-visible{outline:none}
 .ver.make:focus-visible .pic{outline:2px solid var(--acc);outline-offset:3px}
 .seg.outfits{margin-top:12px}
-.seg.outfits span,.seg.three span{font-size:12.5px;padding:8px 2px}
-.seg.three{grid-template-columns:repeat(3,1fr)}
+.seg.outfits span{font-size:12.5px;padding:8px 2px}
 .hint.below{margin-top:6px}
 @media (prefers-reduced-motion:reduce){.ver.busy .pic .i{animation:none}}
 .check.consent{margin:12px 0 0;align-items:flex-start}

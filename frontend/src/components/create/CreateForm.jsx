@@ -26,7 +26,6 @@ export function CreateForm({ presets, onStarted }) {
   const [photo, setPhoto] = useState("");  // data URL, already shrunk
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState("");
-  const [layout, setLayout] = useState("both");  // presets.layouts: how the middle scenes mix the user in
   const consentRef = useRef();
   const [status, setStatus] = useState(HINT);
   const [ideas, setIdeas] = useState([]);
@@ -38,7 +37,7 @@ export function CreateForm({ presets, onStarted }) {
   const options = { community, language, duration, style };
   const langs = presets.languages.length;
   const count = topics.length * (every ? langs : 1);
-  const face = talking && photo ? { photo, photo_consent: consent, layout } : {};  // kept out of /plan: the script does not need the photo
+  const face = talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
 
   const changeText = value => { setText(value); setPreview(null); };
   const dropIdeas = () => { setIdeas([]); setIdeasNote(""); setPreview(null); };
@@ -188,7 +187,7 @@ export function CreateForm({ presets, onStarted }) {
       </div>
       {talking ? (
         <PresenterPhoto presets={presets} community={community} setPhoto={p => { setPhoto(p); setConsentError(""); }}
-          layout={layout} setLayout={setLayout} consent={consent}
+          consent={consent}
           setConsent={c => { setConsent(c); setConsentError(""); }} error={consentError} consentRef={consentRef} />
       ) : (
         <div className="field"><span>6. Look</span>

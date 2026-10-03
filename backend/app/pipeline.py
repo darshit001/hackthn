@@ -55,7 +55,7 @@ def _copy_stills(sd, d, tasks, image_model):
 
 
 def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None, style="photo", source=None,
-               layout="both"):
+               layout="scenes"):
     """Returns the meta dict that is also written to out/<id>/<id>.json. Raises on unrecoverable failure.
     plan: a previewed plan from llm.plan (hook possibly swapped by the user); None plans from scratch.
     style: a key of presets.STYLES, the look of the AI stills.

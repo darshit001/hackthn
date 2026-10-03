@@ -26,8 +26,8 @@ function Version({ src, label, checked, onPick, busy }) {
 }
 
 // The user's photo, and on request an AI-restyled copy beside it (same face, the chosen outfit, better light): a restyle
-// spends free daily quota, so it runs only when the button is pressed. How the middle scenes mix the user in is here too.
-export function PresenterPhoto({ presets, community, setPhoto, layout, setLayout, consent, setConsent, error, consentRef }) {
+// spends free daily quota, so it runs only when the button is pressed.
+export function PresenterPhoto({ presets, community, setPhoto, consent, setConsent, error, consentRef }) {
   const input = useRef();
   const [original, setOriginal] = useState("");
   const [restyled, setRestyled] = useState("");
@@ -66,61 +66,50 @@ export function PresenterPhoto({ presets, community, setPhoto, layout, setLayout
   const choose = orig => { setUseOriginal(orig); setPhoto(orig ? original : restyled); };
 
   return (
-    <>
-      <div className="field presenter"><span>6. Your photo</span>
-        <input ref={input} id="photo" type="file" accept="image/*" className="vh" tabIndex={original ? -1 : 0}
-          onChange={e => { pick(e.target.files[0]); e.target.value = ""; }} />
-        {original ? (
-          <>
-            <div className="versions" role="radiogroup" aria-label="Photo to use" aria-busy={busy}>
-              <Version src={original} label="Original" checked={useOriginal} onPick={() => choose(true)} />
-              {restyled ? (
-                <Version src={restyled} label={busy ? "Restyling…" : "Restyled"} checked={!useOriginal} busy={busy} onPick={() => choose(false)} />
-              ) : (
-                <button type="button" className={"ver make" + (busy ? " busy" : "")} disabled={busy} onClick={restyle}>
-                  <span className="pic"><Icon name="sparkles" /><b>{busy ? "Restyling…" : "Restyle with AI"}</b></span>
-                  <span className="cap">{presets.outfits.find(o => o.slug === outfit)?.label}</span>
-                </button>
-              )}
-              <div className="ver-actions">
-                {restyled && <button type="button" className="btn" disabled={busy} onClick={restyle}><Icon name="sparkles" />Restyle again</button>}
-                <button type="button" className="btn" onClick={() => input.current.click()}><Icon name="image" />Change photo</button>
-              </div>
+    <div className="field presenter"><span>6. Your photo</span>
+      <input ref={input} id="photo" type="file" accept="image/*" className="vh" tabIndex={original ? -1 : 0}
+        onChange={e => { pick(e.target.files[0]); e.target.value = ""; }} />
+      {original ? (
+        <>
+          <div className="versions" role="radiogroup" aria-label="Photo to use" aria-busy={busy}>
+            <Version src={original} label="Original" checked={useOriginal} onPick={() => choose(true)} />
+            {restyled ? (
+              <Version src={restyled} label={busy ? "Restyling…" : "Restyled"} checked={!useOriginal} busy={busy} onPick={() => choose(false)} />
+            ) : (
+              <button type="button" className={"ver make" + (busy ? " busy" : "")} disabled={busy} onClick={restyle}>
+                <span className="pic"><Icon name="sparkles" /><b>{busy ? "Restyling…" : "Restyle with AI"}</b></span>
+                <span className="cap">{presets.outfits.find(o => o.slug === outfit)?.label}</span>
+              </button>
+            )}
+            <div className="ver-actions">
+              {restyled && <button type="button" className="btn" disabled={busy} onClick={restyle}><Icon name="sparkles" />Restyle again</button>}
+              <button type="button" className="btn" onClick={() => input.current.click()}><Icon name="image" />Change photo</button>
             </div>
-            <div className="seg outfits" role="radiogroup" aria-label="Outfit">
-              {presets.outfits.map(o => (
-                <label key={o.slug}>
-                  <input type="radio" name="outfit" checked={outfit === o.slug} onChange={() => setOutfit(o.slug)} /><span>{o.label}</span>
-                </label>
-              ))}
-            </div>
-          </>
-        ) : (
-          <label htmlFor="photo" className="dropzone"
-            onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
-            <Icon name="image" />
-            <strong>Add a photo of your face</strong>
-            <small>Then restyle it with AI in an outfit you pick, or use it as it is.</small>
-          </label>
-        )}
-        {note && <p className="hint err" role="alert">{note}</p>}
-        <label className="check consent">
-          <input ref={consentRef} type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
-            aria-describedby={error ? "consent-error" : undefined} aria-invalid={!!error} />
-          <span>This is me, or I have permission to use this face <abbr title="required">*</abbr></span>
+          </div>
+          <div className="seg outfits" role="radiogroup" aria-label="Outfit">
+            {presets.outfits.map(o => (
+              <label key={o.slug}>
+                <input type="radio" name="outfit" checked={outfit === o.slug} onChange={() => setOutfit(o.slug)} /><span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      ) : (
+        <label htmlFor="photo" className="dropzone"
+          onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
+          <Icon name="image" />
+          <strong>Add a photo of your face</strong>
+          <small>Then restyle it with AI in an outfit you pick, or use it as it is.</small>
         </label>
-        {error && <p id="consent-error" className="hint err">{error}</p>}
-      </div>
-      <div className="field"><span>7. Middle scenes</span>
-        <div className="seg three" role="radiogroup" aria-label="Middle scenes">
-          {presets.layouts.map(l => (
-            <label key={l.slug}>
-              <input type="radio" name="layout" checked={layout === l.slug} onChange={() => setLayout(l.slug)} /><span>{l.label}</span>
-            </label>
-          ))}
-        </div>
-        <p className="hint below">You talk full-screen in the first and last scene.</p>
-      </div>
-    </>
+      )}
+      <p className="hint below">You talk to camera in the first and last scene; the scenes in between are AI pictures with you in them.</p>
+      {note && <p className="hint err" role="alert">{note}</p>}
+      <label className="check consent">
+        <input ref={consentRef} type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
+          aria-describedby={error ? "consent-error" : undefined} aria-invalid={!!error} />
+        <span>This is me, or I have permission to use this face <abbr title="required">*</abbr></span>
+      </label>
+      {error && <p id="consent-error" className="hint err">{error}</p>}
+    </div>
   );
 }

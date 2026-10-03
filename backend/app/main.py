@@ -46,7 +46,7 @@ def _worker():
             if scene is None:
                 meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid,
                                            language=job["language"], duration=job["duration"], plan=job.get("plan"),
-                                           style=job.get("style", "photo"), source=job.get("source"), layout=job.get("layout", "both"))
+                                           style=job.get("style", "photo"), source=job.get("source"), layout=job.get("layout", "scenes"))
             else:
                 meta = pipeline.redo_scene(jid, scene, progress)
             with LOCK:
@@ -101,7 +101,7 @@ class GenerateIn(BaseModel):
     plan: dict | None = None  # a previewed plan (from POST /plan, hook possibly swapped); only used for a single topic
     photo: str | None = Field(None, max_length=12_000_000)  # data URL of the user's photo (restyled or not): the user is in the video
     photo_consent: bool = False  # the user confirms the face is theirs or they may use it
-    layout: str = "both"  # presets.LAYOUTS: how the middle scenes mix the user with the AI pictures
+    layout: str = "scenes"  # presets.LAYOUTS; the form sends none: the user inside the middle scenes' pictures, no bubble
 
 
 class RestyleIn(BaseModel):

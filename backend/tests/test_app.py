@@ -216,7 +216,7 @@ def test_generate_with_a_photo_needs_consent_and_an_image(monkeypatch, tmp_path)
                         capture_output=True, text=True).stdout.strip()
     assert wh == "%d,%d" % appmod.media.PORTRAIT
     j = client.get(f"/jobs/{jid}").json()
-    assert (j["presenter"], j["layout"]) == (True, "both")
+    assert (j["presenter"], j["layout"]) == (True, "scenes")
     assert client.post("/generate", json={"topics": ["a"], "photo": url, "photo_consent": True, "layout": "x"}).status_code == 400
 
 
