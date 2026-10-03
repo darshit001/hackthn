@@ -77,7 +77,8 @@ def load_done_jobs():
         with LOCK:
             JOBS.setdefault(meta["id"], {"id": meta["id"], "topic": meta["topic"], "community": meta.get("community", "general"),
                                          "language": meta.get("language", "en"), "duration": meta.get("target", 30), "style": meta.get("style", "photo"),
-                                         "status": "done", "stage": None, "created": f.stat().st_mtime, "result": meta, "error": None})
+                                         "status": "done", "stage": None, "created": f.stat().st_mtime, "result": meta, "error": None,
+                                         "saved": (f.parent / "saved").exists()})
 
 
 @asynccontextmanager
@@ -281,6 +282,34 @@ def stop_job(jid: str):
             raise HTTPException(409, "nothing to stop")
         j.update(status="failed", stopped=True, error=f"{j['stage'] or 'queue'}: Stopped by you")
     return {"stopped": jid}
+
+
+def _set_saved(jid, on):
+    """Instagram-style save. The flag is an empty out/<id>/saved file, not a key in <id>.json, because a redo rewrites
+    the meta; deleting the video removes the folder and the save with it."""
+    with LOCK:
+        j = JOBS.get(jid)
+        if not j:
+            raise HTTPException(404, "no such job")
+        if not j.get("result"):  # a redo keeps its result, so a video being redone can still be saved
+            raise HTTPException(409, "video is not finished")
+        j["saved"] = on
+    marker = pipeline.OUT / jid / "saved"
+    try:
+        marker.touch() if on else marker.unlink(missing_ok=True)
+    except OSError:
+        pass  # deleted in the same instant: nothing left to save
+    return {"id": jid, "saved": on}
+
+
+@app.post("/jobs/{jid}/save")
+def save_job(jid: str):
+    return _set_saved(jid, True)
+
+
+@app.delete("/jobs/{jid}/save")
+def unsave_job(jid: str):
+    return _set_saved(jid, False)
 
 
 @app.delete("/jobs/{jid}")

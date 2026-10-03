@@ -8,7 +8,7 @@ import { LiveCard } from "./cards/LiveCard";
 import { ReadyCard } from "./cards/ReadyCard";
 import { FailedCard, QueuedCard } from "./cards/WaitCard";
 
-const TABS = [["all", "All videos"], ["ready", "Ready"], ["making", "In progress"], ["failed", "Failed"]];
+const TABS = [["all", "All videos"], ["ready", "Ready"], ["saved", "Saved"], ["making", "In progress"], ["failed", "Failed"]];
 
 // Splits the jobs into the four tabs; the line of videos being made runs oldest first, everything else newest first.
 export function groupJobs(jobs) {
@@ -16,7 +16,7 @@ export function groupJobs(jobs) {
   const making = jobs.filter(j => j.status === "queued" || j.status === "running").sort((a, b) => a.created - b.created);
   const failed = jobs.filter(j => j.status === "failed").sort(newest);
   const ready = jobs.filter(j => j.status === "done").sort(newest);
-  return { all: [...making, ...failed, ...ready], making, failed, ready };
+  return { all: [...making, ...failed, ...ready], making, failed, ready, saved: ready.filter(j => j.saved) };
 }
 
 export function VideoList({ jobs, presets, actions }) {
@@ -118,7 +118,9 @@ export function VideoList({ jobs, presets, actions }) {
       <div aria-live="polite">{shown.map(card)}</div>
       <Pager page={current} pages={pages} total={list.length} onPage={goTo} />
       {!jobs.length && <div className="empty"><b>No videos yet</b>Add a topic on the left and generate one. It appears here while it is being made.</div>}
-      {jobs.length > 0 && !list.length && <div className="empty"><b>Nothing here</b>No videos match this filter.</div>}
+      {jobs.length > 0 && !list.length && (tab === "saved" && !groups.saved.length
+        ? <div className="empty"><b>No saved videos yet</b>Tap the bookmark on a video to keep it here.</div>
+        : <div className="empty"><b>Nothing here</b>No videos match this filter.</div>)}
     </section>
   );
 }

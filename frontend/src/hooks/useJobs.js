@@ -20,10 +20,13 @@ export function useJobs() {
     timer.current = setTimeout(refresh, !next ? 4000 : next.some(busy) ? 2000 : 8000);
   }, []);
 
+  // change a job on the page before the server answers (a save shows at once); the next poll brings the server's truth
+  const patch = useCallback((id, fields) => setJobs(js => js.map(j => j.id === id ? { ...j, ...fields } : j)), []);
+
   useEffect(() => {
     refresh();
     return () => clearTimeout(timer.current);
   }, [refresh]);
 
-  return { jobs, refresh };
+  return { jobs, refresh, patch };
 }

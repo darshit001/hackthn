@@ -21,5 +21,6 @@ export const api = {
   generate: opts => post("/generate", opts),
   redo: (id, scene) => post(`/jobs/${id}/redo/${scene}`),
   stop: id => post(`/jobs/${id}/stop`),
+  save: (id, on) => call(`/jobs/${id}/save`, { method: on ? "POST" : "DELETE" }),
   remove: id => call(`/jobs/${id}`, { method: "DELETE" }),
 };

@@ -12,7 +12,7 @@ import { api } from "./lib/api";
 
 export default function App() {
   const presets = usePresets();
-  const { jobs, refresh } = useJobs();
+  const { jobs, refresh, patch } = useJobs();
   const [toast, say] = useToast();
   const [playing, setPlaying] = useState(null);
 
@@ -23,6 +23,11 @@ export default function App() {
     onRedo: async (id, n) => {
       try { await api.redo(id, n); say(`Redoing scene ${n + 1}`); } catch { say("Could not redo that scene"); }
       refresh();
+    },
+    onSave: async (id, on) => {
+      patch(id, { saved: on });
+      try { await api.save(id, on); say(on ? "Saved" : "Removed from Saved"); }
+      catch { patch(id, { saved: !on }); say("Could not save it, try again"); }
     },
     onDelete: async id => {
       try { await api.remove(id); } catch { say("Delete failed, try again"); return false; }
@@ -38,7 +43,8 @@ export default function App() {
       await api.generate({ topics: [j.topic], community: j.community, language: j.language, duration: j.duration, style: j.style || "photo" }).catch(() => say("Could not start it again"));
       refresh();
     },
-  }), [refresh, say]);
+  }), [refresh, say, patch]);
+  const open = playing && jobs.find(j => j.id === playing.id);  // the player's Save follows the live job
 
   return (
     <>
@@ -48,7 +54,8 @@ export default function App() {
         <CreateForm presets={presets} onStarted={msg => { say(msg); refresh(); }} />
         <VideoList jobs={jobs} presets={presets} actions={actions} />
       </main>
-      <PlayerDialog video={playing} onClose={() => setPlaying(null)} />
+      <PlayerDialog video={playing} onClose={() => setPlaying(null)} saved={!!open?.saved}
+        onSave={open?.result ? () => actions.onSave(open.id, !open.saved) : null} />
       <Toast {...toast} />
     </>
   );

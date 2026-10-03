@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ago, canHover, fileName, mmss, reducedMotion } from "../../lib/format";
 import { Icon } from "../Icon";
 import { Facts } from "./Facts";
+import { SaveButton } from "./SaveButton";
 
 // The post text the Copy buttons put on the clipboard
 function postText(m, kind) {
@@ -18,7 +19,7 @@ const talked = m => {
   return n === faces.length ? "You, talking" : `You, talking in ${n} of ${faces.length} scenes`;
 };
 
-export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete }) {
+export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete, onSave }) {
   const m = job.result, v = m.updated || 0;
   const video = `${m.video}?v=${v}`, thumb = `${m.thumb}?v=${v}`;
   const [hover, setHover] = useState(false);
@@ -27,7 +28,7 @@ export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete
 
   return (
     <article className="card">
-      <button type="button" className="thumb" aria-label={`Play ${job.topic}`} onClick={() => onPlay({ video, thumb, topic: job.topic })}
+      <button type="button" className="thumb" aria-label={`Play ${job.topic}`} onClick={() => onPlay({ id: job.id, video, thumb, topic: job.topic })}
         onMouseEnter={() => PREVIEW && setHover(true)} onMouseLeave={() => setHover(false)}>
         <img src={thumb} alt="" />
         {hover && <video className="peek" src={video} muted loop playsInline autoPlay />}
@@ -66,6 +67,7 @@ export function ReadyCard({ job, label, accent, onPlay, onCopy, onRedo, onDelete
               }}>{deleting ? "Deleting…" : "Delete video"}</button>
             </div>
           </details>
+          <SaveButton saved={!!job.saved} onClick={() => onSave(job.id, !job.saved)} />
         </div>
       </div>
     </article>

@@ -222,6 +222,14 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .sort .i:first-child{left:18px}
 .sort .i:last-child{right:9px}
 @media (max-width:560px){.find{width:100%}.find .search{flex:1}}
+/* Save: the bookmark sits at the far end of a card's buttons, as on Instagram, and fills with ink when saved */
+.actions .save{margin-left:auto}
+.save[aria-pressed=true]{border-color:var(--fg)}
+.save[aria-pressed=true] .i{fill:currentColor;animation:bump .4s var(--spring)}
+@keyframes bump{40%{transform:scale(1.35)}}
+dialog .save{position:absolute;right:-48px;top:46px;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;justify-content:center}
+dialog .save:hover{background:rgba(255,255,255,.22)}
+@media (max-width:560px){dialog .save{right:46px;top:-46px}}
 .empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:44px 20px;text-align:center;color:var(--fg-2);background:var(--card)}
 .empty::before{content:"";display:block;width:54px;aspect-ratio:9/16;border:2px dashed var(--border-2);border-radius:10px;margin:0 auto 16px}
 .empty b{display:block;color:var(--fg);font:600 17px var(--display);margin-bottom:2px}
