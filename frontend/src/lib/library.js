@@ -1,14 +1,14 @@
 // Search, filter and sort for the video list. Plain functions so library.test.js can run them under `node --test`.
 
-export const FILTERS = [["community", "Community"], ["language", "Language"], ["style", "Look"], ["duration", "Length"]];
+export const FILTERS = [["kind", "Type"], ["community", "Community"], ["language", "Language"], ["style", "Look"], ["duration", "Length"]];
 
 export const SORTS = [["latest", "Latest first"], ["oldest", "Oldest first"], ["shortest", "Shortest"], ["longest", "Longest"], ["az", "A to Z"]];
 
-// the value a job has for a filter group; older jobs have no style and were all photographs
-export const facet = (j, key) => key === "style" ? (j.style || "photo") : j[key];
+// the value a job has for a filter group; older jobs have no style and were all photographs, and no kind and were all videos
+export const facet = (j, key) => key === "style" ? (j.style || "photo") : key === "kind" ? (j.kind || "video") : j[key];
 
 const making = j => j.status === "queued" || j.status === "running";
-const seconds = j => j.result?.duration ?? j.duration;
+const seconds = j => j.result?.duration ?? j.duration ?? 0;  // an image post has no length and sorts as the shortest
 
 // the topic, the community's name and, once a video is ready, its hook, caption and hashtags
 export function haystack(j, label) {

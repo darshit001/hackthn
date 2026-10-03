@@ -186,6 +186,71 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     return meta
 
 
+IMAGE_STAGES = ["plan", "image", "poster"]
+
+
+def _picture(prompt, query, d, style):
+    """(png path or None, credit, source) for an image post: the AI still, else a Wikimedia photo, else None (a plain card)."""
+    png = d / "gen0.png"  # gen*.png: the live card shows it the moment it lands
+    cr = media.gen_image(prompt, png, style)
+    if cr:
+        return png, cr, "ai"
+    try:
+        url, cr = media._wikimedia(query, 0)
+        media._download(url, d / "photo.jpg")
+        return d / "photo.jpg", cr, "wikimedia"
+    except Exception as e:
+        print(f"image post wikimedia {query!r}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
+        return None, "", "card"
+
+
+def make_image(topic, community="general", progress=lambda stage: None, job_id=None, language="en", style="photo", headline=True):
+    """An image post: one 4:5 picture with the headline on it, plus caption, hashtags and alt text. Returns the meta dict
+    that is also written to out/<id>/<id>.json (kind 'image'). Raises when the text cannot be written or is blocked."""
+    job_id = job_id or secrets.token_hex(4)
+    d = OUT / job_id
+    d.mkdir(parents=True, exist_ok=True)
+    t0 = time.time()
+
+    progress("plan")
+    p = llm.review_post(llm.image_plan(topic, community, language), language)
+    (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))
+
+    progress("image")
+    pic, credit, source = _picture(p["image_prompt"], p["query"], d, style)
+
+    progress("poster")
+    render.poster(pic, p["headline"] if headline else "", d / f"{job_id}.png", d / f"{job_id}.jpg")
+
+    meta = {
+        "id": job_id, "kind": "image", "topic": topic, "community": community, "language": language, "style": style,
+        "headline": p["headline"], "headline_on": headline, "hook": p["headline"],  # hook: the search and card code read it on every job
+        "caption": p["caption"], "hashtags": p["hashtags"], "alt": p["alt"], "review": p.get("review"),
+        "image_prompt": p["image_prompt"], "query": p["query"], "visual": source,
+        "credits": [credit] if credit else [], "llm": p.get("model"),
+        "image_model": credit.split(", ", 1)[1] if source == "ai" else None,
+        "seconds_to_make": round(time.time() - t0, 1),
+        "image": f"/out/{job_id}/{job_id}.png", "thumb": f"/out/{job_id}/{job_id}.jpg",
+    }
+    (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    return meta
+
+
+def redo_image(job_id, progress=lambda stage: None):
+    """A new picture for a finished image post, same text. Rewrites and returns the meta dict."""
+    d = OUT / job_id
+    meta = json.loads((d / f"{job_id}.json").read_text())
+    progress("image")
+    take = secrets.token_hex(2)  # FLUX is deterministic per prompt on some providers, so a fresh suffix gives a different picture
+    pic, credit, source = _picture(f"{meta['image_prompt']} (take {take})", meta["query"], d, meta.get("style", "photo"))
+    progress("poster")
+    render.poster(pic, meta["headline"] if meta.get("headline_on", True) else "", d / f"{job_id}.png", d / f"{job_id}.jpg")
+    meta.update(visual=source, credits=[credit] if credit else [], image_model=credit.split(", ", 1)[1] if source == "ai" else None,
+                updated=round(time.time()))
+    (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    return meta
+
+
 def redo_scene(job_id, n, progress=lambda stage: None):
     """New visual for scene n of a finished video, then re-render from the files still in out/<id>/
     (voice, captions, the other clips). Rewrites and returns the meta dict."""

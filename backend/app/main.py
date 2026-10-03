@@ -20,15 +20,17 @@ from .presets import COMMUNITIES, DURATIONS, LANGUAGES, LAYOUTS, OUTFIT_FOR, OUT
 
 pipeline.OUT.mkdir(exist_ok=True)
 JOBS, LOCK, Q = {}, threading.Lock(), queue.Queue()
+IQ = queue.Queue()  # image posts: ~10 s of network each, so they get their own worker and never wait behind a video render
 
 
 class Cancelled(Exception):
     pass
 
 
-def _worker():
+def _worker(q=None):
+    q = q or Q  # looked up at start, not at import: the tests swap Q
     while True:
-        jid, scene = Q.get()  # scene is None for a new video, or the index of a scene to redo on a finished one
+        jid, scene = q.get()  # scene is None for a new job, or the index of a scene to redo (0 on an image post: a new picture)
         with LOCK:
             job = JOBS.get(jid)
         if job is None or job.get("stopped"):  # deleted or stopped while queued
@@ -43,7 +45,11 @@ def _worker():
                 job.setdefault("started", time.time())
 
         try:
-            if scene is None:
+            if job.get("kind") == "image":
+                meta = pipeline.make_image(job["topic"], job["community"], progress, job_id=jid, language=job["language"],
+                                           style=job["style"], headline=job.get("headline", True)) if scene is None \
+                    else pipeline.redo_image(jid, progress)
+            elif scene is None:
                 meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid,
                                            language=job["language"], duration=job["duration"], plan=job.get("plan"),
                                            style=job.get("style", "photo"), source=job.get("source"), layout=job.get("layout", "scenes"))
@@ -68,14 +74,14 @@ def load_done_jobs():
     """Rebuild the gallery from out/<id>/<id>.json so a restart keeps finished videos (and a Railway volume at
     /app/out keeps them across deploys). Older metas lack language/target; they get the old defaults."""
     for f in sorted(pipeline.OUT.glob("*/*.json")):
-        if f.parent.name.startswith("_") or f.stem != f.parent.name or not f.with_suffix(".mp4").exists():
+        if f.parent.name.startswith("_") or f.stem != f.parent.name or not (f.with_suffix(".mp4").exists() or f.with_suffix(".png").exists()):
             continue
         try:
             meta = json.loads(f.read_text())
         except (OSError, ValueError):
             continue
         with LOCK:
-            JOBS.setdefault(meta["id"], {"id": meta["id"], "topic": meta["topic"], "community": meta.get("community", "general"),
+            JOBS.setdefault(meta["id"], {"id": meta["id"], "kind": meta.get("kind", "video"), "headline": meta.get("headline_on", True), "topic": meta["topic"], "community": meta.get("community", "general"),
                                          "language": meta.get("language", "en"), "duration": meta.get("target", 30), "style": meta.get("style", "photo"),
                                          "status": "done", "stage": None, "created": f.stat().st_mtime, "result": meta, "error": None,
                                          "saved": (f.parent / "saved").exists()})
@@ -85,6 +91,7 @@ def load_done_jobs():
 async def lifespan(_app):
     load_done_jobs()
     threading.Thread(target=_worker, daemon=True).start()  # ponytail: single worker = serialised ffmpeg on 2 vCPUs
+    threading.Thread(target=_worker, args=(IQ,), daemon=True).start()
     yield
 
 
@@ -94,6 +101,8 @@ app.mount("/out", StaticFiles(directory=pipeline.OUT), name="out")
 
 class GenerateIn(BaseModel):
     topics: list[str] = Field(min_length=1, max_length=10)
+    kind: str = "video"  # "image": one 4:5 picture with the headline on it, plus post text; duration, plan, photo and layout are ignored
+    headline: bool = True  # image posts: draw the headline on the picture
     community: str = "general"
     language: str = "en"
     duration: int = 30
@@ -189,6 +198,21 @@ def generate(body: GenerateIn):
             or body.layout not in LAYOUTS:
         raise HTTPException(400, "unknown community, language, duration, look or layout")
     topics = [t.strip()[:200] for t in body.topics if t.strip()]
+    if body.kind not in ("video", "image"):
+        raise HTTPException(400, "kind is video or image")
+    if body.kind == "image":
+        if not topics:
+            raise HTTPException(400, "no topics")
+        ids = []
+        for t in topics:
+            jid = secrets.token_hex(4)
+            with LOCK:
+                JOBS[jid] = {"id": jid, "kind": "image", "headline": body.headline, "topic": t, "community": body.community,
+                             "language": body.language, "duration": None, "style": body.style, "status": "queued", "stage": None,
+                             "created": time.time(), "result": None, "error": None}
+            IQ.put((jid, None))
+            ids.append(jid)
+        return {"job_ids": ids}
     plan = body.plan if len(topics) == 1 else None
     if plan is not None:
         try:
@@ -207,7 +231,7 @@ def generate(body: GenerateIn):
         for lang in langs:
             jid = secrets.token_hex(4)
             with LOCK:
-                JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": lang,
+                JOBS[jid] = {"id": jid, "kind": "video", "topic": t, "community": body.community, "language": lang,
                              "duration": body.duration, "style": body.style, "status": "queued", "stage": None, "created": time.time(),
                              "result": None, "error": None, "plan": None if source else plan, "source": source, "presenter": bool(photo), "layout": body.layout}
             if photo:  # make_video finds it there and turns the video into a talking presenter
@@ -231,6 +255,8 @@ def _live(j):
         j["faces"] = len(list(d.glob("clip*.mp4")))  # talking scenes finished so far
     try:
         p = json.loads((d / "plan.json").read_text())
+        if j.get("kind") == "image":
+            return {**j, "hook": p["headline"]}
         shot = p["scenes"][1:-1] if j.get("presenter") else p["scenes"]  # the user talks over the first and last scene
         one = j.get("presenter") and j.get("layout") != "bubble"  # the user inside the picture: one per scene
         j.update(hook=p["hook"], scenes=[sc.get("title") or sc["query"] for sc in p["scenes"]],
@@ -264,10 +290,11 @@ def redo(jid: str, scene: int):
             raise HTTPException(404, "no such job")
         if j["status"] != "done":
             raise HTTPException(409, "video is not finished")
-        if not 0 <= scene < len(j["result"]["scenes"]):
+        image = j.get("kind") == "image"
+        if not 0 <= scene < (1 if image else len(j["result"]["scenes"])):
             raise HTTPException(400, "no such scene")
         j.update(status="queued", stage=None, error=None)
-    Q.put((jid, scene))
+    (IQ if image else Q).put((jid, scene))
     return {"job_id": jid, "scene": scene}
 
 

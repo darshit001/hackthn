@@ -20,8 +20,8 @@ export default function App() {
   const actions = useMemo(() => ({
     onPlay: setPlaying,
     onCopy: async (text, done) => { await navigator.clipboard.writeText(text); say(done); },
-    onRedo: async (id, n) => {
-      try { await api.redo(id, n); say(`Redoing scene ${n + 1}`); } catch { say("Could not redo that scene"); }
+    onRedo: async (id, n, image) => {
+      try { await api.redo(id, n); say(image ? "Drawing a new picture" : `Redoing scene ${n + 1}`); } catch { say(image ? "Could not draw a new picture" : "Could not redo that scene"); }
       refresh();
     },
     onSave: async (id, on) => {
@@ -31,16 +31,17 @@ export default function App() {
     },
     onDelete: async id => {
       try { await api.remove(id); } catch { say("Delete failed, try again"); return false; }
-      say("Video deleted");
+      say("Deleted");
       refresh();
       return true;
     },
     onStop: async id => {
-      try { await api.stop(id); say("Video stopped"); } catch { say("Could not stop it, it may have just finished"); }
+      try { await api.stop(id); say("Stopped"); } catch { say("Could not stop it, it may have just finished"); }
       refresh();
     },
     onRetry: async j => {
-      await api.generate({ topics: [j.topic], community: j.community, language: j.language, duration: j.duration, style: j.style || "photo" }).catch(() => say("Could not start it again"));
+      const kind = j.kind === "image" ? { kind: "image", headline: j.headline !== false } : { duration: j.duration };
+      await api.generate({ topics: [j.topic], community: j.community, language: j.language, style: j.style || "photo", ...kind }).catch(() => say("Could not start it again"));
       refresh();
     },
   }), [refresh, say, patch]);

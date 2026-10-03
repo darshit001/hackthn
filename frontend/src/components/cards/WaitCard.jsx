@@ -1,4 +1,4 @@
-import { STEP } from "../../lib/constants";
+import { stepsFor } from "../../lib/constants";
 import { nth } from "../../lib/format";
 import { Facts } from "./Facts";
 
@@ -15,7 +15,7 @@ export function QueuedCard({ job, label, accent, position, onDelete }) {
         </div>
         <h3>{job.topic}</h3>
         <div className="actions">
-          <p className="step">{pos}, waiting for the video before it</p>
+          <p className="step">{pos}, waiting for the {job.kind === "image" ? "image" : "video"} before it</p>
           <button type="button" className="btn" onClick={e => { e.currentTarget.disabled = true; onDelete(job.id); }}>Remove</button>
         </div>
       </div>
@@ -26,6 +26,7 @@ export function QueuedCard({ job, label, accent, position, onDelete }) {
 export function FailedCard({ job, label, accent, onRetry, onDelete }) {
   const [at, ...rest] = (job.error || "").split(":");
   const why = rest.join(":").trim() || "Something went wrong.";
+  const STEP = stepsFor(job)[1];
   return (
     <article className={`card wait${job.stopped ? "" : " failed"}`}>
       <div className="thumb screen dim"><span className="stage"><small>Stopped at</small>{STEP[at] ? STEP[at][0] : at === "queue" ? "the queue" : at || "an unknown step"}</span></div>

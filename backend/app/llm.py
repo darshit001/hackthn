@@ -415,6 +415,65 @@ def _suggest_prompt(preset, lang, trend_titles, trends_only=False):
             f"Language: write every topic in {lang['instruction']}. This is mandatory.\nReturn the JSON now.")
 
 
+IMAGE_SYSTEM = """You write single-image posts for the Qoneqt Global Feed, a community-first Indian social app. One picture
+with a short headline drawn on it, and the post text under it. Return ONLY a JSON object with exactly these keys:
+{"headline": "...", "image_prompt": "...", "query": "...", "caption": "...", "hashtags": ["#...", ...], "alt": "..."}
+Rules:
+- headline: 3-8 words drawn large on the picture. A sharp claim, question or number that stops the scroll. No hashtags,
+  no emoji. Never open with "Did you know", "Kya aap jaante hain" or "क्या आप जानते हैं".
+- image_prompt: 20-45 English words describing ONE portrait picture: subject, setting, light, mood. Keep the top third
+  of the frame calm and uncluttered (sky, wall, soft background), because the headline sits there. No text, letters,
+  brand names or logos in the picture.
+- query: 2-4 plain English words naming something visual and generic a stock photo site has, e.g. "woman laptop cafe".
+- caption: 2-4 short lines of post text that deliver the value the headline promises: the fact, tip or answer, then a
+  question that invites comments. Emoji welcome, no hashtags inside.
+- hashtags: 3 to 8 items, each starting with #.
+- alt: one plain English sentence describing the picture for people who cannot see it.
+The headline and caption are written in the requested language; image_prompt, query and alt are always English."""
+
+
+def validate_image_plan(p, script=None):
+    """Raise ValueError naming the first rule broken. script: regex range the headline and caption must use. Pure; unit-tested."""
+    if not isinstance(p, dict):
+        raise ValueError("not a JSON object")
+    for k in ("headline", "image_prompt", "query", "caption", "alt"):
+        if not isinstance(p.get(k), str) or not p[k].strip():
+            raise ValueError(f"{k} missing")
+    if not 2 <= len(p["headline"].split()) <= 10:  # a little slack on the prompt's 3-8: Hindi runs longer
+        raise ValueError("headline must be 3-8 words")
+    if _BANNED.match(p["headline"].strip()):
+        raise ValueError(f"headline must not open with any of: {', '.join(BANNED_OPENERS)}")
+    tags = p.get("hashtags")
+    if not isinstance(tags, list) or not 3 <= len(tags) <= 8 or any(not isinstance(t, str) or not t.startswith("#") for t in tags):
+        raise ValueError("hashtags must be 3-8 strings starting with #")
+    if script and not all(re.search(f"[{script}]", p[k]) for k in ("headline", "caption")):
+        raise ValueError("headline and caption must be written in the requested language's script")
+
+
+def image_plan(topic, community="general", language="en"):
+    """Topic -> headline, picture prompt, post text, hashtags and alt text for one image post (~3 s)."""
+    preset, lang = COMMUNITIES[community], LANGUAGES[language]
+    base = [{"role": "system", "content": IMAGE_SYSTEM},
+            {"role": "user", "content": f"Topic: {topic}\nCommunity: {preset['label']}\nTone: {preset['tone']}\n"
+                                        f"Language for headline and caption: {lang['instruction']}\n"
+                                        f"Caption style: {preset['caption_style']}\nReturn the JSON now."}]
+    p = _ask(base, lambda q: validate_image_plan(q, lang["script"]))
+    p["headline"] = p["headline"].strip()
+    p["hashtags"] = list(dict.fromkeys(t.strip() for t in p["hashtags"] + preset["hashtags"]))
+    return p
+
+
+def review_post(p, language="en"):
+    """llm.review on an image post, wrapped as a plan: scene 1 is the headline (the hook, never rewritten) and every caption
+    line is a scene of its own, so a softened claim replaces only its line and the rest, line breaks included, stay.
+    A blocked post raises."""
+    lines = [x.strip() for x in p["caption"].split("\n") if x.strip()]
+    r = review({"hook": p["headline"], "scenes": [{"narration": p["headline"]}] + [{"narration": x} for x in lines]}, language)
+    p["caption"] = "\n".join(sc["narration"] for sc in r["scenes"][1:])
+    p["review"] = r["review"]
+    return p
+
+
 def suggest(community="general", language="en", trends_only=False):
     """{'topics': [6 ideas], 'trends': [titles used]}; 3-4 ideas ride today's trends, or all of them with trends_only."""
     preset, lang = COMMUNITIES[community], LANGUAGES[language]

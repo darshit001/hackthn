@@ -17,6 +17,8 @@ const toLines = text => text.split("\n").map(s => s.trim()).filter(Boolean).slic
 const SKELETON = ["78%", "62%", "85%", "55%", "70%", "66%"];
 
 export function CreateForm({ presets, onStarted }) {
+  const [kind, setKind] = useState("video");  // video, or an image post: one picture with its headline plus post text
+  const [headline, setHeadline] = useState(true);  // image posts: the headline drawn on the picture
   const [text, setText] = useState("");
   const [community, setCommunity] = useState("general");
   const [language, setLanguage] = useState("en");
@@ -35,9 +37,12 @@ export function CreateForm({ presets, onStarted }) {
   const form = useRef();
   const want = useRef("");  // the community|language the ideas are for; a late answer for an old pick is dropped
   const topics = toLines(text);
-  const options = { community, language, duration, style };
+  const image = kind === "image";
+  const options = image ? { kind, community, language, style, headline } : { community, language, duration, style };
   const count = topics.length;
-  const face = talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
+  const face = !image && talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
+  const noun = n => (image ? (n === 1 ? "image" : "images") : (n === 1 ? "video" : "videos"));
+  const showLook = image || !talking;
 
   const changeText = value => { setText(value); setPreview(null); };
   const dropIdeas = () => { setIdeas([]); setIdeasNote(""); setPreview(null); };
@@ -51,7 +56,7 @@ export function CreateForm({ presets, onStarted }) {
 
   // a talking video needs a photo and the consent tick; the problem is named next to the field that has it
   const faceReady = () => {
-    if (!talking) return true;
+    if (image || !talking) return true;
     if (!photo) { setConsentError("Add a photo first, or switch back to AI pictures."); return false; }
     if (!consent) { setConsentError("Tick this to use the photo."); consentRef.current.focus(); return false; }
     return true;
@@ -110,7 +115,7 @@ export function CreateForm({ presets, onStarted }) {
     e.preventDefault();
     if (!topics.length) return;
     setBusy("start");
-    await start({ topics, ...options, ...face }, count === 1 ? "Generating 1 video" : `Generating ${count} videos`);
+    await start({ topics, ...options, ...face }, `Generating ${count} ${noun(count)}`);
     setBusy("");
   };
 
@@ -119,7 +124,14 @@ export function CreateForm({ presets, onStarted }) {
 
   return (
     <form ref={form} className="new" aria-labelledby="new-title" onSubmit={submit} style={{ "--hue": hue }}>
-      <h1 id="new-title">Create a video</h1>
+      <h1 id="new-title">{image ? "Create an image" : "Create a video"}</h1>
+      <div className="chips two kind" role="radiogroup" aria-label="What to make">
+        {[["video", "play", "Video"], ["image", "image", "Image"]].map(([k, icon, name]) => (
+          <label className="chip" key={k}>
+            <input type="radio" name="kind" value={k} checked={kind === k} onChange={() => { setKind(k); setPreview(null); }} /><Icon name={icon} /><span>{name}</span>
+          </label>
+        ))}
+      </div>
 
       {/* the order a person decides in: where it goes, which language, what about (suggestions use both), how it looks */}
       <div className="field"><span className="lbl"><b>1</b>Community</span>
@@ -172,7 +184,7 @@ export function CreateForm({ presets, onStarted }) {
         <p className="hint" id="topics-hint"><span>{status}</span><span className="count">{topics.length}/{MAX_TOPICS}</span></p>
       </div>
 
-      <div className="field"><span className="lbl"><b>4</b>On screen</span>
+      {!image && <div className="field"><span className="lbl"><b>4</b>On screen</span>
         <div className="chips two" role="radiogroup" aria-label="On screen">
           <label className="chip">
             <input type="radio" name="screen" checked={!talking} onChange={() => { setTalking(false); setPhoto(""); }} /><Icon name="image" /><span>AI pictures</span>
@@ -181,13 +193,14 @@ export function CreateForm({ presets, onStarted }) {
             <input type="radio" name="screen" checked={talking} onChange={() => setTalking(true)} /><Icon name="smile" /><span>Me, talking</span>
           </label>
         </div>
-      </div>
-      {talking ? (
+      </div>}
+      {!image && talking && (
         <PresenterPhoto presets={presets} community={community} setPhoto={p => { setPhoto(p); setConsentError(""); }}
           consent={consent}
           setConsent={c => { setConsent(c); setConsentError(""); }} error={consentError} consentRef={consentRef} />
-      ) : (
-        <div className="field"><span className="lbl"><b>5</b>Look</span>
+      )}
+      {showLook && (
+        <div className="field"><span className="lbl"><b>{image ? 4 : 5}</b>Look</span>
           <div className="chips look" role="radiogroup" aria-label="Look">
             {presets.styles.map(s => (
               <label className="chip" key={s.slug}>
@@ -197,7 +210,18 @@ export function CreateForm({ presets, onStarted }) {
           </div>
         </div>
       )}
-      <div className="field"><span className="lbl"><b>6</b>Length</span>
+      {image ? (
+        <div className="field"><span className="lbl"><b>5</b>Headline</span>
+          <div className="chips two" role="radiogroup" aria-label="Headline">
+            <label className="chip">
+              <input type="radio" name="headline" checked={headline} onChange={() => setHeadline(true)} /><span>On the picture</span>
+            </label>
+            <label className="chip">
+              <input type="radio" name="headline" checked={!headline} onChange={() => setHeadline(false)} /><span>Picture only</span>
+            </label>
+          </div>
+        </div>
+      ) : <div className="field"><span className="lbl"><b>6</b>Length</span>
         <div className="chips" role="radiogroup" aria-label="Length">
           {presets.durations.map(d => (
             <label className="chip" key={d}>
@@ -205,19 +229,19 @@ export function CreateForm({ presets, onStarted }) {
             </label>
           ))}
         </div>
-      </div>
+      </div>}
 
       <div className="go">
-        {/* a script preview is for one topic at a time */}
-        <button type="button" className="btn" disabled={topics.length !== 1 || busy === "preview"} onClick={showScript}>
+        {/* a script preview is for one topic at a time; an image post's text takes seconds, so it has none */}
+        {!image && <button type="button" className="btn" disabled={topics.length !== 1 || busy === "preview"} onClick={showScript}>
           {busy === "preview" ? "Writing…" : "Preview script"}
-        </button>
+        </button>}
         <button type="submit" className="primary" disabled={!topics.length || busy === "start"}>
-          <Icon name="play" className="i fill" /><span>{count <= 1 ? "Generate video" : `Generate ${count} videos`}</span>
+          <Icon name={image ? "image" : "play"} className={image ? "i" : "i fill"} /><span>{count <= 1 ? `Generate ${noun(1)}` : `Generate ${count} ${noun(count)}`}</span>
         </button>
       </div>
       <p className="after">
-        <span><Icon name="clock" />{talking ? "About 3 minutes per video" : "About a minute per video"}</span>
+        <span><Icon name="clock" />{image ? "About 15 seconds per image" : talking ? "About 3 minutes per video" : "About a minute per video"}</span>
         <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> starts it</span>
       </p>
       {preview && (

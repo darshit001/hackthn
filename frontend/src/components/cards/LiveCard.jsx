@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { STAGES, STEP } from "../../lib/constants";
+import { stepsFor } from "../../lib/constants";
 import { ago, cap, mmss } from "../../lib/format";
 import { Icon } from "../Icon";
 import { Facts } from "./Facts";
@@ -18,6 +18,7 @@ function Still({ src, className, title }) {
 
 // The video being made: the phone screen shows the newest still, six bars show the step, the strip collects every still.
 export function LiveCard({ job, label, accent, onStop }) {
+  const [STAGES, STEP] = stepsFor(job);
   const idx = STAGES.indexOf(job.stage);
   const pct = Math.round(((idx + 0.5) / STAGES.length) * 100);
   const stills = job.stills || [], last = stills[stills.length - 1];

@@ -4,9 +4,10 @@ import { Icon } from "../Icon";
 export function Facts({ job, label, accent, length = true, children }) {
   return (
     <ul className="facts">
+      {job.kind === "image" && <li><Icon name="image" />Image</li>}
       <li><i className="swatch" style={{ background: accent }} aria-hidden="true" />{label(job.community)}</li>
       <li><Icon name="languages" />{label(job.language)}</li>
-      {length && <li><Icon name="clock" />{job.duration} s</li>}
+      {length && job.duration != null && <li><Icon name="clock" />{job.duration} s</li>}
       {children}
     </ul>
   );
