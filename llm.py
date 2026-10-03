@@ -29,6 +29,7 @@ _BANNED = re.compile("|".join(re.escape(o) + r"(?!\w)" for o in BANNED_OPENERS),
 
 VERDICTS = ("ok", "fixed", "blocked")
 
+# ponytail: the hook is never softened; return a replacement hook (and patch hooks + scene 1) if invented hook stats become a problem
 REVIEW_SYSTEM = """You are the publishing editor for the Qoneqt Global Feed, an Indian community app. A short-video script is
 about to be produced. Review it and return ONLY a JSON object:
 {"verdict": "ok" | "fixed" | "blocked", "notes": ["..."], "changes": [{"scene": 1, "narration": "..."}]}
@@ -39,8 +40,9 @@ its language, its meaning and its length (within three words) and never changes 
 notes: one short English line per change, at most five. changes: the full new narration of each changed scene, scenes
 numbered from 1.
 "blocked": only content no mainstream platform would publish: hate or harassment toward a group, sexual content,
-encouragement of self-harm, instructions for violence or crime, communal or political incitement, defamatory claims
-about a named real person. A false or risky claim alone is "fixed", never "blocked". notes: one line saying why. changes [].
+encouragement of self-harm, instructions for violence or crime, communal or political incitement, clearly defamatory claims
+about a named real person (an unverified negative claim about a person is "fixed"). A false or risky claim alone is
+"fixed", never "blocked". notes: one line saying why. changes [].
 """
 
 SYSTEM = """You write scripts for {duration} second vertical short videos for the Qoneqt Global Feed.
@@ -212,9 +214,14 @@ def apply_review(p, r):
     notes = [x.strip() for x in r["notes"] if x.strip()]
     if r["verdict"] == "blocked":
         raise RuntimeError("blocked by the safety review: " + ("; ".join(notes) or "unsafe content"))
+    done = 0
     for c in r["changes"]:
-        p["scenes"][c["scene"] - 1]["narration"] = c["narration"].strip()
-    p["review"] = {"verdict": "fixed" if r["changes"] else "ok", "notes": notes}
+        t = c["narration"].strip()
+        if c["scene"] == 1 and not t.startswith(p["hook"]):
+            continue  # the hook overlay needs scene 1 to open with the hook; a rewrite that drops it is ignored
+        p["scenes"][c["scene"] - 1]["narration"] = t
+        done += 1
+    p["review"] = {"verdict": "fixed" if done else "ok", "notes": notes, "changed": done}
     return p
 
 

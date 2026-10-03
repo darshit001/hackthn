@@ -519,8 +519,8 @@ function facts(j, extra = "") {
 function reviewFact(m) {
   const r = m.review;
   if (!r || r.verdict === "skipped") return "";
-  const n = r.notes.length;
-  return `<li title="${esc(r.notes.join("\n"))}">${icon("shield")}${r.verdict === "ok" ? "Brand-safe" : `Reviewed, ${n} line${n === 1 ? "" : "s"} softened`}</li>`;
+  const n = r.changed ?? r.notes.length;
+  return `<li title="${esc(r.notes.join("\n"))}">${icon("shield")}${r.verdict === "ok" ? "Brand-safe" : n ? `Reviewed, ${n} line${n === 1 ? "" : "s"} softened` : "Reviewed"}</li>`;
 }
 
 function card(j) {

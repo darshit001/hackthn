@@ -157,9 +157,17 @@ def test_validate_review_rejects(r, msg):
 def test_apply_review_softens_the_listed_lines_and_stamps_the_plan():
     out = apply_review(good(), {"verdict": "fixed", "notes": [" scene 2: dropped an invented number "], "changes": [{"scene": 2, "narration": " Studies suggest it helps. "}]})
     assert out["scenes"][1]["narration"] == "Studies suggest it helps." and out["scenes"][0]["narration"] == "Sentence number 0 goes here."
-    assert out["review"] == {"verdict": "fixed", "notes": ["scene 2: dropped an invented number"]}
-    assert apply_review(good(), {"verdict": "ok", "notes": [], "changes": []})["review"] == {"verdict": "ok", "notes": []}
+    assert out["review"] == {"verdict": "fixed", "notes": ["scene 2: dropped an invented number"], "changed": 1}
+    assert apply_review(good(), {"verdict": "ok", "notes": [], "changes": []})["review"] == {"verdict": "ok", "notes": [], "changed": 0}
     assert apply_review(good(), {"verdict": "ok", "notes": [], "changes": [{"scene": 3, "narration": "Softer."}]})["review"]["verdict"] == "fixed"  # ok with edits is an edit
+
+
+def test_apply_review_never_drops_the_hook_from_scene_one():
+    p = apply_review(good(), {"verdict": "fixed", "notes": ["softened"], "changes": [{"scene": 1, "narration": "Tired? Here is why."}]})
+    assert p["scenes"][0]["narration"] == "Sentence number 0 goes here." and p["review"] == {"verdict": "ok", "notes": ["softened"], "changed": 0}
+    p = good(); p["scenes"][0]["narration"] = p["hook"] + " Stakes."
+    p = apply_review(p, {"verdict": "fixed", "notes": [], "changes": [{"scene": 1, "narration": p["hook"] + " Softer stakes."}]})
+    assert p["scenes"][0]["narration"] == "Ever wonder why you feel tired? Softer stakes." and p["review"]["changed"] == 1
 
 
 def test_apply_review_blocks_before_any_spend():
@@ -182,7 +190,7 @@ def test_review_prompt_carries_the_script_and_runs_cold(monkeypatch):
     user = seen["base"][1]["content"]
     assert seen["temperature"] == 0.2 and "1. Sentence number 0 goes here." in user and "5. Sentence number 4" in user
     assert "Devanagari" in user and "Hook: Ever wonder why you feel tired?" in user
-    assert p["review"] == {"verdict": "ok", "notes": []} and "publishing editor" in seen["base"][0]["content"]
+    assert p["review"] == {"verdict": "ok", "notes": [], "changed": 0} and "publishing editor" in seen["base"][0]["content"]
 
 
 def test_review_is_skipped_when_every_model_is_down(monkeypatch):
