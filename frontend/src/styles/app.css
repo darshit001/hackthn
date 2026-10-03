@@ -233,10 +233,6 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .save[aria-pressed=true]{border-color:var(--fg)}
 .save[aria-pressed=true] .i{fill:currentColor;animation:bump .4s var(--spring)}
 @keyframes bump{40%{transform:scale(1.35)}}
-dialog .save,dialog .dl{position:absolute;right:-48px;top:46px;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;justify-content:center}
-dialog .dl{top:92px;display:grid;place-items:center}
-dialog .save:hover,dialog .dl:hover{background:rgba(255,255,255,.22)}
-@media (max-width:560px){dialog .save{right:46px;top:-46px}dialog .dl{right:92px;top:-46px}}
 .empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:44px 20px;text-align:center;color:var(--fg-2);background:var(--card)}
 .empty::before{content:"";display:block;width:54px;aspect-ratio:9/16;border:2px dashed var(--border-2);border-radius:10px;margin:0 auto 16px}
 .empty b{display:block;color:var(--fg);font:600 17px var(--display);margin-bottom:2px}
@@ -371,10 +367,54 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 /* player */
 dialog{border:0;padding:0;background:transparent;max-width:none;max-height:none;overflow:visible}
 dialog::backdrop{background:rgba(10,10,12,.78)}
-dialog video{display:block;height:min(86vh,820px);aspect-ratio:9/16;border-radius:12px;background:#000;outline:0}
-dialog .x{position:absolute;right:-48px;top:0;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center}
-dialog .x:hover{background:rgba(255,255,255,.22)}
-dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;font-size:13px;text-align:center;opacity:.8}
+/* the watch view: the vertical video on black, and beside it a sheet as tall as the video that scrolls on its own */
+.watch{--h:min(88vh,860px);display:none;grid-template-columns:auto min(420px,calc(100vw - 32px - var(--h) * 9 / 16));width:fit-content;overflow:hidden;border-radius:var(--r-lg);background:var(--card);color:var(--fg);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.watch[open]{display:grid}
+.watch .stage{background:#000;display:grid;place-items:center}
+.watch video{display:block;height:var(--h);aspect-ratio:9/16;background:#000;outline:0}
+.watch .sheet{height:var(--h);overflow:auto;overscroll-behavior:contain;padding:20px 22px 24px}
+.titlebar{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.titlebar h2{flex:1;font-size:22px;line-height:1.25}
+.titlebar .x{margin:-2px -6px 0 0;border-color:transparent;color:var(--fg-2)}
+.titlebar .x:hover{background:var(--soft);color:var(--fg)}
+.watch .sheet > .actions{margin:16px 0 4px;gap:6px}
+.btn.ink{padding:8px 16px;background:var(--fg);border-color:var(--fg);color:var(--on-fg)}
+.btn.ink:hover{background:color-mix(in srgb,var(--fg) 85%,var(--bg))}
+.watch .sheet > .actions .btn.icon{padding:8px}
+.watch .tabs{margin:14px 0 14px}
+.pane{margin:0;padding:0;font-size:14px;line-height:1.55;color:var(--fg-2)}
+.pane p{margin:0 0 8px}
+.pane .hook{color:var(--fg);font-weight:600;font-size:15px}
+.pane .tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+dl.pane div{display:grid;grid-template-columns:110px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)}
+dl.pane div:last-child{border:0}
+dl.pane dt{color:var(--fg-3);font-size:13px}
+dl.pane dd{margin:0;color:var(--fg);overflow-wrap:anywhere}
+/* the script is a real sequence: scene by scene, each with its length and its own Redo */
+.script{list-style:none;counter-reset:sc}
+.script li{counter-increment:sc;padding:10px 0;border-bottom:1px solid var(--border)}
+.script li:last-child{border:0}
+.script .row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.script .row b{flex:1;min-width:0;color:var(--fg);font-weight:600;font-size:13.5px}
+.script .row b::before{content:counter(sc) ". ";color:var(--fg-3);font-weight:500}
+.script .row span{font-size:12.5px;color:var(--fg-3)}
+.script p{margin:0;font-size:13.5px}
+.btn.small{padding:3px 8px;font-size:12px;gap:4px}
+.btn.small .i{width:12px;height:12px}
+.more{font-size:15px;margin:22px 0 10px;padding-top:18px;border-top:1px solid var(--border)}
+.minis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mini{display:flex;flex-direction:column;gap:6px;padding:0;border:0;background:none;text-align:left;color:var(--fg)}
+.mini .thumb{width:100%;aspect-ratio:4/5}
+.mini img{transition:transform .5s var(--out)}
+.mini:hover img{transform:scale(1.05)}
+.mini .name{font-size:12.5px;line-height:1.35;font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* a phone: the video on top, the sheet under it, and the whole thing scrolls */
+@media (max-width:760px){
+  .watch{--h:62dvh;grid-template-columns:1fr;width:100vw;height:100dvh;max-height:none;border-radius:0;overflow:auto}
+  .watch .sheet{height:auto;overflow:visible}
+  .watch video{height:var(--h);margin:0 auto}
+  .titlebar .x,.titlebar .x:hover{position:fixed;top:12px;right:12px;z-index:2;margin:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff}  /* stays in reach while the sheet scrolls */
+}
 
 @media (max-width:960px){
   .layout{grid-template-columns:1fr;padding:16px;gap:16px}
@@ -390,11 +430,10 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
   .steps li span{display:none}
   .search,.search input{width:100%}
   .chips.three,.chips.look{grid-template-columns:repeat(2,1fr)}
-  dialog .x{right:0;top:-46px}
 }
 /* motion: things move when they change; the only motion that runs on its own marks a video being made */
-.btn,.pop button,.hooks label,.topics,.search input,dialog .x{transition:border-color .15s,background-color .15s,color .15s,box-shadow .15s,transform .12s var(--out)}
-.btn:active:not(:disabled),.primary:active:not(:disabled),.hooks label:active,dialog .x:active{transform:scale(.97)}
+.btn,.pop button,.hooks label,.topics,.search input{transition:border-color .15s,background-color .15s,color .15s,box-shadow .15s,transform .12s var(--out)}
+.btn:active:not(:disabled),.primary:active:not(:disabled),.hooks label:active{transform:scale(.97)}
 /* backwards fill only: a transform left on a card after it lands would trap its ⋮ menu under the next card */
 .card,.empty,.preview,.ideas li{animation:rise .4s var(--out) backwards}
 .videos [aria-live] > .card:nth-child(2),.ideas li:nth-child(2){animation-delay:.04s}

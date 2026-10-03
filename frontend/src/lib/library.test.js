@@ -1,7 +1,7 @@
 // node --test src/lib/library.test.js   (from frontend/)
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matches, sortJobs } from "./library.js";
+import { matches, related, sortJobs } from "./library.js";
 
 const label = s => ({ finance: "Finance", tech: "Tech & AI" })[s] || s;
 const done = (id, o) => ({ id, status: "done", community: "tech", language: "en", duration: 30, created: id, topic: `t${id}`, ...o });
@@ -32,4 +32,14 @@ test("sorting keeps videos being made first and in their order", () => {
   assert.deepEqual(ids(sortJobs([...making, jobs[0], jobs[1]], "shortest")), [3, 4, 2, 1]);
   assert.deepEqual(ids(sortJobs([...making, jobs[0], jobs[1]], "longest")), [3, 4, 1, 2]);
   assert.deepEqual(ids(sortJobs([...making, jobs[1], jobs[0]], "az")), [3, 4, 2, 1]);
+});
+
+test("related ranks community and language, skips itself and unfinished videos", () => {
+  const me = done(9, { result: {} });
+  const list = [me, ...jobs,
+    done(5, { community: "finance", language: "en", result: {} }),
+    done(6, { result: {} }),
+    done(7, { language: "hi", result: {} })];
+  assert.deepEqual(ids(related(list, me)), [6, 2, 7, 5, 1]);
+  assert.deepEqual(ids(related(list, me, 2)), [6, 2]);
 });

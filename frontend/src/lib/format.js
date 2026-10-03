@@ -16,3 +16,12 @@ export const nth = i => ["Next up", "2nd in line", "3rd in line"][i] || `${i + 1
 
 export const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const canHover = () => matchMedia("(hover: hover)").matches;
+
+// The post text the Copy buttons put on the clipboard
+export const postText = m => `${m.hook}\n\n${m.caption}\n\n${m.hashtags.join(" ")}`;
+
+// a scene whose free GPU ran out shows the still photo; the count tells the user which videos a Redo scene would improve
+export const talked = m => {
+  const faces = m.scenes.filter(sc => sc.face), n = faces.filter(sc => sc.face !== "photo").length;
+  return n === faces.length ? "You, talking" : `You, talking in ${n} of ${faces.length} scenes`;
+};
