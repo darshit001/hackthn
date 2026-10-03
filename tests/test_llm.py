@@ -164,7 +164,8 @@ def test_apply_review_softens_the_listed_lines_and_stamps_the_plan():
 
 def test_apply_review_never_drops_the_hook_from_scene_one():
     p = apply_review(good(), {"verdict": "fixed", "notes": ["softened"], "changes": [{"scene": 1, "narration": "Tired? Here is why."}]})
-    assert p["scenes"][0]["narration"] == "Sentence number 0 goes here." and p["review"] == {"verdict": "ok", "notes": ["softened"], "changed": 0}
+    assert p["scenes"][0]["narration"] == "Sentence number 0 goes here."
+    assert p["review"] == {"verdict": "fixed", "notes": ["softened", "scene 1 left as written to keep the hook"], "changed": 0}
     p = good(); p["scenes"][0]["narration"] = p["hook"] + " Stakes."
     p = apply_review(p, {"verdict": "fixed", "notes": [], "changes": [{"scene": 1, "narration": p["hook"] + " Softer stakes."}]})
     assert p["scenes"][0]["narration"] == "Ever wonder why you feel tired? Softer stakes." and p["review"]["changed"] == 1
@@ -233,7 +234,23 @@ def test_translate_keeps_the_visuals_and_the_review_and_pins_the_scene_count(mon
     assert out["hooks"][0]["score"] == 8 and out["hashtags"] == src["hashtags"] and out["review"] == src["review"]
     assert out["scenes"][0]["narration"].startswith("थकान क्यों? नमस्ते") and out["scenes"][0]["title"] == "शीर्षक"
     assert seen["temperature"] == 0.5 and "Devanagari" in seen["system"] and "30 second" in seen["system"]
-    assert '"model"' not in seen["user"] and '"review"' not in seen["user"] and "Sentence number 0" in seen["user"]
+    user = seen["user"]
+    assert '"model"' not in user and '"review"' not in user and "Sentence number 0" in user and "Point 4" in user
+    assert "image_prompt" not in user and "query" not in user and '"hashtags"' not in user and "#Qoneqt" not in user  # only the words travel (#sleep rides in youtube_description)
+
+
+def test_translate_keeps_the_hook_the_user_chose(monkeypatch):
+    src = good(); src["hook"] = src["hooks"][2]["text"]  # swapped in the lower-scoring myth hook
+    ret = {}
+    monkeypatch.setattr(llm, "_ask", lambda base, validate, temperature=0.8: validate(ret["q"]) or ret["q"])
+    q = hindi(); q["hooks"][2]["text"] = "आठ घंटे एक मिथक है।"
+    ret["q"] = q  # hindi() opens on its hooks[0], the top-scored one
+    with pytest.raises(ValueError, match="hook 3"):
+        llm.translate(src, "hi", 30)
+    q = hindi(); q["hooks"][2]["text"] = q["hook"] = "आठ घंटे एक मिथक है।"
+    q["scenes"][0]["narration"] = q["hook"] + " नमस्ते।"
+    ret["q"] = q
+    assert llm.translate(src, "hi", 30)["hook"] == "आठ घंटे एक मिथक है।"
 
 
 def test_translate_rejects_a_different_scene_count(monkeypatch):

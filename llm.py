@@ -47,13 +47,12 @@ about a named real person (an unverified negative claim about a person is "fixed
 """
 
 TRANSLATE_SYSTEM = """You adapt a finished script for a {duration} second vertical short video into another language for the
-Qoneqt Global Feed. You get the script as a JSON object. Return ONLY the same JSON object with these fields rewritten in
-{language}: hooks[].text, hooks[].why, hook, scenes[].narration, scenes[].title, caption, posts.youtube_title,
-posts.youtube_description, posts.instagram. Copy every other field unchanged (beat, query, image_prompt, image_prompt_b,
-formula, score, hashtags). Keep the same number of scenes, in the same order.
+Qoneqt Global Feed. You get the script's words as a JSON object. Return ONLY the same JSON object with the same keys,
+every value rewritten in {language}. Keep the same number of hooks and scenes, in the same order.
 Rules:
 - Adapt, do not transliterate: it must read like a script written for this audience in this language.
-- hook is the text of the highest-scoring hook, copied exactly. Scene 1 narration must begin with the hook, word for word.
+- hook is your translation of the source's hook, identical to the text of the hooks[] entry it translates. Scene 1 narration must begin with that text, word for word.
+- Every field you rewrite, the hook and the titles included, is written in {language}; never leave one in the source language.
 - Each narration is 1-2 spoken sentences, at most 25 words. Total across all scenes: {words_lo}-{words_hi} words
   (this language is spoken at its own pace, so the total differs from the source).
 - Never open a hook with "Did you know", "In this video", "Today we", "Have you ever wondered", "Welcome to",
@@ -237,10 +236,12 @@ def apply_review(p, r):
     for c in r["changes"]:
         t = c["narration"].strip()
         if c["scene"] == 1 and not t.startswith(p["hook"]):
-            continue  # the hook overlay needs scene 1 to open with the hook; a rewrite that drops it is ignored
+            notes.append("scene 1 left as written to keep the hook")  # the hook overlay needs scene 1 to open with the hook
+            continue
         p["scenes"][c["scene"] - 1]["narration"] = t
         done += 1
-    p["review"] = {"verdict": "fixed" if done else "ok", "notes": notes, "changed": done}
+    # the reviewer flagged something even when the only fix was skipped, so it never reads as clean
+    p["review"] = {"verdict": "fixed" if r["changes"] else "ok", "notes": notes, "changed": done}
     return p
 
 
@@ -296,6 +297,7 @@ def _ask(base, validate, temperature=0.8):
         call = _call_groq if provider == "groq" else _call_gemini
         msgs = list(base)
         for _attempt in range(2):
+            raw = ""  # call() itself can raise ValueError (a non-JSON body) before raw is set
             try:
                 raw = call(model, msgs, temperature)
                 p = _parse(raw)
@@ -349,13 +351,19 @@ def translate(src, language, duration=30):
     n = len(src["scenes"])
     _, _, wlo, whi = budget(duration, lang["wps"])
     system = TRANSLATE_SYSTEM.format(duration=duration, language=lang["instruction"], words_lo=wlo, words_hi=whi)
-    body = {k: v for k, v in src.items() if k not in ("model", "review")}
+    # only the words: _merge puts back everything else, and the English image prompts were half the tokens (Groq TPM, qwen's cap)
+    body = {"hooks": [{"text": h["text"], "why": h["why"]} for h in src["hooks"]], "hook": src["hook"],
+            "scenes": [{"narration": s["narration"], "title": s["title"]} for s in src["scenes"]],
+            "caption": src["caption"], "posts": src["posts"]}
+    k = [h["text"].strip() for h in src["hooks"]].index(src["hook"].strip())  # the user may have picked a lower-scoring hook
     base = [{"role": "system", "content": system},
             {"role": "user", "content": f"Script:\n{json.dumps(body, ensure_ascii=False)}\nReturn the JSON now."}]
     script = re.compile(f"[{lang['script']}]" if lang["script"] else "[ऀ-૿]")
 
     def check(q):
         validate_plan(_merge(q, src), (n, n))
+        if q["hook"].strip() != q["hooks"][k]["text"].strip():
+            raise ValueError(f"hook must be your translation of hook {k + 1}, the same text as hooks[{k}].text")
         texts = [("hook", q["hook"])] + [(f"scene {i} {k}", s[k]) for k in ("narration", "title") for i, s in enumerate(q["scenes"], 1)]
         for where, t in texts:
             # models leave the hook in English: an Indic target needs its script in every line, a Roman one none at all
