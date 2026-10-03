@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PER_PAGE } from "../lib/constants";
+import { FILTERS, SORTS, facet, matches, sortJobs } from "../lib/library";
 import { reducedMotion } from "../lib/format";
 import { Icon } from "./Icon";
 import { Pager } from "./Pager";
@@ -22,6 +23,8 @@ export function VideoList({ jobs, presets, actions }) {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
+  const [picks, setPicks] = useState({});
+  const [sort, setSort] = useState("latest");
   const top = useRef();
   const groups = useMemo(() => groupJobs(jobs), [jobs]);
   const queuePos = useMemo(() => new Map(groups.making.filter(j => j.status === "queued").map((j, i) => [j.id, i])), [groups]);
@@ -33,8 +36,19 @@ export function VideoList({ jobs, presets, actions }) {
     return () => document.removeEventListener("click", close);
   }, []);
 
+  // a filter group offers only the values some video has, in the form's order, and only when there are two to choose between
+  const options = useMemo(() => {
+    const order = { community: presets.communities.map(c => c.slug), language: presets.languages.map(l => l.slug), style: presets.styles.map(s => s.slug), duration: presets.durations };
+    return FILTERS.map(([key, name]) => [key, name, order[key].filter(v => jobs.some(j => facet(j, key) === v))]).filter(([, , vals]) => vals.length > 1);
+  }, [jobs, presets]);
+  const picked = Object.values(picks).reduce((n, set) => n + set.size, 0);
+  const toggle = (key, v) => {
+    setPicks(p => { const set = new Set(p[key]); set.has(v) ? set.delete(v) : set.add(v); return { ...p, [key]: set }; });
+    setPage(1);
+  };
+
   const needle = q.trim().toLowerCase();
-  const list = needle ? groups[tab].filter(j => j.topic.toLowerCase().includes(needle)) : groups[tab];
+  const list = sortJobs(groups[tab].filter(j => matches(j, needle, picks, presets.label)), sort);
   const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
   const current = Math.min(page, pages);  // deletes can leave us past the last page
   const shown = list.slice((current - 1) * PER_PAGE, current * PER_PAGE);
@@ -56,18 +70,50 @@ export function VideoList({ jobs, presets, actions }) {
     <section className="videos" ref={top}>
       <div className="head">
         <h2>Your videos</h2>
-        <label className="search">
-          <Icon name="search" />
-          <input type="search" placeholder="Search videos by topic" aria-label="Search videos" value={q}
-            onChange={e => { setQ(e.target.value); setPage(1); }} />
-        </label>
+        <div className="find">
+          <label className="search">
+            <Icon name="search" />
+            <input type="search" placeholder="Search by topic, hook or #hashtag" aria-label="Search videos" value={q}
+              onChange={e => { setQ(e.target.value); setPage(1); }} />
+          </label>
+          <details className="menu filter">
+            <summary className="btn"><Icon name="filter" />Filter{picked > 0 && <span className="count">{picked}</span>}</summary>
+            <div className="pop">
+              <div className="pophead">
+                <span>Show videos that match</span>
+                {picked > 0 && <button type="button" className="link" onClick={() => { setPicks({}); setPage(1); }}>Clear</button>}
+              </div>
+              {options.map(([key, name, vals]) => (
+                <fieldset key={key}>
+                  <legend>{name}</legend>
+                  {vals.map(v => (
+                    <label className="chip" key={v}>
+                      <input type="checkbox" checked={!!picks[key]?.has(v)} onChange={() => toggle(key, v)} />
+                      {key === "duration" ? `${v} s` : presets.label(v)}
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+              {!options.length && <p className="none">Make videos in more than one community, language, look or length to filter them.</p>}
+            </div>
+          </details>
+        </div>
       </div>
-      <div className="tabs" role="tablist">
-        {TABS.map(([key, name]) => (
-          <button type="button" role="tab" key={key} aria-selected={tab === key} onClick={() => { setTab(key); setPage(1); }}>
-            {name} <span>{groups[key].length}</span>
-          </button>
-        ))}
+      <div className="tabrow">
+        <div className="tabs" role="tablist">
+          {TABS.map(([key, name]) => (
+            <button type="button" role="tab" key={key} aria-selected={tab === key} onClick={() => { setTab(key); setPage(1); }}>
+              {name} <span>{groups[key].length}</span>
+            </button>
+          ))}
+        </div>
+        <label className="sort">
+          <Icon name="sort" />
+          <select aria-label="Sort videos" value={sort} onChange={e => { setSort(e.target.value); setPage(1); }}>
+            {SORTS.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+          </select>
+          <Icon name="chevron" />
+        </label>
       </div>
       <div aria-live="polite">{shown.map(card)}</div>
       <Pager page={current} pages={pages} total={list.length} onPage={goTo} />

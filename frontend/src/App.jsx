@@ -16,9 +16,6 @@ export default function App() {
   const [toast, say] = useToast();
   const [playing, setPlaying] = useState(null);
 
-  const making = jobs.filter(j => j.status === "queued" || j.status === "running").length;
-  const ready = jobs.filter(j => j.status === "done").length;
-
   // what a card can do; each one reports back with a toast and an immediate refresh
   const actions = useMemo(() => ({
     onPlay: setPlaying,
@@ -46,7 +43,7 @@ export default function App() {
   return (
     <>
       <IconSprite />
-      <Header making={making} ready={ready} />
+      <Header />
       <main className="layout">
         <CreateForm presets={presets} onStarted={msg => { say(msg); refresh(); }} />
         <VideoList jobs={jobs} presets={presets} actions={actions} />

@@ -21,7 +21,7 @@ function ThemeToggle() {
   );
 }
 
-export function Header({ making, ready }) {
+export function Header() {
   return (
     <header className="top">
       <a className="brand" href="/">
@@ -42,10 +42,6 @@ export function Header({ making, ready }) {
         <span className="name">Qoneqt<small>Video Factory</small></span>
       </a>
       <nav>
-        <span className="tally">
-          <i className={`dot${making ? " on" : ""}`} aria-hidden="true" />
-          <span>{making ? `${making} generating` : "Idle"}{ready ? `, ${ready} ready` : ""}</span>
-        </span>
         <ThemeToggle />
       </nav>
     </header>
