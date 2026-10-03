@@ -8,7 +8,10 @@
   --on-fg:light-dark(#FFFFFF,#141414); /* text on an ink (var(--fg)) fill */
   --screen:light-dark(#141414,#050506); /* a phone screen stays dark in both themes */
   --shadow:light-dark(rgba(20,20,20,.08),rgba(0,0,0,.5));
-  --acc:var(--fg); --acc-bg:var(--soft); --acc-fg:var(--fg);
+  /* accent: violet-blue. Lines and text are lighter in dark mode to read on the dark card; a solid fill is the same in both */
+  --acc:light-dark(#6A4CF5,#8B73FF); --acc-bg:light-dark(#F1EEFF,#26213F); --acc-fg:light-dark(#5537E0,#B3A3FF);
+  --acc-solid:#6A4CF5; --on-acc:#FFFFFF; /* a solid accent fill and the text on it */
+  --pick-bg:light-dark(#F1EEFF,#26213F); --pick-fg:light-dark(#5537E0,#C4B8FF); /* a picked chip: a soft violet tint */
   /* the six caption colours, in community order: the only colour on the page besides status */
   --neon:#FFE500,#00E5FF,#39FF14,#FFB300,#00FF9C,#FF2D95;
   --amber:light-dark(#B45309,#FBBF24); --amber-bg:light-dark(#FFF7ED,rgba(245,158,11,.13));
@@ -47,7 +50,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 /* layout */
 .layout{display:grid;grid-template-columns:var(--form-w,424px) 24px minmax(0,1fr);gap:0;align-items:start;padding:24px;max-width:1480px;margin:0 auto}
 .new{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;position:sticky;top:80px;max-height:calc(100vh - 104px);overflow:auto}
-.videos{min-width:0}
+.videos{min-width:0;container-type:inline-size}  /* the grid counts columns by the list's own width, which the form's drag handle changes */
 /* the gap between form and videos is a drag handle (Resizer): a short grip that greys up on hover and turns ink while dragged */
 .resizer{position:sticky;top:80px;height:calc(100vh - 104px);display:grid;place-items:center;cursor:col-resize;touch-action:none}
 .resizer::before{content:"";width:4px;height:28px;border-radius:4px;background:var(--border-2);transition:height .2s var(--out),background-color .15s}
@@ -69,12 +72,14 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .chip{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:6px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card);font-size:13px;line-height:1.2;color:var(--fg-2);cursor:pointer;white-space:nowrap;transition:border-color .15s,background-color .15s,color .15s,transform .12s var(--out)}
 .chip input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
 .chip:hover{border-color:var(--border-2);color:var(--fg)}
-.chip:has(input:checked){background:var(--fg);border-color:var(--fg);color:var(--on-fg);font-weight:500}
-.chip:has(input:focus-visible){outline:2px solid var(--fg);outline-offset:2px}
+.chip:has(input:checked){background:var(--pick-bg);border-color:var(--acc);color:var(--pick-fg);font-weight:500}
+.chip:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
 .chip:active{transform:scale(.97)}
-/* a community chip: monochrome icon + label, no colour */
-.comm{justify-content:flex-start;gap:10px;padding:6px 12px}
-.comm .i{width:17px;height:17px;stroke-width:1.5;color:var(--fg-3);transition:color .15s}
+/* a community tile: monochrome icon over its name, no colour; picked = ink like every other chip */
+.chips.three{gap:8px}
+.comm{flex-direction:column;gap:6px;min-height:72px;padding:12px 6px;border-radius:var(--r-lg);font-size:13.5px;font-weight:500}
+.comm .i{width:18px;height:18px;stroke-width:1.6;color:var(--fg-2);transition:color .15s,transform .2s var(--spring)}
+.comm:hover .i{transform:translateY(-1px)}
 .comm:hover .i{color:var(--fg)}
 .comm:has(input:checked) .i{color:inherit}
 .topic{position:relative}
@@ -139,7 +144,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .beat{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);font-weight:600}
 .primary.small{width:auto;padding:7px 12px;font-size:13px;margin:0}
 .check{display:flex;align-items:center;gap:8px;margin:9px 0 0;font-size:13px;color:var(--fg-2);cursor:pointer}
-.check input{accent-color:var(--fg);margin:0}
+.check input{accent-color:var(--acc);margin:0}
 /* on screen: AI pictures or the user's photo talking */
 .chips.two{grid-template-columns:repeat(2,1fr)}
 .chips.kind{margin:-4px 0 18px}
@@ -182,12 +187,13 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .go{display:flex;gap:8px;margin-top:20px}
 .go .btn{padding:10px 12px;border-radius:var(--r-md)}
 .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:12px 16px;border:2px solid transparent;border-radius:var(--r-md);color:#fff;font-weight:500;font-size:15px;
-  --ring:color-mix(in srgb,var(--hue,#FFE500) 25%,#141414);
-  background:linear-gradient(var(--screen),var(--screen)) padding-box,linear-gradient(100deg,var(--hue,#FFE500),var(--ring) 25%,var(--hue,#FFE500) 50%,var(--ring) 75%,var(--hue,#FFE500)) 0 0/200% 100% border-box;
-  box-shadow:0 8px 22px -12px var(--hue,#FFE500);animation:ring 3.5s linear infinite}
+  --fill:var(--acc-solid); --glow:light-dark(#B3A3FF,#9C88FF);
+  --ring:color-mix(in srgb,var(--glow) 25%,var(--fill));
+  background:linear-gradient(var(--fill),var(--fill)) padding-box,linear-gradient(100deg,var(--glow),var(--ring) 25%,var(--glow) 50%,var(--ring) 75%,var(--glow)) 0 0/200% 100% border-box;
+  box-shadow:0 8px 22px -12px var(--glow);animation:ring 3.5s linear infinite}
 @keyframes ring{to{background-position:0 0,100% 0}}
-.primary .i{color:var(--hue,#fff)}
-.primary:hover{box-shadow:0 10px 26px -10px var(--hue,#FFE500)}
+.primary .i{color:#fff}
+.primary:hover{box-shadow:0 10px 26px -10px var(--glow)}
 .primary:disabled{background:var(--border);color:var(--fg-3);box-shadow:none;animation:none;cursor:default}
 .primary:disabled .i{color:var(--fg-3)}
 .after{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;color:var(--fg-2);font-size:12.5px}
@@ -207,10 +213,10 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .tabs button{position:relative;transition:color .15s;display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;border:0;background:none;font-size:14px;color:var(--fg-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:0}
 .tabs button span{transition:background .2s,color .2s;font-size:12px;background:var(--soft);border-radius:999px;padding:0 7px;color:var(--fg-2)}
 .tabs button:hover{color:var(--fg)}
-.tabs button::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;background:var(--fg);transform:scaleX(0);transition:transform .25s var(--out)}
-.tabs button[aria-selected=true]{color:var(--fg);font-weight:500}
+.tabs button::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;background:var(--acc);transform:scaleX(0);transition:transform .25s var(--out)}
+.tabs button[aria-selected=true]{color:var(--acc-fg);font-weight:500}
 .tabs button[aria-selected=true]::after{transform:scaleX(1)}
-.tabs button[aria-selected=true] span{background:var(--fg);color:var(--on-fg)}
+.tabs button[aria-selected=true] span{background:var(--pick-bg);color:var(--pick-fg)}
 /* search, filter and sort share the heading line */
 .find{display:flex;align-items:center;gap:8px}
 .find .btn{padding:9px 12px}
@@ -238,7 +244,9 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .empty::before{content:"";display:block;width:54px;aspect-ratio:9/16;border:2px dashed var(--border-2);border-radius:10px;margin:0 auto 16px}
 .empty b{display:block;color:var(--fg);font:600 17px var(--display);margin-bottom:2px}
 /* videos are a grid of tiles, three or four to a row on a wide screen; the one being made gets a full row */
-.videos [aria-live]{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,216px),1fr));gap:14px;margin-bottom:16px}
+.videos [aria-live]{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:16px}
+@container (min-width:440px){.videos [aria-live]{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (min-width:680px){.videos [aria-live]{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .videos [aria-live]:empty{display:none}
 .card.live{grid-column:1 / -1}
 .card{display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);align-content:start}
@@ -267,11 +275,11 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .screen .stage{position:absolute;inset:0;display:grid;place-content:center;gap:3px;text-align:center;padding:8px;font:600 15px/1.2 var(--display);text-shadow:0 1px 10px rgba(0,0,0,.7)}
 .screen .stage small{font:500 11.5px/1.3 var(--font);opacity:.85}
 .screen:has(.still) .stage{place-content:end center;padding-bottom:12px;background:linear-gradient(transparent 50%,rgba(0,0,0,.75))}
-/* a tile (ready, waiting or failed): the cover on top, cropped 4:5 like a feed grid so the burned-in hook stays in frame,
+/* a tile (ready, waiting or failed): the cover on top, cropped 16:10 from near its top so the burned-in hook stays in frame,
    then the title and one line of facts and buttons. Only the video being made is a dark, full-width row. */
 .tile{display:flex;flex-direction:column;gap:0;padding:0;transition:border-color .15s}
 .tile:hover{border-color:var(--border-2)}
-.tile > .thumb{width:100%;aspect-ratio:4/5;border-radius:calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0}
+.tile > .thumb{width:100%;aspect-ratio:16/10;border-radius:calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0}
 .tile > .body{flex:1;padding:10px 12px 10px}
 .tile h3{font-size:15px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tile .foot{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:auto;padding-top:8px}
@@ -284,6 +292,7 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .tile > .save{position:absolute;top:8px;right:8px;z-index:1;width:30px;height:30px;padding:0;justify-content:center;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff}
 .tile > .save:hover{background:rgba(0,0,0,.75);border:0}
 .tile > .save .i{width:15px;height:15px}
+.tile > .thumb img,.tile > .thumb .peek{object-position:50% 18%}
 /* the play mark waits for a pointer or keyboard focus; the cover alone reads cleaner */
 .tile .thumb .play{opacity:0;transition:opacity .15s,transform .15s,background .15s}
 .tile button.thumb:hover .play,.tile button.thumb:focus-visible .play{opacity:1}
@@ -359,7 +368,7 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .pager:empty{display:none}
 .pager nav{display:flex;gap:4px;align-items:center}
 .pager .btn{min-width:32px;justify-content:center}
-.pager .btn[aria-current=page]{background:var(--fg);border-color:var(--fg);color:var(--on-fg)}
+.pager .btn[aria-current=page]{background:var(--acc-solid);border-color:var(--acc-solid);color:var(--on-acc)}
 .pager .gap{padding:0 4px;color:var(--fg-3)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);opacity:0;background:var(--fg);color:var(--on-fg);padding:8px 14px;border-radius:var(--r);font-size:13px;font-weight:500;transition:opacity .2s,transform .4s var(--spring);pointer-events:none;z-index:9}
 .toast.show{opacity:1;transform:translateX(-50%)}
@@ -378,8 +387,8 @@ dialog::backdrop{background:rgba(10,10,12,.78)}
 .titlebar .x{margin:-2px -6px 0 0;border-color:transparent;color:var(--fg-2)}
 .titlebar .x:hover{background:var(--soft);color:var(--fg)}
 .watch .sheet > .actions{margin:16px 0 4px;gap:6px}
-.btn.ink{padding:8px 16px;background:var(--fg);border-color:var(--fg);color:var(--on-fg)}
-.btn.ink:hover{background:color-mix(in srgb,var(--fg) 85%,var(--bg))}
+.btn.ink{padding:8px 16px;background:var(--acc-solid);border-color:var(--acc-solid);color:var(--on-acc)}
+.btn.ink:hover{background:color-mix(in srgb,var(--acc-solid) 88%,#000)}
 .watch .sheet > .actions .btn.icon{padding:8px}
 .watch .tabs{margin:14px 0 14px}
 .pane{margin:0;padding:0;font-size:14px;line-height:1.55;color:var(--fg-2)}
@@ -435,11 +444,11 @@ dl.pane dd{margin:0;color:var(--fg);overflow-wrap:anywhere}
 @media (max-width:560px){
   .card.live{grid-template-columns:96px minmax(0,1fr);gap:12px}
   .card.live .thumb{width:96px}
-  .videos [aria-live]{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .meta time{margin-left:0}
   .steps li span{display:none}
   .search,.search input{width:100%}
-  .chips.three,.chips.look{grid-template-columns:repeat(2,1fr)}
+  .chips.look{grid-template-columns:repeat(2,1fr)}
+  .comm{padding:10px 4px;font-size:12.5px}
 }
 /* motion: things move when they change; the only motion that runs on its own marks a video being made */
 .btn,.pop button,.hooks label,.topics,.search input{transition:border-color .15s,background-color .15s,color .15s,box-shadow .15s,transform .12s var(--out)}
