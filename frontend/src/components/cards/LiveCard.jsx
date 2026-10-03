@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { STAGES, STEP } from "../../lib/constants";
 import { ago, cap, mmss } from "../../lib/format";
 import { Icon } from "../Icon";
+import { Confirm } from "./Confirm";
 import { Facts } from "./Facts";
 
 function Elapsed({ since }) {
@@ -27,6 +28,7 @@ export function LiveCard({ job, label, accent, onStop }) {
     : job.stage === "images" && job.shots ? [`${stills.filter(f => f.startsWith("gen")).length} of ${job.shots}`, "stills"] : ["", ""];
   const src = f => `/out/${job.id}/${f}?${job.stage}${stills.length}`;
   const started = job.started || job.created;
+  const [ask, setAsk] = useState(null);
 
   return (
     <article className="card live" style={{ "--c": accent || "#FFE500" }}>
@@ -40,7 +42,7 @@ export function LiveCard({ job, label, accent, onStop }) {
       <div className="body">
         <div className="meta">
           <span className="status making">Generating</span>
-          <Facts job={job} label={label} accent={accent} />
+          <Facts job={job} label={label} />
           <time>Started {ago(started)}</time>
         </div>
         <h3>{job.topic}</h3>
@@ -59,14 +61,12 @@ export function LiveCard({ job, label, accent, onStop }) {
             <span className="elapsed"><Icon name="timer" /><Elapsed since={started} /></span>
           </p>
           {!job.result && (  // a scene redo on a finished video can't be stopped halfway
-            <button type="button" className="btn del" onClick={e => {
-              if (!confirm(`Stop "${job.topic}"? The work done so far is thrown away.`)) return;
-              e.currentTarget.disabled = true;
-              onStop(job.id);
-            }}><Icon name="x" />Stop</button>
+            <button type="button" className="btn del" onClick={e => setAsk(e.currentTarget)}><Icon name="x" />Stop</button>
           )}
         </div>
       </div>
+      {ask && <Confirm title={`Stop "${job.topic}"?`} text="The work done so far is thrown away." yes="Stop video" busy="Stopping…"
+        thumb={last && src(last)} from={ask} onYes={async () => { await onStop(job.id); return true; }} onNo={() => setAsk(null)} />}
     </article>
   );
 }

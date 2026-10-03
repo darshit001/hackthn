@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Icon } from "./Icon";
 import { SaveButton } from "./cards/SaveButton";
 
-// One native <dialog> for every card. `video` is {video, thumb, topic} or null.
+// One native <dialog> for every card. `video` is {id, video, thumb, topic} or null.
 export function PlayerDialog({ video, onClose, saved, onSave }) {
   const dialog = useRef(), player = useRef();
 
@@ -20,6 +20,7 @@ export function PlayerDialog({ video, onClose, saved, onSave }) {
       {video && <video ref={player} controls playsInline poster={video.thumb} src={video.video} />}
       <button type="button" className="x" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
       {onSave && <SaveButton saved={saved} onClick={onSave} />}
+      {video && <a className="dl" href={`/jobs/${video.id}/download`} download aria-label="Download video, cover and caption as a ZIP" title="Download video, cover and caption (ZIP)"><Icon name="download" /></a>}
       <p className="cap">{video?.topic}</p>
     </dialog>
   );

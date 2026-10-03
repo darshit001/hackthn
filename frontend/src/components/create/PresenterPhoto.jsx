@@ -18,8 +18,8 @@ async function shrink(file) {
 function Version({ src, label, checked, onPick, busy }) {
   return (
     <label className={"ver" + (busy ? " busy" : "")}>
-      <input type="radio" name="version" checked={checked} disabled={!src} onChange={onPick} />
-      <span className="pic">{src ? <img src={src} alt="" /> : <Icon name="sparkles" />}</span>
+      <input type="radio" name="version" checked={checked} disabled={!src || busy} onChange={onPick} />
+      <span className="pic">{src && <img src={src} alt="" />}{(busy || !src) && <Icon name="sparkles" />}</span>
       <span className="cap">{checked && <Icon name="check" />}{label}</span>
     </label>
   );
@@ -73,16 +73,13 @@ export function PresenterPhoto({ presets, community, setPhoto, consent, setConse
         <>
           <div className="versions" role="radiogroup" aria-label="Photo to use" aria-busy={busy}>
             <Version src={original} label="Original" checked={useOriginal} onPick={() => choose(true)} />
-            {restyled ? (
-              <Version src={restyled} label={busy ? "Restyling…" : "Restyled"} checked={!useOriginal} busy={busy} onPick={() => choose(false)} />
-            ) : (
-              <button type="button" className={"ver make" + (busy ? " busy" : "")} disabled={busy} onClick={restyle}>
-                <span className="pic"><Icon name="sparkles" /><b>{busy ? "Restyling…" : "Restyle with AI"}</b></span>
-                <span className="cap">{presets.outfits.find(o => o.slug === outfit)?.label}</span>
-              </button>
+            {(restyled || busy) && (
+              <Version src={restyled || original} label={busy ? "Restyling…" : "Restyled"} checked={!useOriginal} busy={busy} onPick={() => choose(false)} />
             )}
             <div className="ver-actions">
-              {restyled && <button type="button" className="btn" disabled={busy} onClick={restyle}><Icon name="sparkles" />Restyle again</button>}
+              <button type="button" className="btn" disabled={busy} onClick={restyle}>
+                <Icon name="sparkles" />{restyled ? "Restyle again" : "Restyle with AI"}
+              </button>
               <button type="button" className="btn" onClick={() => input.current.click()}><Icon name="image" />Change photo</button>
             </div>
           </div>
