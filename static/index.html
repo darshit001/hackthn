@@ -326,7 +326,8 @@ fetch("/presets").then(r => r.json()).then(p => {
   $("#durations").innerHTML = p.durations.map(d => `<label><input type="radio" name="duration" value="${d}"${d === 30 ? " checked" : ""}><span>${d} s</span></label>`).join("");
   p.styles.forEach(x => labels[x.slug] = x.label);
   $("#styles").innerHTML = p.styles.map((x, i) => `<label><input type="radio" name="style" value="${x.slug}"${i === 0 ? " checked" : ""}><span>${esc(x.label)}</span></label>`).join("");
-});
+  poll();
+}).catch(poll);
 
 // a community with a non-English default (Hinglish Fun) switches the language; any change drops stale ideas
 $("#community").addEventListener("change", e => {
@@ -608,7 +609,6 @@ function pager(pages, from, total) {
     ${btns}
     <button type="button" class="btn icon" data-page="${page + 1}" aria-label="Next page"${page === pages ? " disabled" : ""}>${icon("right")}</button></nav>`;
 }
-poll();
 </script>
 </body>
 </html>

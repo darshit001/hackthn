@@ -57,7 +57,7 @@ Scenes:
 - Each query is 2-4 plain English words naming something visual and generic that a stock-video site has,
   e.g. "city traffic night", "woman laptop cafe", "runner sunrise road". Never brand names, never abstract nouns.
   Always English, even when the narration is not.
-- Each image_prompt is 15-40 English words describing ONE photographic vertical image for the scene and starts with a
+- Each image_prompt is 15-40 English words describing ONE vertical image for the scene and starts with a
   shot type: "Wide shot:", "Close-up:", "Portrait:", "Action shot:" or "Aftermath:". Consecutive scenes use different
   shot types. Concrete and literal: subject, setting, light, mood. No text inside the image, no brand names.
 - image_prompt_b is the same moment from a different shot type, 15-40 English words, so the video can cut between the
