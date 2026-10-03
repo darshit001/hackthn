@@ -1,13 +1,14 @@
 # Running and testing
 
-Always run the app on **port 8000 only**: the frontend and the API on the same port. Do not start the Vite dev server on 5173 or any other port.
+Run the frontend on **port 8000** and the backend on **port 9000**, and point ngrok at 8000. The Vite dev server proxies every API route to :9000 (`frontend/vite.config.js`).
 
 ```bash
-cd frontend && npm run build                                    # writes frontend/dist
-cd backend && ../.venv/bin/uvicorn app.main:app --reload --port 8000
+cd backend && ../.venv/bin/uvicorn app.main:app --reload --port 9000
+cd frontend && npm run dev                                      # Vite on :8000
+ngrok http 8000
 ```
 
-The UI is at http://localhost:8000. FastAPI serves `frontend/dist` after its API routes. After a frontend change, run `npm run build` again and refresh the page; the backend picks up the new files without a restart.
+The UI is at http://localhost:8000 or the ngrok URL. Frontend changes reload on their own. The public URL changes every time ngrok restarts.
 
 # UI rules
 
