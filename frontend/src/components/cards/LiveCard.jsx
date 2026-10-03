@@ -1,0 +1,59 @@
+import { useEffect, useState } from "react";
+import { STAGES, STEP } from "../../lib/constants";
+import { ago, cap, mmss } from "../../lib/format";
+import { Icon } from "../Icon";
+import { Facts } from "./Facts";
+
+function Elapsed({ since }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  return <span>{mmss(now / 1000 - since)}</span>;
+}
+
+// a still can be fetched while it is still being written; a broken one hides itself and the next poll asks again
+function Still({ src, className, title }) {
+  const [broken, setBroken] = useState(false);
+  return broken ? null : <img className={className} src={src} alt="" title={title} onError={() => setBroken(true)} />;
+}
+
+// The video being made: the phone screen shows the newest still, six bars show the step, the strip collects every still.
+export function LiveCard({ job, label, accent }) {
+  const idx = STAGES.indexOf(job.stage);
+  const pct = Math.round(((idx + 0.5) / STAGES.length) * 100);
+  const stills = job.stills || [], last = stills[stills.length - 1];
+  const [word, verb] = STEP[job.stage] || [cap(job.stage || ""), cap(job.stage || "")];
+  const count = job.stage === "images" && job.shots ? `${stills.length} of ${job.shots}` : "";
+  const src = f => `/out/${job.id}/${f}?${job.stage}${stills.length}`;
+  const started = job.started || job.created;
+
+  return (
+    <article className="card live">
+      <div className="thumb screen" style={{ "--accent": accent || "#FFE500" }}>
+        {last ? <>
+          <Still key={src(last)} className="still" src={src(last)} />
+          <i className="bar" style={{ "--fill": `${pct}%` }} />
+        </> : <i className="fill" style={{ "--fill": `${pct}%` }} />}
+        <span className="stage">{word}{count && <small>{count} stills</small>}</span>
+      </div>
+      <div className="body">
+        <span className="status making">Generating</span>
+        <h3>{job.topic}</h3>
+        {job.hook && <p className="desc">{job.hook}</p>}
+        <ol className="steps" aria-label="Steps">
+          {STAGES.map((st, i) => <li key={st} className={i < idx ? "done" : i === idx ? "now" : ""}><span>{STEP[st][0]}</span></li>)}
+        </ol>
+        <p className="step">
+          <span>{verb}{count && `, ${count}`}</span>
+          <span className="elapsed"><Icon name="timer" /><Elapsed since={started} /></span>
+        </p>
+        {stills.length > 0 && (
+          <div className="strip">
+            {stills.map(f => <Still key={src(f)} src={src(f)} title={(job.scenes || [])[parseInt(f.slice(3), 10)] || ""} />)}
+          </div>
+        )}
+        <Facts job={job} label={label} />
+      </div>
+      <div className="side"><time>Started {ago(started)}</time></div>
+    </article>
+  );
+}

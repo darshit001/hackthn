@@ -2,8 +2,8 @@ from fastapi.testclient import TestClient
 
 import json
 
-import app as appmod
-import pipeline
+from app import main as appmod
+from app import pipeline
 
 client = TestClient(appmod.app)  # no `with`: lifespan (worker thread) is not started, which these tests do not need
 

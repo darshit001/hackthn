@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 import httpx
 from dotenv import load_dotenv
 
-from presets import COMMUNITIES, LANGUAGES, with_keys
+from .presets import COMMUNITIES, LANGUAGES, with_keys
 
 load_dotenv()
 

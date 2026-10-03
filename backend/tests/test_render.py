@@ -1,4 +1,4 @@
-from render import ass_time, ass_color, chunk, align, ass_text, subtitles, OUTRO, OUTRO_SEC
+from app.render import ass_time, ass_color, chunk, align, ass_text, subtitles, OUTRO, OUTRO_SEC
 
 
 def test_ass_time_formats_centiseconds():
@@ -44,7 +44,7 @@ def test_align_falls_back_to_whisper_words_on_big_mismatch():
 
 def test_run_caps_every_ffmpeg_thread_pool(monkeypatch):
     import subprocess
-    import render
+    from app import render
     seen = {}
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: seen.setdefault("cmd", cmd) and type("R", (), {"returncode": 0})())
     render._run(["ffmpeg", "-y", "-i", "a.mp4", "-i", "b.wav", "-c:v", "libx264", "out.mp4"])
@@ -69,7 +69,7 @@ def test_subtitles_writes_overlays(tmp_path):
 
 
 def test_compose_crossfades_scenes_into_the_end_card(monkeypatch, tmp_path):
-    import render
+    from app import render
     cmds = []
     monkeypatch.setattr(render, "_run", lambda cmd, cwd=None: cmds.append(cmd))
     render.compose([(None, 1.0), (None, 2.5)], tmp_path / "voice.wav", tmp_path / "captions.ass", tmp_path, "x")
@@ -92,7 +92,7 @@ def test_compose_crossfades_scenes_into_the_end_card(monkeypatch, tmp_path):
 
 
 def test_compose_mixes_music_under_the_voice(monkeypatch, tmp_path):
-    import render
+    from app import render
     cmds = []
     monkeypatch.setattr(render, "_run", lambda cmd, cwd=None: cmds.append(cmd))
     monkeypatch.setattr(render, "duration", lambda p: 20.0)

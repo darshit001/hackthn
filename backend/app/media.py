@@ -15,8 +15,8 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from presets import COMMUNITIES, LANGUAGES, with_keys
-from render import H, W, XFADE_SEC, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
+from .presets import COMMUNITIES, LANGUAGES, with_keys
+from .render import H, W, XFADE_SEC, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
 
 load_dotenv()
 UA = {"User-Agent": "qoneqt-video-factory/1.0 (hackathon demo)"}  # Wikimedia refuses generic agents

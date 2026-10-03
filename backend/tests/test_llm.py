@@ -1,6 +1,6 @@
 import pytest
-from llm import validate_plan, _parse, budget, validate_topics, _suggest_prompt
-from presets import COMMUNITIES, LANGUAGES
+from app.llm import validate_plan, _parse, budget, validate_topics, _suggest_prompt
+from app.presets import COMMUNITIES, LANGUAGES
 
 
 def good():
@@ -125,7 +125,7 @@ def test_image_prompt_b_is_optional():
 
 
 def test_system_prompt_carries_the_retention_rules():
-    from llm import SYSTEM, FORMULAS, BEATS
+    from app.llm import SYSTEM, FORMULAS, BEATS
     text = SYSTEM.format(duration=30, scenes_lo=4, scenes_hi=6, words_lo=61, words_hi=83)
     assert all(f in text for f in FORMULAS) and all(b in text for b in BEATS)
     assert "Wide shot:" in text and "image_prompt_b" in text and "youtube_title" in text and "Did you know" in text

@@ -8,13 +8,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import llm
-import media
-import render
-from presets import COMMUNITIES, MUSIC, MUSIC_CREDIT
+from . import llm, media, render
+from .presets import COMMUNITIES, MUSIC, MUSIC_CREDIT
 
-OUT = Path(__file__).parent / "out"
-MUSIC_DIR = Path(__file__).parent / "assets" / "music"
+BACKEND = Path(__file__).resolve().parent.parent  # backend/: out/ and assets/ live beside the app package
+OUT = BACKEND / "out"
+MUSIC_DIR = BACKEND / "assets" / "music"
 STAGES = ["plan", "images", "voice", "visuals", "captions", "render"]
 
 

@@ -4,7 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from presets import COMMUNITIES
+from .presets import COMMUNITIES
 
 W, H = 1080, 1920  # ponytail: one knob; set 1080, 1080 for a square feed variant
 FONT = "Noto Sans"  # fontconfig substitutes (DejaVu Sans) when absent; Docker installs fonts-noto-core
