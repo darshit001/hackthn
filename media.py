@@ -15,7 +15,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from presets import COMMUNITIES, LANGUAGES
+from presets import COMMUNITIES, LANGUAGES, with_keys
 from render import H, W, XFADE_SEC, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
 
 load_dotenv()
@@ -31,14 +31,14 @@ def _normalize(src, dst):
 # ---------- voice ----------
 
 def _tts_eleven(text, preset, tmp):
-    key = os.environ.get("ELEVENLABS_API_KEY")
-    if not key:
-        raise RuntimeError("no ELEVENLABS_API_KEY")
-    r = httpx.post(f"https://api.elevenlabs.io/v1/text-to-speech/{preset['voice_eleven']}",
-                   params={"output_format": "mp3_44100_128"}, headers={"xi-api-key": key},
-                   json={"text": text, "model_id": "eleven_flash_v2_5"}, timeout=90)
-    r.raise_for_status()  # 401/402/429 (quota, blocked voice) -> next engine
-    tmp.write_bytes(r.content)
+    def post(key):
+        r = httpx.post(f"https://api.elevenlabs.io/v1/text-to-speech/{preset['voice_eleven']}",
+                       params={"output_format": "mp3_44100_128"}, headers={"xi-api-key": key},
+                       json={"text": text, "model_id": "eleven_flash_v2_5"}, timeout=90)
+        r.raise_for_status()  # 401/402/429 (quota, blocked voice) -> next key, then the next engine
+        return r.content
+
+    tmp.write_bytes(with_keys(post, "ELEVENLABS_API_KEY"))
 
 
 def _tts_gemini(text, preset, tmp):
@@ -168,13 +168,13 @@ def _img_together(prompt, out_png):
 def _img_cloudflare(prompt, out_png):
     """Cloudflare Workers AI FLUX.1-schnell (free 10k neurons/day, ~2-3 s an image, verified 2 Oct 2026).
     Square 1024 output; the Ken Burns cover-crop makes it 9:16."""
-    acct, token = os.environ.get("CF_ACCOUNT_ID"), os.environ.get("CF_API_TOKEN")
-    if not (acct and token):
-        raise RuntimeError("no CF_ACCOUNT_ID/CF_API_TOKEN")
-    r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell",
-                   timeout=120, headers={"Authorization": f"Bearer {token}"}, json={"prompt": prompt, "steps": 4})
-    r.raise_for_status()
-    Path(out_png).write_bytes(base64.b64decode(r.json()["result"]["image"]))
+    def post(acct, token):
+        r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/flux-1-schnell",
+                       timeout=120, headers={"Authorization": f"Bearer {token}"}, json={"prompt": prompt, "steps": 4})
+        r.raise_for_status()
+        return base64.b64decode(r.json()["result"]["image"])
+
+    Path(out_png).write_bytes(with_keys(post, "CF_ACCOUNT_ID", "CF_API_TOKEN"))
     return "AI image, FLUX.1-schnell via Cloudflare Workers AI"
 
 
@@ -315,13 +315,16 @@ def words(wav, language="en", prompt=""):
             "language": LANGUAGES[language]["whisper"], "timestamp_granularities[]": "word"}
     if prompt:
         data["prompt"] = prompt
-    with open(wav, "rb") as f:
-        r = httpx.post("https://api.groq.com/openai/v1/audio/transcriptions", timeout=120,
-                       headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"}, data=data,
-                       files={"file": ("voice.wav", f, "audio/wav")})
-    r.raise_for_status()
+    def post(key):
+        with open(wav, "rb") as f:  # reopened per key: a retried upload needs the file back at the start
+            r = httpx.post("https://api.groq.com/openai/v1/audio/transcriptions", timeout=120,
+                           headers={"Authorization": f"Bearer {key}"}, data=data,
+                           files={"file": ("voice.wav", f, "audio/wav")})
+        r.raise_for_status()
+        return r.json()
+
     return [{"word": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
-            for w in r.json().get("words", []) if w["word"].strip()]
+            for w in with_keys(post, "GROQ_API_KEY").get("words", []) if w["word"].strip()]
 
 
 if __name__ == "__main__":

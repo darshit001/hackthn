@@ -420,6 +420,12 @@ python -m pytest -q                                  # 45 unit tests
 | `PEXELS_API_KEY` | [pexels.com/api](https://www.pexels.com/api/) | optional (stock video) |
 | `PIXABAY_API_KEY` | [pixabay.com/api/docs](https://pixabay.com/api/docs/) | optional (stock video) |
 
+**Spare keys.** A second (and third) account can back any of the keyed providers: set `GROQ_API_KEY_2`,
+`ELEVENLABS_API_KEY_2`, `GEMINI_API_KEY_2`, or `CF_ACCOUNT_ID_2` + `CF_API_TOKEN_2`. When a key is rejected or
+out of quota the next one is tried straight away, before the provider chain gives up and falls back. Handy on
+free tiers: ElevenLabs allows 10k characters a month per account, so a spare key doubles the good-voice budget.
+Cloudflare's two variables rotate as a pair, so set both `_2` halves together or the tier is ignored.
+
 ### Run with Docker
 
 ```bash
