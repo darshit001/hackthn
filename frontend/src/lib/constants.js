@@ -14,5 +14,5 @@ export const LABEL = { general: "General", tech: "Tech & AI", fitness: "Fitness"
 export const ICON = { general: "globe", tech: "cpu", fitness: "dumbbell", motivation: "flame", finance: "rupee", hinglish_fun: "smile" };
 export const FORMULA = { question: "Question", bold_claim: "Bold claim", number: "Number", myth: "Myth", story: "Story", warning: "Warning" };
 
-export const PER_PAGE = 12;  // fills whole rows at one, two or three columns
+export const PER_PAGE = 9;  // three rows of three on a wide screen
 export const MAX_TOPICS = 10;
