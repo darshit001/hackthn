@@ -19,6 +19,7 @@ const SKELETON = ["78%", "62%", "85%", "55%", "70%", "66%"];
 export function CreateForm({ presets, onStarted }) {
   const [kind, setKind] = useState("video");  // video, or an image post: one picture with its headline plus post text
   const [headline, setHeadline] = useState(true);  // image posts: the headline drawn on the picture
+  const [slides, setSlides] = useState(1);  // image posts: 2-4 makes a carousel whose slide texts read as one story
   const [text, setText] = useState("");
   const [community, setCommunity] = useState("general");
   const [language, setLanguage] = useState("en");
@@ -38,10 +39,10 @@ export function CreateForm({ presets, onStarted }) {
   const want = useRef("");  // the community|language the ideas are for; a late answer for an old pick is dropped
   const topics = toLines(text);
   const image = kind === "image";
-  const options = image ? { kind, community, language, style, headline } : { community, language, duration, style };
+  const options = image ? { kind, community, language, style, headline, slides } : { community, language, duration, style };
   const count = topics.length;
   const face = !image && talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
-  const noun = n => (image ? (n === 1 ? "image" : "images") : (n === 1 ? "video" : "videos"));
+  const noun = n => (image ? (slides > 1 ? (n === 1 ? "carousel" : "carousels") : (n === 1 ? "image" : "images")) : (n === 1 ? "video" : "videos"));
   const showLook = image || !talking;
 
   const changeText = value => { setText(value); setPreview(null); };
@@ -184,6 +185,18 @@ export function CreateForm({ presets, onStarted }) {
         <p className="hint" id="topics-hint"><span>{status}</span><span className="count">{topics.length}/{MAX_TOPICS}</span></p>
       </div>
 
+      {image && (
+        <div className="field"><span className="lbl"><b>4</b>Images</span>
+          <div className="chips" role="radiogroup" aria-label="Images" aria-describedby="slides-hint">
+            {[1, 2, 3, 4].map(n => (
+              <label className="chip" key={n}>
+                <input type="radio" name="slides" value={n} checked={slides === n} onChange={() => setSlides(n)} /><span>{n}</span>
+              </label>
+            ))}
+          </div>
+          <p className="hint below" id="slides-hint">{slides > 1 ? `A carousel of ${slides}: each slide's text leads into the next, swiped as one story.` : "One picture. Pick 2 to 4 for a carousel."}</p>
+        </div>
+      )}
       {!image && <div className="field"><span className="lbl"><b>4</b>On screen</span>
         <div className="chips two" role="radiogroup" aria-label="On screen">
           <label className="chip">
@@ -200,7 +213,7 @@ export function CreateForm({ presets, onStarted }) {
           setConsent={c => { setConsent(c); setConsentError(""); }} error={consentError} consentRef={consentRef} />
       )}
       {showLook && (
-        <div className="field"><span className="lbl"><b>{image ? 4 : 5}</b>Look</span>
+        <div className="field"><span className="lbl"><b>5</b>Look</span>
           <div className="chips look" role="radiogroup" aria-label="Look">
             {presets.styles.map(s => (
               <label className="chip" key={s.slug}>
@@ -211,10 +224,10 @@ export function CreateForm({ presets, onStarted }) {
         </div>
       )}
       {image ? (
-        <div className="field"><span className="lbl"><b>5</b>Headline</span>
+        <div className="field"><span className="lbl"><b>6</b>{slides > 1 ? "Text" : "Headline"}</span>
           <div className="chips two" role="radiogroup" aria-label="Headline">
             <label className="chip">
-              <input type="radio" name="headline" checked={headline} onChange={() => setHeadline(true)} /><span>On the picture</span>
+              <input type="radio" name="headline" checked={headline} onChange={() => setHeadline(true)} /><span>{slides > 1 ? "On every slide" : "On the picture"}</span>
             </label>
             <label className="chip">
               <input type="radio" name="headline" checked={!headline} onChange={() => setHeadline(false)} /><span>Picture only</span>
@@ -241,7 +254,7 @@ export function CreateForm({ presets, onStarted }) {
         </button>
       </div>
       <p className="after">
-        <span><Icon name="clock" />{image ? "About 15 seconds per image" : talking ? "About 3 minutes per video" : "About a minute per video"}</span>
+        <span><Icon name="clock" />{image ? (slides > 1 ? "About 20 seconds per carousel" : "About 15 seconds per image") : talking ? "About 3 minutes per video" : "About a minute per video"}</span>
         <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> starts it</span>
       </p>
       {preview && (

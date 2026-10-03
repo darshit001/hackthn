@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -189,66 +190,97 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
 IMAGE_STAGES = ["plan", "image", "poster"]
 
 
-def _picture(prompt, query, d, style):
-    """(png path or None, credit, source) for an image post: the AI still, else a Wikimedia photo, else None (a plain card)."""
-    png = d / "gen0.png"  # gen*.png: the live card shows it the moment it lands
+def _picture(prompt, query, d, style, i=0):
+    """(png path or None, credit, source) for slide i of an image post: the AI still, else a Wikimedia photo, else None (a plain card)."""
+    png = d / f"gen{i}.png"  # gen*.png: the live card shows it the moment it lands
     cr = media.gen_image(prompt, png, style)
     if cr:
         return png, cr, "ai"
     try:
         url, cr = media._wikimedia(query, 0)
-        media._download(url, d / "photo.jpg")
-        return d / "photo.jpg", cr, "wikimedia"
+        media._download(url, d / f"photo{i}.jpg")
+        return d / f"photo{i}.jpg", cr, "wikimedia"
     except Exception as e:
         print(f"image post wikimedia {query!r}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
         return None, "", "card"
 
 
-def make_image(topic, community="general", progress=lambda stage: None, job_id=None, language="en", style="photo", headline=True):
-    """An image post: one 4:5 picture with the headline on it, plus caption, hashtags and alt text. Returns the meta dict
-    that is also written to out/<id>/<id>.json (kind 'image'). Raises when the text cannot be written or is blocked."""
+def _prompt(meta, i):
+    """Slide i's picture prompt, led by the look every slide of a carousel shares so the set reads as one series."""
+    look, own = meta.get("look"), meta["slides"][i]["image_prompt"]
+    return f"{look}. {own}" if look else own
+
+
+def _poster(d, job_id, meta, i, pic):
+    """Draw slide i: <id>.png for a single picture, <id>-<n>.png in a carousel with its "2/3 →" mark; slide 1 also makes
+    the <id>.jpg thumbnail. Returns the slide's URL."""
+    n = len(meta["slides"])
+    png = f"{job_id}.png" if n == 1 else f"{job_id}-{i + 1}.png"
+    page = f"{i + 1}/{n}" + (" →" if i < n - 1 else "") if n > 1 else None
+    render.poster(pic, meta["slides"][i]["text"] if meta.get("headline_on", True) else "", d / png,
+                  d / f"{job_id}.jpg" if i == 0 else None, page=page, body=i > 0)
+    return f"/out/{job_id}/{png}"
+
+
+def _finish(d, job_id, meta):
+    """Credits, the zip of a carousel's slides (what Download gets) and the meta file, from the slides as they now are."""
+    sl = meta["slides"]
+    if len(sl) > 1:
+        with zipfile.ZipFile(d / f"{job_id}.zip", "w") as z:  # PNGs are compressed already: stored, not deflated
+            for i in range(len(sl)):
+                z.write(d / f"{job_id}-{i + 1}.png", f"{job_id}-{i + 1}.png")
+        meta["zip"] = f"/out/{job_id}/{job_id}.zip"
+    meta.update(image=sl[0]["image"], visual=sl[0]["visual"], credits=list(dict.fromkeys(x["credit"] for x in sl if x["credit"])),
+                image_model=next((x["credit"].split(", ", 1)[1] for x in sl if x["visual"] == "ai"), None))
+    (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    return meta
+
+
+def make_image(topic, community="general", progress=lambda stage: None, job_id=None, language="en", style="photo", headline=True, slides=1):
+    """An image post: one 4:5 picture with its headline, or a carousel of `slides` pictures (2-4) whose texts read as one
+    story, plus caption, hashtags and alt text. Returns the meta dict that is also written to out/<id>/<id>.json (kind 'image').
+    Raises when the text cannot be written or is blocked."""
     job_id = job_id or secrets.token_hex(4)
     d = OUT / job_id
     d.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
 
     progress("plan")
-    p = llm.review_post(llm.image_plan(topic, community, language), language)
+    p = llm.review_post(llm.image_plan(topic, community, language, slides), language)
     (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))
-
-    progress("image")
-    pic, credit, source = _picture(p["image_prompt"], p["query"], d, style)
-
-    progress("poster")
-    render.poster(pic, p["headline"] if headline else "", d / f"{job_id}.png", d / f"{job_id}.jpg")
-
     meta = {
         "id": job_id, "kind": "image", "topic": topic, "community": community, "language": language, "style": style,
         "headline": p["headline"], "headline_on": headline, "hook": p["headline"],  # hook: the search and card code read it on every job
         "caption": p["caption"], "hashtags": p["hashtags"], "alt": p["alt"], "review": p.get("review"),
-        "image_prompt": p["image_prompt"], "query": p["query"], "visual": source,
-        "credits": [credit] if credit else [], "llm": p.get("model"),
-        "image_model": credit.split(", ", 1)[1] if source == "ai" else None,
-        "seconds_to_make": round(time.time() - t0, 1),
-        "image": f"/out/{job_id}/{job_id}.png", "thumb": f"/out/{job_id}/{job_id}.jpg",
+        "look": p["look"], "query": p["query"], "slides": [dict(x) for x in p["slides"]], "llm": p.get("model"),
+        "thumb": f"/out/{job_id}/{job_id}.jpg",
     }
-    (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
-    return meta
+
+    progress("image")  # 3 at a time, like the video stills
+    with ThreadPoolExecutor(3) as pool:
+        pics = list(pool.map(lambda i: _picture(_prompt(meta, i), p["query"], d, style, i), range(len(meta["slides"]))))
+
+    progress("poster")
+    for i, (pic, credit, source) in enumerate(pics):
+        meta["slides"][i].update(image=_poster(d, job_id, meta, i, pic), visual=source, credit=credit)
+    meta["seconds_to_make"] = round(time.time() - t0, 1)
+    return _finish(d, job_id, meta)
 
 
-def redo_image(job_id, progress=lambda stage: None):
-    """A new picture for a finished image post, same text. Rewrites and returns the meta dict."""
+def redo_image(job_id, progress=lambda stage: None, slide=0):
+    """A new picture for one slide of a finished image post, same text. Rewrites and returns the meta dict."""
     d = OUT / job_id
     meta = json.loads((d / f"{job_id}.json").read_text())
+    if "slides" not in meta:  # a single picture made before carousels
+        meta["slides"] = [{"text": meta["headline"], "image_prompt": meta["image_prompt"], "image": meta["image"],
+                           "visual": meta.get("visual"), "credit": (meta.get("credits") or [""])[0]}]
     progress("image")
     take = secrets.token_hex(2)  # FLUX is deterministic per prompt on some providers, so a fresh suffix gives a different picture
-    pic, credit, source = _picture(f"{meta['image_prompt']} (take {take})", meta["query"], d, meta.get("style", "photo"))
+    pic, credit, source = _picture(f"{_prompt(meta, slide)} (take {take})", meta["query"], d, meta.get("style", "photo"), slide)
     progress("poster")
-    render.poster(pic, meta["headline"] if meta.get("headline_on", True) else "", d / f"{job_id}.png", d / f"{job_id}.jpg")
-    meta.update(visual=source, credits=[credit] if credit else [], image_model=credit.split(", ", 1)[1] if source == "ai" else None,
-                updated=round(time.time()))
-    (d / f"{job_id}.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
-    return meta
+    meta["slides"][slide].update(image=_poster(d, job_id, meta, slide, pic), visual=source, credit=credit)
+    meta["updated"] = round(time.time())
+    return _finish(d, job_id, meta)
 
 
 def redo_scene(job_id, n, progress=lambda stage: None):

@@ -40,7 +40,7 @@ export default function App() {
       refresh();
     },
     onRetry: async j => {
-      const kind = j.kind === "image" ? { kind: "image", headline: j.headline !== false } : { duration: j.duration };
+      const kind = j.kind === "image" ? { kind: "image", headline: j.headline !== false, slides: j.slides || 1 } : { duration: j.duration };
       await api.generate({ topics: [j.topic], community: j.community, language: j.language, style: j.style || "photo", ...kind }).catch(() => say("Could not start it again"));
       refresh();
     },

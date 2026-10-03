@@ -450,26 +450,84 @@ def validate_image_plan(p, script=None):
         raise ValueError("headline and caption must be written in the requested language's script")
 
 
-def image_plan(topic, community="general", language="en"):
-    """Topic -> headline, picture prompt, post text, hashtags and alt text for one image post (~3 s)."""
+CAROUSEL_SYSTEM = """You write swipeable carousel posts for the Qoneqt Global Feed, a community-first Indian social app: {n} pictures in
+a row, each with a short text drawn on it, read one after another as one story, and one post text under them.
+Return ONLY a JSON object with exactly these keys:
+{{"look": "...", "slides": [{{"text": "...", "image_prompt": "..."}}, ...], "query": "...", "caption": "...", "hashtags": ["#...", ...], "alt": "..."}}
+Rules:
+- slides: exactly {n}, in reading order. Slide 1 text is the hook, 3-8 words: a sharp question, claim or number that
+  opens a gap only the next slides close. Never open with "Did you know", "Kya aap jaante hain" or "क्या आप जानते हैं".
+- Every middle slide text gives ONE point in 6-18 words and ends with a short phrase that pulls the reader to swipe
+  ("but the real reason is next", "and it gets worse"), so each slide leads into the one after it.
+- The last slide text is the payoff or takeaway in 6-18 words, ending with a question that invites comments.
+- No hashtags or emoji in slide texts. Write numbers as digits.
+- look: 12-25 English words describing what every picture shares so the set looks like one series: the same main
+  person or object, setting, colour palette and light.
+- image_prompt: 15-35 English words for that slide's picture: what changes on this slide (action, angle, detail).
+  Keep the top third calm (sky, wall, soft background): the text sits there. No text, letters, brand names or logos.
+- query: 2-4 plain English words naming something visual and generic a stock photo site has.
+- caption: 2-4 short lines of post text for the whole carousel, ending with a question. Emoji welcome, no hashtags inside.
+- hashtags: 3 to 8 items, each starting with #.
+- alt: one plain English sentence describing the pictures for people who cannot see them.
+Slide texts and caption are written in the requested language; look, image_prompt, query and alt are always English."""
+
+
+def validate_carousel_plan(p, n, script=None):
+    """Raise ValueError naming the first rule broken for an n-slide carousel. Pure; unit-tested."""
+    if not isinstance(p, dict):
+        raise ValueError("not a JSON object")
+    for k in ("look", "query", "caption", "alt"):
+        if not isinstance(p.get(k), str) or not p[k].strip():
+            raise ValueError(f"{k} missing")
+    sl = p.get("slides")
+    if not isinstance(sl, list) or len(sl) != n:
+        raise ValueError(f"slides must be a list of exactly {n}")
+    for i, x in enumerate(sl, 1):
+        if not isinstance(x, dict) or any(not isinstance(x.get(k), str) or not x[k].strip() for k in ("text", "image_prompt")):
+            raise ValueError(f"slide {i}: text and image_prompt are both needed")
+        words, cap = len(x["text"].split()), 10 if i == 1 else 22  # a little slack on the prompt's 8 and 18
+        if not 2 <= words <= cap:
+            raise ValueError(f"slide {i}: text must be {'3-8' if i == 1 else '6-18'} words")
+    if _BANNED.match(sl[0]["text"].strip()):
+        raise ValueError(f"slide 1 must not open with any of: {', '.join(BANNED_OPENERS)}")
+    tags = p.get("hashtags")
+    if not isinstance(tags, list) or not 3 <= len(tags) <= 8 or any(not isinstance(t, str) or not t.startswith("#") for t in tags):
+        raise ValueError("hashtags must be 3-8 strings starting with #")
+    if script and not all(re.search(f"[{script}]", t) for t in [x["text"] for x in sl] + [p["caption"]]):
+        raise ValueError("every slide text and the caption must be written in the requested language's script")
+
+
+def image_plan(topic, community="general", language="en", slides=1):
+    """Topic -> the text and picture prompts for an image post (~3 s): one picture, or a carousel of `slides` pictures whose
+    texts read as one story. Either way p['slides'] is [{text, image_prompt}] in order, p['headline'] is slide 1's text
+    and p['look'] is what every picture shares ('' for a single picture)."""
     preset, lang = COMMUNITIES[community], LANGUAGES[language]
-    base = [{"role": "system", "content": IMAGE_SYSTEM},
-            {"role": "user", "content": f"Topic: {topic}\nCommunity: {preset['label']}\nTone: {preset['tone']}\n"
-                                        f"Language for headline and caption: {lang['instruction']}\n"
-                                        f"Caption style: {preset['caption_style']}\nReturn the JSON now."}]
-    p = _ask(base, lambda q: validate_image_plan(q, lang["script"]))
-    p["headline"] = p["headline"].strip()
+    user = (f"Topic: {topic}\nCommunity: {preset['label']}\nTone: {preset['tone']}\n"
+            f"Language for {'slide texts' if slides > 1 else 'headline'} and caption: {lang['instruction']}\n"
+            f"Caption style: {preset['caption_style']}\nReturn the JSON now.")
+    if slides > 1:
+        base = [{"role": "system", "content": CAROUSEL_SYSTEM.format(n=slides)}, {"role": "user", "content": user}]
+        p = _ask(base, lambda q: validate_carousel_plan(q, slides, lang["script"]))
+        p["slides"] = [{"text": x["text"].strip(), "image_prompt": x["image_prompt"].strip()} for x in p["slides"]]
+        p["headline"] = p["slides"][0]["text"]
+    else:
+        p = _ask([{"role": "system", "content": IMAGE_SYSTEM}, {"role": "user", "content": user}], lambda q: validate_image_plan(q, lang["script"]))
+        p["headline"] = p["headline"].strip()
+        p["slides"], p["look"] = [{"text": p["headline"], "image_prompt": p["image_prompt"]}], ""
     p["hashtags"] = list(dict.fromkeys(t.strip() for t in p["hashtags"] + preset["hashtags"]))
     return p
 
 
 def review_post(p, language="en"):
-    """llm.review on an image post, wrapped as a plan: scene 1 is the headline (the hook, never rewritten) and every caption
-    line is a scene of its own, so a softened claim replaces only its line and the rest, line breaks included, stay.
-    A blocked post raises."""
-    lines = [x.strip() for x in p["caption"].split("\n") if x.strip()]
-    r = review({"hook": p["headline"], "scenes": [{"narration": p["headline"]}] + [{"narration": x} for x in lines]}, language)
-    p["caption"] = "\n".join(sc["narration"] for sc in r["scenes"][1:])
+    """llm.review on an image post (from image_plan), wrapped as a plan: scene 1 is slide 1's text (the hook, never rewritten),
+    then the other slides, then every caption line as a scene of its own, so a softened claim replaces only its own text
+    and the rest, line breaks included, stay. A blocked post raises."""
+    texts = [x["text"] for x in p["slides"]] + [x.strip() for x in p["caption"].split("\n") if x.strip()]
+    r = review({"hook": texts[0], "scenes": [{"narration": t} for t in texts]}, language)
+    out = [sc["narration"] for sc in r["scenes"]]
+    for x, t in zip(p["slides"], out):
+        x["text"] = t
+    p["caption"] = "\n".join(out[len(p["slides"]):])
     p["review"] = r["review"]
     return p
 

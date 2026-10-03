@@ -332,6 +332,14 @@ dialog img.post{display:block;height:min(86vh,820px);max-width:92vw;aspect-ratio
 dialog .x{position:absolute;right:-48px;top:0;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;display:grid;place-items:center}
 dialog .x:hover{background:rgba(255,255,255,.22)}
 dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;font-size:13px;text-align:center;opacity:.8}
+/* a carousel steps slide by slide: round buttons over the picture's edges, the slide number under it */
+dialog .nav{position:absolute;top:50%;width:40px;height:40px;transform:translateY(-50%);border:0;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;transition:background .15s,opacity .15s}
+dialog .nav:hover:not(:disabled){background:rgba(0,0,0,.75)}
+dialog .nav:disabled{opacity:0;pointer-events:none}
+dialog .nav:focus-visible{outline:2px solid #fff;outline-offset:2px}
+dialog .prev{left:12px}
+dialog .next{right:12px}
+dialog .cap .count{display:block;margin-top:2px;font-weight:500}
 
 @media (max-width:960px){
   .layout{grid-template-columns:1fr;padding:16px;gap:16px}
