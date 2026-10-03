@@ -15,7 +15,8 @@ pinned: false
 > **Topic in → publish-ready Qoneqt Global Feed short out.**
 > An LLM-powered pipeline that turns a topic, idea or trend into a 9:16 vertical video with an AI script, AI voice,
 > AI or stock visuals, word-by-word captions, a hook title, a music bed that ducks under the voice and a Qoneqt end
-> card. It runs entirely on free tiers.
+> card. Add your photo and **you** present it, talking. The same topic can also become a 4:5 image post or a
+> 2–4 slide carousel. It runs entirely on free tiers.
 
 Built for **Qoneqt × CTRL FREAK 2026**, challenge: *"Build an LLM-Powered Content Pipeline for Qoneqt"*.
 
@@ -75,9 +76,10 @@ What makes this hard:
 
 ## 💡 2. Our solution
 
-**Qoneqt Video Factory** is a web app plus a pipeline. You pick a **community**, a **language** and a **length**,
-then type a topic or let the app **suggest topics from what India is searching today**. A few minutes later you
-get a finished vertical video, a thumbnail and ready-to-paste post text.
+**Qoneqt Video Factory** is a web app plus a pipeline. You pick **Video** or **Image**, a **community**, a
+**language** and a **length**, then type a topic or let the app **suggest topics from what India is searching
+today**. A few minutes later you get a finished vertical video (or a picture post), a thumbnail and ready-to-paste
+post text, all in a library you can search, filter, save and download from.
 
 ```mermaid
 flowchart LR
@@ -96,7 +98,12 @@ flowchart LR
 - ✂️ **Crossfades and mid-scene cuts**: scenes crossfade into each other and the end card; scenes over 4 s cut between two AI shots halfway through the sentence
 - 📷 **A different shot per scene**: wide, close-up, portrait, action, aftermath, so AI stills never look alike
 - 📋 **Post text for three platforms**: Qoneqt caption, YouTube Shorts title + description, Instagram caption
-- 🌍 **One topic, every language**: tick one box and the video is also made in the other three languages; those versions translate the script (keeping your chosen hook) and reuse the first video's stills, so they cost no image quota and finish faster
+- 🙋 **You in the video**: upload a photo (with a consent tick) and pick an outfit; FLUX.2 klein restyles it (same face, better clothes and light) on a button press. The first and last scenes are that portrait **talking** (LeapTalk → MoDA on free Hugging Face ZeroGPU Spaces), and the middle scenes are AI pictures with you in them
+- 🖼️ **Image posts and carousels**: one 4:5 picture with its headline, or 2–4 slides whose texts read as one story, each with a page mark; caption, hashtags and alt text included, and the last slide points readers to the caption. Bring your own pictures, or have AI redraw them in the chosen look
+- 📚 **Your library**: a grid of tiles with search (hook, caption, hashtags), Filter by type, community, language, look and length, sort, an Instagram-style **Saved** tab, and a watch view with Post, Details, Script (redo any scene) and More videos
+- 📦 **Download as ZIP**: video, cover JPG and post text in one file, straight from a tile
+- ⏹️ **Stop and confirm**: stop a video mid-make; deleting or stopping asks first, with the thumbnail
+- 🌍 **One topic, every language** (API: `all_languages`): the video is also made in the other three languages; those versions translate the script (keeping your chosen hook) and reuse the first video's stills, so they cost no image quota and finish faster
 - 🎨 **Four looks**: Photo, Anime, Infographic or Cinematic stills, picked in the form
 - 🛡️ **Safety and claim review**: an editor pass softens unverifiable or medical/financial certainty and blocks unsafe scripts before a single image or voice line is spent; the card says "Brand-safe" or how many lines were softened
 - ✏️ **Editable script**: every title and narration line in the preview can be edited, with a live word count, before generating
@@ -162,6 +169,23 @@ flowchart TD
 | 5 | **Captions** | Whisper runs once per scene with that scene's narration as its prompt, so timings land on the right words. They become ASS karaoke lines with the active word in the community's accent colour. | `captions.ass` |
 | 6 | **Render** | ffmpeg crossfades the clips into each other and the end card, mixes voice and the ducked music bed, burns captions and the hook title, and writes the thumbnail. | `<id>.mp4`, `<id>.jpg`, `<id>.json` |
 
+### With your photo ("You, talking")
+
+The photo is cropped and, if you press **Restyle with AI**, redrawn by FLUX.2 klein 4B on Cloudflare (512×1024,
+~57 neurons, about the price of a FLUX.1 still). Scene 1 and the last scene are the head square talking (LeapTalk,
+then MoDA), laid back onto the portrait with a feathered edge so the outfit stays; the hook title moves to the
+chest. Middle scenes are FLUX.2 pictures with the portrait as reference. Every Space or FLUX.2 failure falls back
+to a still portrait or a plain picture, so the video still finishes. Hands and body stay still: no free model
+animates a whole body.
+
+### Image posts
+
+`plan → image → poster` on its own queue and worker, so a picture never waits behind a video render (~10 s each).
+The LLM writes the headline, slide texts, caption, hashtags and alt text; the same safety review runs over every
+line. FLUX draws each slide (3 at a time, every prompt led by one shared look) unless you uploaded your own;
+ffmpeg cover-crops to 1080×1350 and burns the headline, page mark, Qoneqt mark and call to action with libass.
+A carousel also gets `<id>.zip`. Any slide can be redrawn alone.
+
 ---
 
 ## 🏗️ 4. Architecture
@@ -175,10 +199,13 @@ flowchart LR
     end
 
     subgraph Server["🐍 FastAPI app (backend/app/main.py)"]
-        API["REST API<br/>/presets /suggest /generate /jobs"]
-        Q[("In-memory<br/>job queue")]
-        W["Worker thread<br/>(one at a time)"]
+        API["REST API<br/>/presets /suggest /plan /photo /image<br/>/generate /jobs"]
+        Q[("Video<br/>queue")]
+        IQ[("Image post<br/>queue")]
+        W["Video worker<br/>(one at a time)"]
+        IW["Image worker"]
         API --> Q --> W
+        API --> IQ --> IW
     end
 
     subgraph Core["⚙️ Pipeline"]
@@ -197,8 +224,9 @@ flowchart LR
         GEM["Google Gemini<br/>LLM + TTS"]
         EL["ElevenLabs TTS"]
         EDGE["edge-tts"]
-        POL["Cloudflare Workers AI<br/>FLUX.1-schnell"]
+        POL["Cloudflare Workers AI<br/>FLUX.1-schnell + FLUX.2 klein"]
         HF["Hugging Face<br/>FLUX.1-schnell"]
+        ZG["HF ZeroGPU Spaces<br/>LeapTalk / MoDA"]
         STK["Pexels / Pixabay /<br/>Wikimedia Commons"]
         GT["Google Trends India"]
     end
@@ -207,8 +235,9 @@ flowchart LR
 
     UI <-->|HTTP JSON| API
     W --> PL
+    IW --> PL
     LLM --> GROQ & GEM & GT
-    MED --> GROQ & GEM & EL & EDGE & POL & HF & STK
+    MED --> GROQ & GEM & EL & EDGE & POL & HF & STK & ZG
     REN --> FS
     UI -->|/out/... download| FS
 ```
@@ -239,7 +268,7 @@ sequenceDiagram
     P->>P: ffmpeg render
     P-->>W: meta (hook + formula/score/why, caption, hashtags, posts, per-scene beat/split, credits)
     W->>API: status = done
-    UI->>U: Phone preview, Download MP4, Copy post text (Qoneqt / YouTube Shorts / Instagram)
+    UI->>U: Tile in the library: watch, Save, Download ZIP, Copy post text (Qoneqt / YouTube Shorts / Instagram)
 ```
 
 ### Job states
@@ -257,6 +286,8 @@ stateDiagram-v2
     }
     running --> done: mp4 + jpg + json written
     running --> failed: error recorded with its stage
+    queued --> failed: POST /jobs/id/stop
+    running --> failed: POST /jobs/id/stop
     done --> [*]: DELETE /jobs/id
     failed --> [*]: DELETE /jobs/id
 ```
@@ -272,6 +303,8 @@ stateDiagram-v2
 | 🧠 Script / plan / topic ideas | **Groq** `openai/gpt-oss-120b` | Groq `qwen/qwen3.8-27b` → **Gemini** `gemini-3.5-flash-lite` | `GROQ_API_KEY`, `GEMINI_API_KEY` |
 | 📈 Trending topics | **Google Trends India** RSS | LLM-only ideas | none |
 | 🎨 AI images | **Cloudflare Workers AI** FLUX.1-schnell | **Together AI** FLUX.1-schnell-Free → **Hugging Face** FLUX.1-schnell | `CF_ACCOUNT_ID` + `CF_API_TOKEN`; optional `TOGETHER_API_KEY`, `HF_TOKEN` |
+| 🙋 Restyled photo, you in a scene | **Cloudflare Workers AI** FLUX.2 klein 4B (512×1024) | still portrait / plain FLUX.1 picture | `CF_ACCOUNT_ID` + `CF_API_TOKEN` |
+| 🗣️ Talking face | **LeapTalk** (`hugging-apps/leaptalk-talking-head`) via `gradio_client` | **MoDA** (`multimodalart/MoDA-fast-talking-head`) → Ken Burns on the still photo | `HF_TOKEN` (ZeroGPU quota) |
 | 🎙️ Voice | **ElevenLabs** `eleven_flash_v2_5` | **edge-tts** (Indian neural voices) → **Gemini TTS** | `ELEVENLABS_API_KEY` (optional) |
 | 🎞️ Stock visuals | **Pexels** video | **Pixabay** video → **Wikimedia Commons** photos | Pexels / Pixabay optional; Commons needs none |
 | 🗣️ Word timestamps | **Groq Whisper** `whisper-large-v3-turbo` | script words spread evenly over each scene | `GROQ_API_KEY` |
@@ -281,14 +314,14 @@ stateDiagram-v2
 | Layer | Tool |
 |---|---|
 | Backend | **Python 3.11**, **FastAPI**, **Uvicorn** |
-| HTTP | **httpx** |
-| Video / audio | **ffmpeg** (xfade crossfades, cover-crop, Ken Burns zoom, libass subtitle burn-in, thumbnail) |
+| HTTP | **httpx**, **gradio_client** (ZeroGPU Spaces) |
+| Video / audio | **ffmpeg 5.1** (xfade crossfades, cover-crop, Ken Burns zoom, libass subtitle burn-in, posters, thumbnail) |
 | Captions | **ASS** subtitle format with karaoke tags, **Noto** fonts (Latin, Devanagari, Gujarati) |
 | Music | 4 tracks by Kevin MacLeod (incompetech.com, CC BY 4.0) in `backend/assets/music/`, 75 s, mono 64 kbps |
 | Frontend | **React 19** + **Vite** in `frontend/`, plain CSS; built into `frontend/dist` and served by FastAPI |
-| Tests | **pytest** (105 unit tests) |
-| Container | **Docker**, two stages: `node:22-slim` builds the UI, `python:3.11-slim` + ffmpeg + fonts runs it |
-| Hosting | **Hugging Face Spaces** (Docker, free CPU) |
+| Tests | **pytest** (137 tests) + `node --test` for the library search, filter and sort |
+| Container | **Docker**, two stages: `node:22-slim` builds the UI, `python:3.11-slim-bookworm` + ffmpeg 5.1 + fonts runs it |
+| Hosting | **Railway** or **Hugging Face Spaces** (Docker, 1 GB box) |
 
 ### Where each provider is used
 
@@ -335,14 +368,19 @@ flowchart TD
     subgraph VIS["🎞️ Visual"]
         V1[AI still] -->|none| V2[Pexels] -->|fail| V3[Pixabay] -->|fail| V4[Wikimedia ×2] -->|fail| V5[Titled card]
     end
+    subgraph FACE["🗣️ Talking face"]
+        F1[LeapTalk] -->|fail / quota| F2[MoDA] -->|fail| F3[Ken Burns on the still portrait]
+    end
 ```
 
 Other safety nets:
 
 - **JSON validation + guided retry**: a plan with the wrong scene count, wrong word budget or missing keys is sent back to the model once with the exact problem.
-- **Provider cooldown**: an image provider that returns 401/402/403 is rested, so later scenes don't keep hitting it.
-- **Bounded parallelism**: images 3 at a time, voices 2 at a time (the ElevenLabs free-tier limit), ffmpeg sequential so it fits a 2 vCPU / 1 GB container.
-- **Isolated worker**: one bad job is marked `failed` with its stage and the worker moves on.
+- **Key rotation**: every keyed provider tries `KEY`, then `KEY_2`, `KEY_3`, `KEY_4`; a key rejected for auth or quota moves to the next one before the provider chain falls back.
+- **Provider cooldown**: an image provider that returns 401/402/403 is rested, and a Space out of quota is skipped for a while, so later scenes don't keep hitting them.
+- **Plain quota messages**: when every Cloudflare account has spent its daily neurons, the form says so and that it resets at 05:30 IST; your own photo or picture still works meanwhile.
+- **Bounded parallelism**: images 3 at a time, voices 2 at a time (the ElevenLabs free-tier limit), ffmpeg sequential on ffmpeg 5.1 (a 30 s render peaks at ~530 MB; ffmpeg 7 hit 930 MB and was OOM-killed in a 1 GB box).
+- **Isolated workers**: one bad job is marked `failed` with its stage and the worker moves on; image posts have their own worker.
 
 ---
 
@@ -360,6 +398,11 @@ timeline
            : Parallel images and voice, hook title, titled cards, Qoneqt end card
            : Studio UI redesign and pitch deck
            : Gujarati, music bed, make-from-trends, script preview, redo a scene, gallery survives restarts
+    3 Oct  : Looks, safety review, editable script, logo and light/dark theme
+           : Talking presenter and "you in the video" with an AI-restyled photo
+           : Image posts and 2-4 slide carousels, own pictures, AI reimagine
+           : Library grid, search and filter, Saved, watch view, ZIP download, stop
+           : Railway deploy, ffmpeg 5.1 to fit 1 GB
     4 Oct  : Finale
 ```
 
@@ -409,12 +452,13 @@ cp .env.example .env        # then fill in the keys you have
 cd ../frontend && npm install && npm run build
 
 # 4. Start the web app (serves the API and the built UI)
-cd ../backend && uvicorn app.main:app --reload --port 7860
-# → open http://localhost:7860
+cd ../backend && uvicorn app.main:app --reload --port 9000
+# → open http://localhost:9000
 ```
 
-Working on the UI? Keep the backend running on port 7860 (step 4) and run `npm run dev` in `frontend/`,
-then open http://localhost:8000. Vite reloads on save and proxies every API call to :7860.
+Working on the UI? Keep the backend running on port 9000 (step 4) and run `npm run dev` in `frontend/`,
+then open http://localhost:8000. Vite reloads on save and proxies every API call to :9000. To show it to someone
+else, run `ngrok http 8000` (the public URL changes each time ngrok restarts).
 
 ### Useful commands
 
@@ -423,8 +467,10 @@ Run these from `backend/`:
 ```bash
 python -m app.pipeline "why sleep matters" tech en 30   # one video end-to-end → out/<id>/<id>.mp4
 python -m app.llm suggest tech hi                       # topic ideas for a community + language
-python -m pytest -q                                     # 105 unit tests
+python -m pytest -q                                     # 137 tests
 ```
+
+And from `frontend/`: `node --test src/lib/library.test.js` (library search, filter, sort, related videos).
 
 ### Environment variables
 
@@ -434,16 +480,17 @@ python -m pytest -q                                     # 105 unit tests
 | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) | recommended (LLM / TTS fallback) |
 | `ELEVENLABS_API_KEY` | [elevenlabs.io](https://elevenlabs.io) | optional (best voice; edge-tts otherwise) |
 | `TOGETHER_API_KEY` | [api.together.ai](https://api.together.ai) (free FLUX.1-schnell tier) | optional (image fallback) |
-| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | [dash.cloudflare.com](https://dash.cloudflare.com) → Workers AI → Use REST API (free 10k neurons/day) | recommended (AI images) |
-| `HF_TOKEN` | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), enable *"Make calls to Inference Providers"* | optional (image fallback) |
+| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | [dash.cloudflare.com](https://dash.cloudflare.com) → Workers AI → Use REST API (free 10k neurons/day) | recommended (AI images, photo restyle, you in the scenes) |
+| `HF_TOKEN` | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), enable *"Make calls to Inference Providers"* | optional (image fallback; ZeroGPU quota for the talking face) |
 | `PEXELS_API_KEY` | [pexels.com/api](https://www.pexels.com/api/) | optional (stock video) |
 | `PIXABAY_API_KEY` | [pixabay.com/api/docs](https://pixabay.com/api/docs/) | optional (stock video) |
 
-**Spare keys.** A second (and third) account can back any of the keyed providers: set `GROQ_API_KEY_2`,
-`ELEVENLABS_API_KEY_2`, `GEMINI_API_KEY_2`, or `CF_ACCOUNT_ID_2` + `CF_API_TOKEN_2`. When a key is rejected or
-out of quota the next one is tried straight away, before the provider chain gives up and falls back. Handy on
-free tiers: ElevenLabs allows 10k characters a month per account, so a spare key doubles the good-voice budget.
-Cloudflare's two variables rotate as a pair, so set both `_2` halves together or the tier is ignored.
+**Spare keys.** Up to three more accounts can back any of the keyed providers: add `_2`, `_3` and `_4` to the
+name (`GROQ_API_KEY_2`, `ELEVENLABS_API_KEY_3`, `CF_ACCOUNT_ID_2` + `CF_API_TOKEN_2`, …; `HF_TOKEN` goes up to
+`_3`). When a key is rejected or out of quota the next one is tried straight away, before the provider chain gives
+up and falls back. Handy on free tiers: ElevenLabs allows 10k characters a month per account, so each spare key
+adds to the good-voice budget. Cloudflare's two variables rotate as a pair, so set both halves of a suffix
+together or that set is ignored.
 
 ### Run with Docker
 
@@ -454,7 +501,15 @@ docker run --env-file backend/.env -p 7860:7860 qoneqt-video-factory
 
 ---
 
-## ☁️ 9. Deploy (Hugging Face Spaces / Docker)
+## ☁️ 9. Deploy (Railway / Hugging Face Spaces / Docker)
+
+The `Dockerfile` serves everything on port 7860. It pins `python:3.11-slim-bookworm` on purpose: ffmpeg 5.1 keeps
+a 30 s render near 530 MB, so it fits a 1 GB box.
+
+**Railway**: new project from the GitHub repo, it builds the `Dockerfile`; add the keys under Variables and mount a
+volume at `/app/backend/out` so videos survive redeploys.
+
+**Hugging Face Spaces**:
 
 1. Create a Space: **SDK = Docker**, hardware = **CPU basic (free)**.
 2. **Settings → Variables and secrets**: add the keys from the table above.
@@ -471,7 +526,7 @@ Qoneqt has no public posting API, so the last step is manual:
 
 ```mermaid
 flowchart LR
-    A[⬇️ Download MP4] --> B[📋 Copy post text] --> C[qoneqt.com → Global Feed → New post / Qlip] --> D[Upload + paste] --> E[🚀 Publish]
+    A[⬇️ Download ZIP<br/>mp4 + jpg + txt] --> B[📋 Copy post text] --> C[qoneqt.com → Global Feed → New post / Qlip] --> D[Upload + paste] --> E[🚀 Publish]
 ```
 
 ---
@@ -481,20 +536,25 @@ flowchart LR
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | `GET` | `/` | | Studio UI |
-| `GET` | `/presets` | | communities (with each one's caption accent colour), languages, durations, looks |
+| `GET` | `/presets` | | communities (accent colour, examples), languages, durations, looks, outfits (+ the default per community), layouts |
 | `GET` | `/suggest` | `?community=tech&language=hi&trends_only=1` | 6 topic ideas (trend-aware; `trends_only` makes them all trend-led) |
 | `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks with formula and why, scenes with beats, caption, hashtags, YouTube and Instagram post text |
-| `POST` | `/generate` | `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "style": "photo", "all_languages": false, "plan": {...}}` (1–10 topics; `plan` optional, from `/plan`; `all_languages` adds one video per other language) | `{"job_ids": [...]}` |
-| `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual and re-renders |
-| `GET` | `/jobs` | | every job with status and stage; a running job also carries `started`, and once planned its `hook`, scene titles, `shots` and the `stills` painted so far |
+| `POST` | `/photo/restyle` | `{"photo": "data:image/...", "outfit": "smart"}` | `{"photo": data URL}`: same face, chosen outfit and light (~10 s) |
+| `POST` | `/image/reimagine` | `{"picture": "data:image/...", "topic": "...", "style": "anime"}` | `{"picture": data URL}`: your picture redrawn in the look |
+| `POST` | `/generate` | video: `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "style": "photo", "plan": {...}, "photo": "data:...", "photo_consent": true, "all_languages": false}`<br/>image: `{"kind": "image", "topics": ["..."], "slides": 1-4, "headline": true, "pictures": ["data:..."], ...}` (1–10 topics; `plan` from `/plan`, single topic only; `photo` needs `photo_consent`; `pictures` one per slide) | `{"job_ids": [...]}` |
+| `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual (or slide) and re-renders |
+| `POST` | `/jobs/{id}/stop` | | stops a queued or running job; it stays as a stopped card |
+| `POST` / `DELETE` | `/jobs/{id}/save` | | saves or unsaves a finished job (kept as `out/<id>/saved`) |
+| `GET` | `/jobs` | | every job with status and stage; a running job also carries `started`, and once planned its `hook`, scene titles, `shots`, the `stills` painted so far and, for a presenter video, `faces` done |
 | `GET` | `/jobs/{id}` | | one job + result meta |
+| `GET` | `/jobs/{id}/download` | | ZIP of the video, cover JPG and post text |
 | `DELETE` | `/jobs/{id}` | | removes the job and its files |
-| `GET` | `/out/{id}/{id}.mp4` | | the video (also `.jpg`, `.json`) |
+| `GET` | `/out/{id}/{id}.mp4` | | the video (also `.jpg`, `.json`; image posts `<id>.png` or `<id>-n.png`) |
 
 Example:
 
 ```bash
-curl -X POST localhost:7860/generate -H 'content-type: application/json' \
+curl -X POST localhost:9000/generate -H 'content-type: application/json' \
   -d '{"topics":["UPI tips nobody tells you"],"community":"finance","language":"hinglish","duration":30}'
 ```
 
@@ -506,27 +566,28 @@ curl -X POST localhost:7860/generate -H 'content-type: application/json' \
 .
 ├── backend/                  Python: API, pipeline, tests
 │   ├── app/
-│   │   ├── main.py           FastAPI app, job queue, worker thread, REST API, serves the built UI
-│   │   ├── pipeline.py       orchestrates the 6 stages + CLI smoke test
-│   │   ├── llm.py            plan + topic suggestions, Google Trends, JSON validation, Groq → Gemini chain
-│   │   ├── media.py          TTS chain, AI image chain, stock clip chain, Whisper word timings
-│   │   ├── render.py         ASS karaoke captions, hook/title overlays, end card, ffmpeg compose
-│   │   └── presets.py        communities, languages, durations, music moods
+│   │   ├── main.py           FastAPI app, video + image queues and workers, REST API, serves the built UI
+│   │   ├── pipeline.py       make_video (6 stages), make_image (posts, carousels), redo + CLI smoke test
+│   │   ├── llm.py            video and image plans, safety review, topic suggestions, Google Trends, Groq → Gemini chain
+│   │   ├── media.py          TTS chain, AI image chain, FLUX.2 restyle, talking face (LeapTalk → MoDA), stock, Whisper
+│   │   ├── render.py         ASS karaoke captions, hook/title overlays, end card, posters, ffmpeg compose
+│   │   └── presets.py        communities, languages, durations, looks, outfits, music moods, key rotation
 │   ├── assets/music/         4 CC BY tracks (Kevin MacLeod)
-│   ├── tests/                pytest unit tests (plan validation, captions, render, API)
+│   ├── tests/                pytest (plan validation, captions, render, media, image posts, API)
 │   ├── out/                  generated videos, one folder per job (git-ignored)
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/                 React + Vite studio UI
 │   ├── index.html
-│   ├── vite.config.js        dev server on :8000, proxies the API to :7860
+│   ├── vite.config.js        dev server on :8000, proxies the API to :9000, allows ngrok hosts
 │   └── src/
 │       ├── App.jsx           page layout, card actions, toast, player
-│       ├── components/       Header, VideoList, Pager, PlayerDialog, Toast, Icon
-│       │   ├── create/       CreateForm, ScriptPreview
-│       │   └── cards/        ReadyCard, LiveCard, QueuedCard + FailedCard, Facts
+│       ├── components/       Header, VideoList (grid, search, filter, Saved), Pager, PlayerDialog (watch view),
+│       │   │                 Resizer, Toast, Icon
+│       │   ├── create/       CreateForm, ScriptPreview, PresenterPhoto, OwnPictures
+│       │   └── cards/        ReadyCard, ImageCard, LiveCard, WaitCard, MoreMenu, SaveButton, Confirm, Facts
 │       ├── hooks/            useJobs (polling), usePresets, useToast
-│       ├── lib/              api client, constants, formatting
+│       ├── lib/              api client, constants, formatting, library (search, filter, sort, related) + its test
 │       └── styles/app.css
 ├── docs/                     challenge brief, deck, screenshots
 └── Dockerfile                builds the UI with Node, then runs FastAPI + ffmpeg on python:3.11-slim
@@ -539,9 +600,11 @@ curl -X POST localhost:7860/generate -H 'content-type: application/json' \
 | Limit | Why | Upgrade path |
 |---|---|---|
 | Job *state* is in memory; finished videos are rebuilt from `out/*/*.json` at startup | Simple and enough for a demo | Redis / SQLite for queue state |
-| `out/` is ephemeral on free hosting | Free hosting | Mount a volume at `/app/out` (Railway) or object storage |
-| One worker | 2 vCPU / 1 GB container; ffmpeg is the bottleneck | More workers on bigger hardware |
+| `out/` is ephemeral on free hosting | Free hosting | Mount a volume at `/app/backend/out` (Railway) or object storage |
+| One video worker (plus one for image posts) | 2 vCPU / 1 GB container; ffmpeg is the bottleneck | More workers on bigger hardware |
 | ElevenLabs free tier ≈ 20 videos / month | Free quota | edge-tts takes over automatically |
+| Cloudflare 10k neurons a day per account (~170 FLUX.2 pictures) | Free quota; resets 05:30 IST | Spare accounts (`_2`…`_4`); FLUX.1 / stock fallback |
+| Talking face needs free ZeroGPU time, and only the head moves | Free Spaces; no free model animates a whole body | Spare `HF_TOKEN`s; a paid lip-sync API |
 | Manual publish to Qoneqt | No public posting API | Direct upload once an API exists |
 
 ---
