@@ -7,18 +7,14 @@ import shutil
 import threading
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-import llm
-import pipeline
-from presets import COMMUNITIES, DURATIONS, LANGUAGES, STYLES
+from . import llm, pipeline
+from .presets import COMMUNITIES, DURATIONS, LANGUAGES, STYLES
 
-ROOT = Path(__file__).parent
 pipeline.OUT.mkdir(exist_ok=True)
 JOBS, LOCK, Q = {}, threading.Lock(), queue.Queue()
 
@@ -41,6 +37,7 @@ def _worker():
                 if jid not in JOBS:  # ponytail: deleted mid-run stops at the next stage boundary, not mid-ffmpeg
                     raise Cancelled
                 job["status"], job["stage"] = "running", stage
+                job.setdefault("started", time.time())
 
         try:
             if scene is None:
@@ -84,7 +81,6 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Qoneqt Video Factory", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.mount("/out", StaticFiles(directory=pipeline.OUT), name="out")
 
 
@@ -105,14 +101,9 @@ class PlanIn(BaseModel):
     duration: int = 30
 
 
-@app.get("/")
-def index():
-    return FileResponse(ROOT / "static" / "index.html")
-
-
 @app.get("/presets")
 def presets():
-    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"]} for k, v in COMMUNITIES.items()],
+    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"], "accent": "#" + v["accent"]} for k, v in COMMUNITIES.items()],
             "languages": [{"slug": k, "label": v["label"]} for k, v in LANGUAGES.items()],
             "durations": DURATIONS,
             "styles": [{"slug": k, "label": v[0]} for k, v in STYLES.items()]}
@@ -168,10 +159,26 @@ def generate(body: GenerateIn):
     return {"job_ids": ids}
 
 
+def _live(j):
+    """While a video is made the page shows its script and every still as it lands; both are read from out/<id>/."""
+    if j["status"] != "running":
+        return j
+    d = pipeline.OUT / j["id"]
+    j = {**j, "stills": sorted(p.name for p in d.glob("gen*.png"))}
+    try:
+        p = json.loads((d / "plan.json").read_text())
+        j.update(hook=p["hook"], scenes=[sc.get("title") or sc["query"] for sc in p["scenes"]],
+                 shots=sum(1 + bool(sc.get("image_prompt_b")) for sc in p["scenes"]))
+    except (OSError, ValueError, KeyError):
+        pass  # not planned yet, or an older job: the page shows the stage alone
+    return j
+
+
 @app.get("/jobs")
 def jobs():
     with LOCK:
-        return sorted(({k: v for k, v in j.items() if k != "plan"} for j in JOBS.values()), key=lambda j: -j["created"])
+        snap = [{k: v for k, v in j.items() if k != "plan"} for j in JOBS.values()]
+    return sorted(map(_live, snap), key=lambda j: -j["created"])
 
 
 @app.get("/jobs/{jid}")
@@ -207,3 +214,10 @@ def delete_job(jid: str):
     if j["status"] not in ("queued", "running"):  # a job on the line is stopped and cleaned up by the worker
         shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
     return {"deleted": jid}
+
+
+# The React build (frontend/dist, from `npm run build`) is served last so it never shadows an API route.
+# In development Vite serves the UI on :5173 and proxies the API here, so the folder may not exist.
+WEB = pipeline.BACKEND.parent / "frontend" / "dist"
+if WEB.is_dir():
+    app.mount("/", StaticFiles(directory=WEB, html=True), name="web")

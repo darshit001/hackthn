@@ -7,6 +7,40 @@ wps = effective spoken words per second for the edge-tts voices at media.EDGE_RA
 script = regex character range a translation into this language must use (None: Roman script, no Indic letters).
 mood picks the background track from MUSIC (Kevin MacLeod, incompetech.com, CC BY 4.0; credited in the job JSON and README)."""
 
+import os
+
+import httpx
+
+# A key is retired for this call on auth/quota rejections only; a 400 normally means the request is wrong, not the key.
+KEY_RETRY = (401, 402, 403, 429)
+# ElevenLabs answers a wrong-length key with 400 + authentication_error, so a 400 whose body blames the key counts too.
+AUTH_WORDS = ("authentication_error", "invalid_api_key", "api key")
+
+
+def with_keys(fn, *names):
+    """Run fn(*keys) with each credential configured for `names`, newest failure moving to the next one.
+
+    Looks up NAME, then NAME_2, then NAME_3. Several names rotate together, because Cloudflare's account id
+    and API token are one credential split over two variables: a set counts only when every name in it is set.
+    Falls through to the next set when a key is rejected or out of quota, so a dead or exhausted key is skipped
+    without taking the provider down; any other error raises, since a second key will not fix a bad request."""
+    sets = []
+    for suffix in ("", "_2", "_3"):
+        vals = [os.environ.get(n + suffix, "").strip() for n in names]
+        if all(vals):
+            sets.append(vals)
+    if not sets:
+        raise RuntimeError("no " + "/".join(names))
+    for i, vals in enumerate(sets):
+        try:
+            return fn(*vals)
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code
+            bad_key = code in KEY_RETRY or (code == 400 and any(w in e.response.text.lower() for w in AUTH_WORDS))
+            if i == len(sets) - 1 or not bad_key:
+                raise
+
+
 DURATIONS = [15, 30, 45, 60]
 
 LANGUAGES = {

@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 import httpx
 from dotenv import load_dotenv
 
-from presets import COMMUNITIES, LANGUAGES
+from .presets import COMMUNITIES, LANGUAGES, with_keys
 
 load_dotenv()
 
@@ -270,23 +270,29 @@ def _parse(text):
 
 
 def _call_groq(model, messages, temperature):
-    r = httpx.post(GROQ_URL, timeout=60,
-                   headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
-                   json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": MAX_TOKENS.get(model, 4000),
-                         "reasoning_effort": "low", "response_format": {"type": "json_object"}})
-    r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"]
+    def post(key):
+        r = httpx.post(GROQ_URL, timeout=60,
+                       headers={"Authorization": f"Bearer {key}"},
+                       json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": MAX_TOKENS.get(model, 4000),
+                             "reasoning_effort": "low", "response_format": {"type": "json_object"}})
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+
+    return with_keys(post, "GROQ_API_KEY")
 
 
 def _call_gemini(model, messages, temperature):
     system = "\n".join(m["content"] for m in messages if m["role"] == "system")
     convo = "\n\n".join(f"{m['role'].upper()}: {m['content']}" for m in messages if m["role"] != "system")
-    r = httpx.post(GEMINI_URL.format(m=model), params={"key": os.environ["GEMINI_API_KEY"]}, timeout=60,
-                   json={"systemInstruction": {"parts": [{"text": system}]},
-                         "contents": [{"parts": [{"text": convo}]}],
-                         "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}})
-    r.raise_for_status()
-    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+    def post(key):
+        r = httpx.post(GEMINI_URL.format(m=model), params={"key": key}, timeout=60,
+                       json={"systemInstruction": {"parts": [{"text": system}]},
+                             "contents": [{"parts": [{"text": convo}]}],
+                             "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}})
+        r.raise_for_status()
+        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+    return with_keys(post, "GEMINI_API_KEY")
 
 
 def _ask(base, validate, temperature=0.8):

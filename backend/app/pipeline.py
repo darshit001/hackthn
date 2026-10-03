@@ -9,13 +9,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import llm
-import media
-import render
-from presets import COMMUNITIES, MUSIC, MUSIC_CREDIT
+from . import llm, media, render
+from .presets import COMMUNITIES, MUSIC, MUSIC_CREDIT
 
-OUT = Path(__file__).parent / "out"
-MUSIC_DIR = Path(__file__).parent / "assets" / "music"
+BACKEND = Path(__file__).resolve().parent.parent  # backend/: out/ and assets/ live beside the app package
+OUT = BACKEND / "out"
+MUSIC_DIR = BACKEND / "assets" / "music"
 STAGES = ["plan", "images", "voice", "visuals", "captions", "render"]
 
 
@@ -69,7 +68,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     else:
         p = llm.review(plan or llm.plan(topic, community, language, duration), language)  # softened or blocked before an image or a voice line is spent
     scenes = p["scenes"]
-    (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))  # siblings in other languages translate it from here
+    (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))  # the page shows the script while the video is made; siblings in other languages translate it from here
 
     progress("images")  # AI stills 3 at a time, every scene's first picture before any second one, so a quota hit never leaves a scene bare;
     # the voice lines record meanwhile in their own 2-thread pool (the ElevenLabs free tier allows 2 concurrent): both waits are network, so they overlap

@@ -24,7 +24,7 @@ Built for **Qoneqt × CTRL FREAK 2026**, challenge: *"Build an LLM-Powered Conte
 | 📱 Published on Qoneqt | _coming soon_ |
 
 <p align="center">
-  <img src="docs/screens/ui-v8-desktop.png" alt="Video Factory UI: create form on the left, video cards on the right" width="720">
+  <img src="docs/screens/ui-v9-desktop.png" alt="Video Factory UI: create form on the left; on the right a video being made shows its stills arriving and the six pipeline steps, above the finished videos" width="720">
 </p>
 
 ---
@@ -159,10 +159,10 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph Browser["🖥️ Browser"]
-        UI["static/index.html<br/>single-page studio UI<br/>(polls /jobs)"]
+        UI["frontend/ (React + Vite)<br/>studio UI<br/>(polls /jobs)"]
     end
 
-    subgraph Server["🐍 FastAPI app (app.py)"]
+    subgraph Server["🐍 FastAPI app (backend/app/main.py)"]
         API["REST API<br/>/presets /suggest /generate /jobs"]
         Q[("In-memory<br/>job queue")]
         W["Worker thread<br/>(one at a time)"]
@@ -272,10 +272,10 @@ stateDiagram-v2
 | HTTP | **httpx** |
 | Video / audio | **ffmpeg** (xfade crossfades, cover-crop, Ken Burns zoom, libass subtitle burn-in, thumbnail) |
 | Captions | **ASS** subtitle format with karaoke tags, **Noto** fonts (Latin, Devanagari, Gujarati) |
-| Music | 4 tracks by Kevin MacLeod (incompetech.com, CC BY 4.0) in `assets/music/`, 75 s, mono 64 kbps |
-| Frontend | One `static/index.html`: plain HTML, CSS and JS, no build step |
-| Tests | **pytest** (45 unit tests) |
-| Container | **Docker** (`python:3.11-slim` + ffmpeg + fonts) |
+| Music | 4 tracks by Kevin MacLeod (incompetech.com, CC BY 4.0) in `backend/assets/music/`, 75 s, mono 64 kbps |
+| Frontend | **React 19** + **Vite** in `frontend/`, plain CSS; built into `frontend/dist` and served by FastAPI |
+| Tests | **pytest** (80 unit tests) |
+| Container | **Docker**, two stages: `node:22-slim` builds the UI, `python:3.11-slim` + ffmpeg + fonts runs it |
 | Hosting | **Hugging Face Spaces** (Docker, free CPU) |
 
 ### Where each provider is used
@@ -376,7 +376,7 @@ COMMUNITIES["travel"] = dict(
 
 ### Prerequisites
 
-- Python **3.11+**
+- Python **3.11+** and **Node 20+**
 - **ffmpeg** on your `PATH` (`sudo apt install ffmpeg fonts-noto-core` / `brew install ffmpeg`)
 - Free API keys (see the table below). Only **Groq** is really required; everything else has a fallback.
 
@@ -387,24 +387,31 @@ COMMUNITIES["travel"] = dict(
 git clone https://github.com/darshit001/hackthn.git
 cd hackthn
 
-# 2. Virtual env + dependencies
+# 2. Backend: virtual env + dependencies + keys
+cd backend
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
-
-# 3. Keys
 cp .env.example .env        # then fill in the keys you have
 
-# 4. Start the web app
-uvicorn app:app --reload --port 7860
+# 3. Frontend: build the UI once
+cd ../frontend && npm install && npm run build
+
+# 4. Start the web app (serves the API and the built UI)
+cd ../backend && uvicorn app.main:app --reload --port 7860
 # → open http://localhost:7860
 ```
 
+Working on the UI? Run the backend on port 8000 (`uvicorn app.main:app --reload --port 8000` in `backend/`) and
+`npm run dev` in `frontend/`, then open http://localhost:5173. Vite reloads on save and proxies every API call to :8000.
+
 ### Useful commands
 
+Run these from `backend/`:
+
 ```bash
-python pipeline.py "why sleep matters" tech en 30    # one video end-to-end → out/<id>/<id>.mp4
-python llm.py suggest tech hi                        # topic ideas for a community + language
-python -m pytest -q                                  # 45 unit tests
+python -m app.pipeline "why sleep matters" tech en 30   # one video end-to-end → out/<id>/<id>.mp4
+python -m app.llm suggest tech hi                       # topic ideas for a community + language
+python -m pytest -q                                     # 80 unit tests
 ```
 
 ### Environment variables
@@ -420,11 +427,17 @@ python -m pytest -q                                  # 45 unit tests
 | `PEXELS_API_KEY` | [pexels.com/api](https://www.pexels.com/api/) | optional (stock video) |
 | `PIXABAY_API_KEY` | [pixabay.com/api/docs](https://pixabay.com/api/docs/) | optional (stock video) |
 
+**Spare keys.** A second (and third) account can back any of the keyed providers: set `GROQ_API_KEY_2`,
+`ELEVENLABS_API_KEY_2`, `GEMINI_API_KEY_2`, or `CF_ACCOUNT_ID_2` + `CF_API_TOKEN_2`. When a key is rejected or
+out of quota the next one is tried straight away, before the provider chain gives up and falls back. Handy on
+free tiers: ElevenLabs allows 10k characters a month per account, so a spare key doubles the good-voice budget.
+Cloudflare's two variables rotate as a pair, so set both `_2` halves together or the tier is ignored.
+
 ### Run with Docker
 
 ```bash
 docker build -t qoneqt-video-factory .
-docker run --env-file .env -p 7860:7860 qoneqt-video-factory
+docker run --env-file backend/.env -p 7860:7860 qoneqt-video-factory
 ```
 
 ---
@@ -438,7 +451,7 @@ docker run --env-file .env -p 7860:7860 qoneqt-video-factory
    git remote add hf https://huggingface.co/spaces/<user>/<space>
    git push hf main
    ```
-4. Open the Space URL. `out/` is ephemeral on the free tier, so download the videos you want to keep.
+4. Open the Space URL. `backend/out/` is ephemeral on the free tier, so download the videos you want to keep.
 
 ### Publishing to Qoneqt
 
@@ -456,12 +469,12 @@ flowchart LR
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | `GET` | `/` | | Studio UI |
-| `GET` | `/presets` | | communities, languages, durations |
+| `GET` | `/presets` | | communities (with each one's caption accent colour), languages, durations |
 | `GET` | `/suggest` | `?community=tech&language=hi&trends_only=1` | 6 topic ideas (trend-aware; `trends_only` makes them all trend-led) |
 | `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks with formula and why, scenes with beats, caption, hashtags, YouTube and Instagram post text |
 | `POST` | `/generate` | `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "plan": {...}}` (1–10 topics; `plan` optional, from `/plan`) | `{"job_ids": [...]}` |
 | `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual and re-renders |
-| `GET` | `/jobs` | | every job with status and stage |
+| `GET` | `/jobs` | | every job with status and stage; a running job also carries `started`, and once planned its `hook`, scene titles, `shots` and the `stills` painted so far |
 | `GET` | `/jobs/{id}` | | one job + result meta |
 | `DELETE` | `/jobs/{id}` | | removes the job and its files |
 | `GET` | `/out/{id}/{id}.mp4` | | the video (also `.jpg`, `.json`) |
@@ -479,18 +492,32 @@ curl -X POST localhost:7860/generate -H 'content-type: application/json' \
 
 ```
 .
-├── app.py             FastAPI app, job queue, worker thread, REST API
-├── pipeline.py        orchestrates the 6 stages + CLI smoke test
-├── llm.py             plan + topic suggestions, Google Trends, JSON validation, Groq → Gemini chain
-├── media.py           TTS chain, AI image chain, stock clip chain, Whisper word timings
-├── render.py          ASS karaoke captions, hook/title overlays, end card, ffmpeg compose
-├── presets.py         communities, languages, durations, music moods
-├── assets/music/      4 CC BY tracks (Kevin MacLeod)
-├── static/index.html  single-page studio UI
-├── tests/             pytest unit tests (plan validation, captions, render, API)
-├── docs/              challenge brief, deck, design specs, screenshots
-├── Dockerfile         python:3.11-slim + ffmpeg + Noto fonts
-└── requirements.txt
+├── backend/                  Python: API, pipeline, tests
+│   ├── app/
+│   │   ├── main.py           FastAPI app, job queue, worker thread, REST API, serves the built UI
+│   │   ├── pipeline.py       orchestrates the 6 stages + CLI smoke test
+│   │   ├── llm.py            plan + topic suggestions, Google Trends, JSON validation, Groq → Gemini chain
+│   │   ├── media.py          TTS chain, AI image chain, stock clip chain, Whisper word timings
+│   │   ├── render.py         ASS karaoke captions, hook/title overlays, end card, ffmpeg compose
+│   │   └── presets.py        communities, languages, durations, music moods
+│   ├── assets/music/         4 CC BY tracks (Kevin MacLeod)
+│   ├── tests/                pytest unit tests (plan validation, captions, render, API)
+│   ├── out/                  generated videos, one folder per job (git-ignored)
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/                 React + Vite studio UI
+│   ├── index.html
+│   ├── vite.config.js        dev server on :5173, proxies the API to :8000
+│   └── src/
+│       ├── App.jsx           page layout, card actions, toast, player
+│       ├── components/       Header, VideoList, Pager, PlayerDialog, Toast, Icon
+│       │   ├── create/       CreateForm, ScriptPreview
+│       │   └── cards/        ReadyCard, LiveCard, QueuedCard + FailedCard, Facts
+│       ├── hooks/            useJobs (polling), usePresets, useToast
+│       ├── lib/              api client, constants, formatting
+│       └── styles/app.css
+├── docs/                     challenge brief, deck, screenshots
+└── Dockerfile                builds the UI with Node, then runs FastAPI + ffmpeg on python:3.11-slim
 ```
 
 ---

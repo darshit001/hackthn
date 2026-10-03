@@ -1,8 +1,11 @@
 .env
 .venv/
-out/
 .git/
 .playwright-mcp/
-docs/
-__pycache__/
 .archify/
+.claude/
+docs/
+**/__pycache__/
+backend/out
+frontend/node_modules/
+frontend/dist/
