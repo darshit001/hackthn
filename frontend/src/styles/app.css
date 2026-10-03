@@ -15,12 +15,14 @@
   --green:light-dark(#15803D,#4ADE80); --green-bg:light-dark(#F0FDF4,rgba(34,197,94,.13));
   --red:light-dark(#B91C1C,#F87171); --red-bg:light-dark(#FEF2F2,rgba(239,68,68,.13)); --red-line:light-dark(#F3D4D4,#5A2626);
   --font:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --display:"Bricolage Grotesque",var(--font); --amber-2:#F59E0B;
+  --display:"Bricolage Grotesque",var(--font);
   --out:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.45,.64,1);
   --r:6px; --r-md:8px; --r-lg:12px;
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;scrollbar-gutter:stable}
+/* a popup (player, delete) holds the page still behind it; the gutter keeps it from shifting when the bar goes */
+html:has(dialog[open]){overflow:hidden}
 body{margin:0;background:var(--bg);color:var(--fg);font:400 14px/1.5 var(--font);font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -43,9 +45,16 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .top nav{display:flex;align-items:center;gap:10px}
 
 /* layout */
-.layout{display:grid;grid-template-columns:424px minmax(0,1fr);gap:24px;align-items:start;padding:24px;max-width:1480px;margin:0 auto}
+.layout{display:grid;grid-template-columns:var(--form-w,424px) 24px minmax(0,1fr);gap:0;align-items:start;padding:24px;max-width:1480px;margin:0 auto}
 .new{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;position:sticky;top:80px;max-height:calc(100vh - 104px);overflow:auto}
 .videos{min-width:0}
+/* the gap between form and videos is a drag handle (Resizer): a short grip that greys up on hover and turns ink while dragged */
+.resizer{position:sticky;top:80px;height:calc(100vh - 104px);display:grid;place-items:center;cursor:col-resize;touch-action:none}
+.resizer::before{content:"";width:4px;height:28px;border-radius:4px;background:var(--border-2);transition:height .2s var(--out),background-color .15s}
+.resizer:hover::before,.resizer:focus-visible::before{height:36px;background:var(--fg-3)}
+.resizing .resizer::before{height:36px;background:var(--fg)}
+.resizer:focus-visible{outline-offset:-2px}
+.resizing,.resizing *{cursor:col-resize!important;user-select:none}
 
 /* form */
 .new h1{font-size:21px;margin-bottom:16px}
@@ -56,7 +65,7 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .lblrow .lbl{margin:0}
 /* every choice is a chip; the picked one is ink */
 .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.chips.three{grid-template-columns:repeat(2,1fr)}
+.chips.three{grid-template-columns:repeat(3,1fr)}
 .chip{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:6px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card);font-size:13px;line-height:1.2;color:var(--fg-2);cursor:pointer;white-space:nowrap;transition:border-color .15s,background-color .15s,color .15s,transform .12s var(--out)}
 .chip input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
 .chip:hover{border-color:var(--border-2);color:var(--fg)}
@@ -141,14 +150,20 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .dropzone:hover,.presenter:has(#photo:focus-visible) .dropzone{border-color:var(--acc);background:var(--acc-bg)}
 .presenter:has(#photo:focus-visible) .dropzone{outline:2px solid var(--acc);outline-offset:2px}
 /* the photo before and after the AI restyle: two 9:16 cards, the chosen one ringed in ink */
-.versions{display:grid;grid-template-columns:96px 96px 1fr;gap:10px;align-items:start}
-.ver{position:relative;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.versions{display:flex;gap:10px;align-items:flex-start}
+.ver{position:relative;display:flex;flex-direction:column;gap:6px;width:96px;flex:none;cursor:pointer}
 .ver input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
 .ver input:disabled{cursor:default}
 .ver .pic{display:grid;place-items:center;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:var(--soft);color:var(--fg-3);box-shadow:0 0 0 1px var(--border);transition:box-shadow .15s}
 .ver .pic img{width:100%;height:100%;object-fit:cover;object-position:50% 20%}
 .ver .pic .i{width:22px;height:22px}
-.ver.busy .pic .i{animation:pulse 1.2s ease-in-out infinite}
+/* restyling: the photo blurs to grey and a band of light sweeps down it, as if it were being redrawn */
+.ver.busy{cursor:progress}
+.ver.busy .pic{position:relative}
+.ver.busy .pic img{filter:blur(6px) grayscale(1);opacity:.55;transform:scale(1.1)}
+.ver.busy .pic::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent,color-mix(in srgb,var(--card) 75%,transparent),transparent) 0 0/100% 40% no-repeat;animation:sweep 1.8s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes sweep{from{background-position:0 -100%}to{background-position:0 200%}}
+.ver.busy .pic .i{position:absolute;z-index:1;color:var(--fg);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.35}}
 .ver .cap{display:flex;align-items:center;justify-content:center;gap:4px;font-size:12.5px;color:var(--fg-2)}
 .ver .cap .i{width:13px;height:13px}
@@ -156,17 +171,9 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .ver:has(input:checked) .cap{color:var(--acc-fg);font-weight:500}
 .ver:has(input:focus-visible) .pic{outline:2px solid var(--acc);outline-offset:3px}
 .ver-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
-/* the empty right card is the restyle button: dashed, like the photo drop zone, until a restyle fills it */
-.ver.make{padding:0;border:0;background:none;font:inherit;text-align:center}
-.ver.make .pic{display:flex;flex-direction:column;gap:8px;box-shadow:none;border:1px dashed var(--border-2);background:var(--soft);color:var(--acc-fg);padding:8px;transition:background .15s,border-color .15s}
-.ver.make .pic b{font-weight:500;font-size:12.5px;line-height:1.3}
-.ver.make:hover:not(:disabled) .pic{border-color:var(--fg)}
-.ver.make:disabled{cursor:default}
-.ver.make:focus-visible{outline:none}
-.ver.make:focus-visible .pic{outline:2px solid var(--acc);outline-offset:3px}
 .chips.outfits{margin-top:12px}
 .hint.below{margin-top:6px}
-@media (prefers-reduced-motion:reduce){.ver.busy .pic .i{animation:none}}
+@media (prefers-reduced-motion:reduce){.ver.busy .pic .i,.ver.busy .pic::after{animation:none}}
 .check.consent{margin:12px 0 0;align-items:flex-start}
 .check.consent input{margin-top:3px}
 .check abbr{color:var(--red);text-decoration:none}
@@ -217,7 +224,7 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .sort{position:relative;display:flex;align-items:center;padding:0 0 6px 8px;border-bottom:1px solid var(--border)}
 .sort select{appearance:none;padding:6px 28px 6px 30px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card);font-size:13px;font-weight:500;cursor:pointer}
 .sort select:hover{border-color:var(--fg-3)}
-.sort select:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.sort select:focus-visible{outline:0;border-color:var(--fg)}  /* Chrome shows a select's ring on a click too; an ink border marks focus without the double line */
 .sort .i{position:absolute;top:calc(50% - 3px);transform:translateY(-50%);width:14px;height:14px;color:var(--fg-2);pointer-events:none}
 .sort .i:first-child{left:18px}
 .sort .i:last-child{right:9px}
@@ -227,9 +234,10 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 .save[aria-pressed=true]{border-color:var(--fg)}
 .save[aria-pressed=true] .i{fill:currentColor;animation:bump .4s var(--spring)}
 @keyframes bump{40%{transform:scale(1.35)}}
-dialog .save{position:absolute;right:-48px;top:46px;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;justify-content:center}
-dialog .save:hover{background:rgba(255,255,255,.22)}
-@media (max-width:560px){dialog .save{right:46px;top:-46px}}
+dialog .save,dialog .dl{position:absolute;right:-48px;top:46px;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;justify-content:center}
+dialog .dl{top:92px;display:grid;place-items:center}
+dialog .save:hover,dialog .dl:hover{background:rgba(255,255,255,.22)}
+@media (max-width:560px){dialog .save{right:46px;top:-46px}dialog .dl{right:92px;top:-46px}}
 .empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:44px 20px;text-align:center;color:var(--fg-2);background:var(--card)}
 .empty::before{content:"";display:block;width:54px;aspect-ratio:9/16;border:2px dashed var(--border-2);border-radius:10px;margin:0 auto 16px}
 .empty b{display:block;color:var(--fg);font:600 17px var(--display);margin-bottom:2px}
@@ -248,11 +256,17 @@ button.thumb{cursor:pointer}
 button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50%) scale(1.08)}
 .thumb .dur{position:absolute;right:6px;bottom:6px;font-size:11px;font-weight:500;background:rgba(0,0,0,.72);padding:1px 6px;border-radius:4px;line-height:1.5}
 .thumb .peek{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-/* a video that is not ready yet is a dark phone screen; the fill rises in the colour its captions will have */
+/* a video that is not ready yet is a dark phone screen lit from below in its community colour: the glow rises a step at a
+   time under a soft lit edge (by transform, so it glides without relayout), breathes, and a slow sheen crosses it */
 .screen{background:var(--screen);color:#fff}
 .screen .still{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.screen .fill{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:var(--c,#FFE500);transition:height .8s ease}
-.screen .bar{position:absolute;left:0;bottom:0;height:4px;width:var(--fill,0%);background:var(--c,#FFE500);transition:width .8s ease}
+.card.live .screen::before{content:"";position:absolute;inset:0;background:radial-gradient(110% 55% at 50% 100%,color-mix(in srgb,var(--c) 24%,transparent),transparent 70%);animation:breathe 3.2s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.4}}
+.screen .fill{position:absolute;inset:0;transform:translateY(calc(100% - var(--fill,0%)));transition:transform 1.2s cubic-bezier(.65,0,.35,1);
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.09) 50%,transparent 60%) 0 0/250% 100%,
+    linear-gradient(color-mix(in srgb,var(--c) 32%,transparent),color-mix(in srgb,var(--c) 10%,transparent) 50%,color-mix(in srgb,var(--c) 3%,transparent));animation:sheen 3.2s linear infinite}
+.screen .fill::before{content:"";position:absolute;left:0;right:0;top:0;height:1.5px;background:color-mix(in srgb,var(--c) 40%,#fff);box-shadow:0 0 10px 1px color-mix(in srgb,var(--c) 75%,transparent),0 0 34px 8px color-mix(in srgb,var(--c) 25%,transparent)}
+.screen .bar{position:absolute;z-index:1;left:0;bottom:0;height:3px;width:var(--fill,0%);background:color-mix(in srgb,var(--c) 40%,#fff);box-shadow:0 0 10px 1px color-mix(in srgb,var(--c) 75%,transparent);transition:width 1.2s cubic-bezier(.65,0,.35,1)}
 .screen .stage{position:absolute;inset:0;display:grid;place-content:center;gap:3px;text-align:center;padding:8px;font:600 15px/1.2 var(--display);text-shadow:0 1px 10px rgba(0,0,0,.7)}
 .screen .stage small{font:500 11.5px/1.3 var(--font);opacity:.85}
 .screen:has(.still) .stage{place-content:end center;padding-bottom:12px;background:linear-gradient(transparent 50%,rgba(0,0,0,.75))}
@@ -267,12 +281,13 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .steps li{position:relative;padding-top:9px;font-size:11.5px;line-height:1.2;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .steps li{transition:color .4s}
 .steps li::before,.steps li::after{content:"";position:absolute;left:0;right:0;top:0;height:4px;border-radius:2px;background:var(--border)}
-/* the fill sweeps in from the left; the next step waits for the finished one to land before it starts */
-.steps li::after{background:var(--fg);transform:scaleX(0);transform-origin:left;transition:transform .55s cubic-bezier(.65,0,.35,1),background-color .4s}
+/* a finished step fills with ink from the left; the step being worked on carries a soft ink band gliding along its track */
+.steps li::after{background:var(--fg);transform:scaleX(0);transform-origin:left;transition:transform .6s cubic-bezier(.65,0,.35,1)}
 .steps .done{color:var(--fg-2)}
 .steps .done::after{transform:scaleX(1)}
 .steps .now{color:var(--fg);font-weight:500}
-.steps .now::after{transform:scaleX(1);transition-delay:.3s;background:linear-gradient(90deg,var(--c,var(--amber-2)) 30%,color-mix(in srgb,var(--c,var(--amber-2)) 35%,#fff) 50%,var(--c,var(--amber-2)) 70%) 0 0/250% 100%;animation:sheen 1.8s linear infinite}
+.steps .now::before{background:linear-gradient(90deg,transparent,var(--fg) 35% 65%,transparent) -100% 0/40% 100% no-repeat,var(--border);animation:glide 1.5s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes glide{to{background-position:200% 0}}
 @keyframes sheen{from{background-position:100% 0}to{background-position:-150% 0}}
 .swap{animation:swap .45s cubic-bezier(.2,.8,.2,1)}
 @keyframes swap{from{opacity:0;transform:translateY(5px)}}
@@ -285,23 +300,35 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .meta time{margin-left:auto;font-size:12px;color:var(--fg-3);white-space:nowrap}
 .status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 9px 2px 8px;border-radius:999px}
 .status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.status.making{color:var(--amber);background:var(--amber-bg)}
+/* the video being made is the one solid ink chip, its mark a turning ring */
+.status.making{color:var(--on-fg);background:var(--fg)}
+.status.making::before{width:9px;height:9px;background:none;border:1.5px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite}
 .status.queued{color:var(--fg-2);background:var(--soft)}
 .status.failed{color:var(--red);background:var(--red-bg)}
 .status.ready{color:var(--green);background:var(--green-bg)}
 .card h3{font-size:16.5px;line-height:1.3}
 .desc{margin:3px 0 0;color:var(--fg-2);font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .facts{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--fg-2)}
-.swatch{width:10px;height:10px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 18%,transparent)}
 .facts li{display:inline-flex;align-items:center;gap:6px}
 .facts .i{width:14px;height:14px;color:var(--fg-3)}
 .tag{font-size:12px;color:var(--fg-2);background:var(--soft);border-radius:999px;padding:2px 9px}
 .step{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 0;font-size:13.5px;color:var(--fg-2)}
-.step .elapsed{display:inline-flex;align-items:center;gap:5px;color:var(--fg-3)}
 .step .i{width:14px;height:14px}
 .err{margin:6px 0 0;font-size:13px;color:var(--red)}
 .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .actions .step{flex:1;margin:0}
+/* delete or stop asks in a popup: the video's thumbnail beside the question, the answers bottom right */
+.ask{width:min(460px,calc(100vw - 32px))}
+.ask::backdrop{background:rgba(10,10,12,.5)}
+.ask .box{display:flex;gap:18px;padding:20px;background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 24px 64px rgba(0,0,0,.28)}
+.ask img{width:76px;aspect-ratio:9/16;flex:none;object-fit:cover;border-radius:var(--r-md);background:var(--soft)}
+.ask .box > div{flex:1;min-width:0;display:flex;flex-direction:column}
+.ask h3{font-size:17px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ask p{margin:6px 0 0;font-size:13.5px;color:var(--fg-2)}
+.ask .actions{margin-top:auto;padding-top:16px;justify-content:flex-end}
+.btn.danger,.btn.danger:hover,.btn.danger:disabled{background:var(--red);border-color:var(--red);color:var(--on-fg)}
+.btn.danger:hover{background:color-mix(in srgb,var(--red) 88%,var(--fg))}
+.btn.danger:disabled{opacity:.7;cursor:wait}
 .menu{position:relative}
 .menu summary{list-style:none}
 .menu summary::-webkit-details-marker{display:none}
@@ -332,6 +359,7 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
 @media (max-width:960px){
   .layout{grid-template-columns:1fr;padding:16px;gap:16px}
   .new{position:static;max-height:none}
+  .resizer{display:none}
   .top{padding:0 16px}
 }
 @media (max-width:560px){
@@ -361,8 +389,6 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
 .strip img{animation:pop .4s var(--spring) backwards}
 @keyframes pop{from{opacity:0;transform:scale(.6)}}
 @keyframes fade{from{opacity:0}}
-.status.making::before{animation:ping 1.6s ease-out infinite}
-@keyframes ping{from{box-shadow:0 0 0 0 color-mix(in srgb,var(--amber-2) 70%,transparent)}to{box-shadow:0 0 0 6px transparent}}
 .status.ready{animation:pop .45s var(--spring) .15s backwards}
 button.thumb img{transition:transform .5s var(--out)}
 button.thumb:hover img{transform:scale(1.05)}

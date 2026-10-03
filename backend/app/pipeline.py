@@ -151,7 +151,9 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         except Exception as e:  # ponytail: align() spreads this scene's script evenly; the other scenes keep Whisper's timings
             print(f"whisper scene {i}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
             return []
-    with ThreadPoolExecutor(2) as pool:  # Groq free tier: 20 Whisper requests a minute; a video needs at most 9
+    # all scenes at once: Groq's queue time, not the audio, is the wait (3-70 s per call), and a video's
+    # at most 9 requests sit under the free tier's 20 a minute
+    with ThreadPoolExecutor(len(scenes)) as pool:
         timed = [w for ws in pool.map(scene_words, range(len(scenes))) for w in ws]
     words = render.align([s["narration"] for s in scenes], bounds, timed)
     overlays = [(0.0, min(2.5, bounds[0][1]), render.ass_text(p["hook"]), "Hook")]

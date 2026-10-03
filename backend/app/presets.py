@@ -62,7 +62,8 @@ LANGUAGES = {
     "gu": dict(
         label="ગુજરાતી", script="઀-૿", whisper="gu", wps=1.7,
         instruction="Gujarati in Gujarati script, simple everyday spoken Gujarati; write every number as Gujarati words",
-        voice_edge={"f": "gu-IN-DhwaniNeural", "m": "gu-IN-NiranjanNeural"},
+        voice_edge={"f": "gu-IN-DhwaniNeural", "m": "gu-IN-DhwaniNeural"},  # Dhwani for every community, by choice
+        eleven=False,  # eleven_flash_v2_5 has no Gujarati: an English voice read it with an accent, so edge speaks first
     ),
 }
 

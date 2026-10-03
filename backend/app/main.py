@@ -182,6 +182,8 @@ def restyle(body: RestyleIn):
         except Exception as e:
             if "429" in str(e):  # every Cloudflare key has spent its 10,000 free neurons; they come back at 00:00 UTC
                 raise HTTPException(503, "The free daily AI image limit is used up. It resets at 05:30 IST. Your original photo works meanwhile.")
+            if "timed out" in str(e):  # seen 3 Oct 2026: FLUX.2 hangs on an account where FLUX.1 still answers
+                raise HTTPException(503, "The AI restyle service is not answering right now. Try again in a few minutes, or use your original photo.")
             raise HTTPException(503, f"Restyle failed: {str(e)[:120]}")
         return {"photo": "data:image/jpeg;base64," + base64.b64encode(out.read_bytes()).decode()}
 
@@ -326,8 +328,6 @@ def delete_job(jid: str):
     return {"deleted": jid}
 
 
-
-
 @app.get("/jobs/{jid}/download")
 def download_job(jid: str):
     """One zip to post from: the video, its cover and the post text (the same text the Copy button gives)."""
@@ -347,6 +347,8 @@ def download_job(jid: str):
         z.writestr(f"{name}.txt", f"{m['hook']}\n\n{m['caption']}\n\n{' '.join(m['hashtags'])}\n")
     return Response(buf.getvalue(), media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="{name}.zip"'})
+
+
 # The React build (frontend/dist, from `npm run build`) is served last so it never shadows an API route.
 # In development Vite serves the UI on :8000 and proxies the API here, so the folder may not exist.
 WEB = pipeline.BACKEND.parent / "frontend" / "dist"
