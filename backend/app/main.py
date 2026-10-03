@@ -176,7 +176,9 @@ def restyle(body: RestyleIn):
         try:
             out = media.restyle(src, body.outfit, f"{t}/restyled.png")
         except Exception as e:
-            raise HTTPException(503, f"restyle unavailable: {str(e)[:120]}")
+            if "429" in str(e):  # every Cloudflare key has spent its 10,000 free neurons; they come back at 00:00 UTC
+                raise HTTPException(503, "The free daily AI image limit is used up. It resets at 05:30 IST. Your original photo works meanwhile.")
+            raise HTTPException(503, f"Restyle failed: {str(e)[:120]}")
         return {"photo": "data:image/jpeg;base64," + base64.b64encode(out.read_bytes()).decode()}
 
 

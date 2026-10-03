@@ -138,6 +138,14 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .ver:has(input:checked) .cap{color:var(--acc-fg);font-weight:500}
 .ver:has(input:focus-visible) .pic{outline:2px solid var(--acc);outline-offset:3px}
 .ver-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+/* the empty right card is the restyle button: dashed, like the photo drop zone, until a restyle fills it */
+.ver.make{padding:0;border:0;background:none;font:inherit;text-align:center}
+.ver.make .pic{display:flex;flex-direction:column;gap:8px;box-shadow:none;border:1px dashed var(--acc);background:var(--acc-bg);color:var(--acc-fg);padding:8px;transition:background .15s,border-color .15s}
+.ver.make .pic b{font-weight:500;font-size:12.5px;line-height:1.3}
+.ver.make:hover:not(:disabled) .pic{background:#E2EAFE}
+.ver.make:disabled{cursor:default}
+.ver.make:focus-visible{outline:none}
+.ver.make:focus-visible .pic{outline:2px solid var(--acc);outline-offset:3px}
 .seg.outfits{margin-top:12px}
 .seg.outfits span,.seg.three span{font-size:12.5px;padding:8px 2px}
 .seg.three{grid-template-columns:repeat(3,1fr)}

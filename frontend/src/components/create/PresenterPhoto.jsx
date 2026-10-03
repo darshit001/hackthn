@@ -25,33 +25,28 @@ function Version({ src, label, checked, onPick, busy }) {
   );
 }
 
-// The user's photo: restyled by AI on upload (same face, better clothes and light), shown beside the original;
-// the outfit and how the middle scenes mix the user in are picked here too.
+// The user's photo, and on request an AI-restyled copy beside it (same face, the chosen outfit, better light): a restyle
+// spends free daily quota, so it runs only when the button is pressed. How the middle scenes mix the user in is here too.
 export function PresenterPhoto({ presets, community, setPhoto, layout, setLayout, consent, setConsent, error, consentRef }) {
   const input = useRef();
   const [original, setOriginal] = useState("");
   const [restyled, setRestyled] = useState("");
-  const [useOriginal, setUseOriginalState] = useState(false);
-  const keepOriginal = useRef(false);  // read when a restyle lands, so a late answer never overrides the user's pick
-  const setUseOriginal = v => { keepOriginal.current = v; setUseOriginalState(v); };
+  const [useOriginal, setUseOriginal] = useState(true);
   const [outfit, setOutfit] = useState(presets.outfit_for[community] || "smart");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
-  const restyle = async (photo, look, fresh = false) => {
+  // the user asked for it, so a restyle that lands is the photo used; a failed one changes nothing and says why
+  const restyle = async () => {
     setBusy(true);
     setNote("");
     try {
-      const { photo: out } = await api.restyle(photo, look);
+      const { photo: out } = await api.restyle(original, outfit);
       setRestyled(out);
-      if (!keepOriginal.current) setPhoto(out);
-    } catch {
-      if (restyled && !fresh) setNote("Could not restyle again right now. Your last restyled photo stays.");
-      else {
-        setNote("Restyle is unavailable right now, so your original photo is used.");
-        setUseOriginal(true);
-        setPhoto(photo);
-      }
+      setUseOriginal(false);
+      setPhoto(out);
+    } catch (e) {
+      setNote(e.message || "Restyle failed. Try again, or use your original photo.");
     }
     setBusy(false);
   };
@@ -62,10 +57,10 @@ export function PresenterPhoto({ presets, community, setPhoto, layout, setLayout
     let photo;
     try { photo = await shrink(file); } catch { setNote("This photo could not be opened. Use a JPG or PNG."); return; }
     setOriginal(photo);
-    setRestyled("");
-    setUseOriginal(false);
-    setPhoto(photo);  // usable at once; the restyled one replaces it when it lands
-    restyle(photo, outfit, true);  // a new photo: an older restyle is of someone else's picture
+    setRestyled("");  // an older restyle is of another picture
+    setUseOriginal(true);
+    setPhoto(photo);
+    setNote("");
   };
 
   const choose = orig => { setUseOriginal(orig); setPhoto(orig ? original : restyled); };
@@ -79,18 +74,23 @@ export function PresenterPhoto({ presets, community, setPhoto, layout, setLayout
           <>
             <div className="versions" role="radiogroup" aria-label="Photo to use" aria-busy={busy}>
               <Version src={original} label="Original" checked={useOriginal} onPick={() => choose(true)} />
-              <Version src={restyled} label={busy ? "Restyling…" : "Restyled"} checked={!useOriginal && !!restyled} busy={busy}
-                onPick={() => choose(false)} />
+              {restyled ? (
+                <Version src={restyled} label={busy ? "Restyling…" : "Restyled"} checked={!useOriginal} busy={busy} onPick={() => choose(false)} />
+              ) : (
+                <button type="button" className={"ver make" + (busy ? " busy" : "")} disabled={busy} onClick={restyle}>
+                  <span className="pic"><Icon name="sparkles" /><b>{busy ? "Restyling…" : "Restyle with AI"}</b></span>
+                  <span className="cap">{presets.outfits.find(o => o.slug === outfit)?.label}</span>
+                </button>
+              )}
               <div className="ver-actions">
-                <button type="button" className="btn" disabled={busy} onClick={() => restyle(original, outfit)}><Icon name="refresh" />Try again</button>
+                {restyled && <button type="button" className="btn" disabled={busy} onClick={restyle}><Icon name="sparkles" />Restyle again</button>}
                 <button type="button" className="btn" onClick={() => input.current.click()}><Icon name="image" />Change photo</button>
               </div>
             </div>
             <div className="seg outfits" role="radiogroup" aria-label="Outfit">
               {presets.outfits.map(o => (
                 <label key={o.slug}>
-                  <input type="radio" name="outfit" checked={outfit === o.slug} disabled={busy}
-                    onChange={() => { setOutfit(o.slug); restyle(original, o.slug); }} /><span>{o.label}</span>
+                  <input type="radio" name="outfit" checked={outfit === o.slug} onChange={() => setOutfit(o.slug)} /><span>{o.label}</span>
                 </label>
               ))}
             </div>
@@ -100,7 +100,7 @@ export function PresenterPhoto({ presets, community, setPhoto, layout, setLayout
             onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
             <Icon name="image" />
             <strong>Add a photo of your face</strong>
-            <small>AI dresses you up and puts you in every scene. You choose which photo is used.</small>
+            <small>Then restyle it with AI in an outfit you pick, or use it as it is.</small>
           </label>
         )}
         {note && <p className="hint err" role="alert">{note}</p>}

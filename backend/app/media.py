@@ -319,13 +319,13 @@ def stock_clip(query, min_sec, out_mp4, image=None, credit=None, image_b=None):
 
 
 # ---------- you in the video ----------
-# FLUX.2 klein on Cloudflare takes reference images under 512 px. Measured 3 Oct 2026: 9B ~10 s and keeps the face
-# closest, but costs ~1,410 neurons a 9:16 image (7 a day on a free account); 4B costs ~160. So 9B restyles the user's
-# photo once and 4B puts that person into the middle scenes' pictures.
+# FLUX.2 klein on Cloudflare takes reference images under 512 px. Measured 3 Oct 2026: 4B ~10 s and ~160 neurons a 9:16
+# image (~60 a day on a free account); 9B keeps the face a touch closer but costs ~1,410 (7 a day), so 4B does both jobs:
+# restyling the user's photo and putting that person into the middle scenes' pictures.
 # The talking face comes from free ZeroGPU Spaces (LeapTalk ~4 GPU-s a scene, then MoDA). A free account gets ~3.5
 # GPU-minutes per rolling 24 h, so HF_TOKEN, _2, _3 rotate on a quota error, then one anonymous try.
 
-RESTYLE_MODELS, SCENE_MODELS = ["flux-2-klein-9b", "flux-2-klein-4b"], ["flux-2-klein-4b"]
+FLUX2 = "flux-2-klein-4b"
 REF_SIDE = 512  # FLUX.2 refuses bigger references
 PORTRAIT = (768, 1344)  # the presenter photo is 9:16; its top square (HEAD) holds the head and is what talks
 FEATHER = 120  # px over which the talking square fades into the still portrait, so no seam shows
@@ -345,25 +345,23 @@ def head_png(portrait, out_png):
     return Path(out_png)
 
 
-def flux2(prompt, ref, out_png, models=SCENE_MODELS):
-    """FLUX.2 klein with `ref` as image 0, 9:16 out; each model in turn, keys rotating per model. Returns the model."""
+def flux2(prompt, ref, out_png):
+    """FLUX.2 klein with `ref` as image 0, 9:16 out; Cloudflare keys rotate on a quota error. Returns the model."""
     w, h = PORTRAIT
-    err = None
-    for model in models:
-        def post(acct, token, model=model):
-            r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/{model}",
-                           timeout=120, headers={"Authorization": f"Bearer {token}"},
-                           data={"prompt": prompt, "width": str(w), "height": str(h)},
-                           files={"input_image_0": ("ref.png", Path(ref).read_bytes(), "image/png")})
-            r.raise_for_status()
-            return base64.b64decode(r.json()["result"]["image"])
-        try:
-            Path(out_png).write_bytes(with_keys(post, "CF_ACCOUNT_ID", "CF_API_TOKEN"))
-            return model
-        except Exception as e:
-            err = e
-            print(f"flux2[{model}]: {type(e).__name__}: {' '.join(str(e).split())[:140]}", file=sys.stderr)
-    raise err
+
+    def post(acct, token):
+        r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/{FLUX2}",
+                       timeout=120, headers={"Authorization": f"Bearer {token}"},
+                       data={"prompt": prompt, "width": str(w), "height": str(h)},
+                       files={"input_image_0": ("ref.png", Path(ref).read_bytes(), "image/png")})
+        r.raise_for_status()
+        return base64.b64decode(r.json()["result"]["image"])
+    try:
+        Path(out_png).write_bytes(with_keys(post, "CF_ACCOUNT_ID", "CF_API_TOKEN"))
+    except Exception as e:
+        print(f"flux2: {type(e).__name__}: {' '.join(str(e).split())[:140]}", file=sys.stderr)
+        raise
+    return FLUX2
 
 
 def restyle(portrait, outfit, out_png):
@@ -372,7 +370,7 @@ def restyle(portrait, outfit, out_png):
     flux2(f"Photo of the same person from image 0: keep the face, hair, skin tone and age exactly the same. They wear {wear}, "
           f"stand upright with a relaxed confident posture and look at the camera. Waist-up vertical portrait, soft studio light, "
           f"{place} behind them with shallow depth of field, realistic photograph",
-          ref_png(portrait, Path(out_png).with_name("restyle_ref.png")), out_png, RESTYLE_MODELS)
+          ref_png(portrait, Path(out_png).with_name("restyle_ref.png")), out_png)
     return Path(out_png)
 
 

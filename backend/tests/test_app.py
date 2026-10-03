@@ -236,6 +236,12 @@ def test_restyle_returns_a_photo_or_503(monkeypatch, tmp_path):
     assert client.post("/photo/restyle", json={"photo": url, "outfit": "pyjamas"}).status_code == 400
 
     def down(src, outfit, out):
-        raise RuntimeError("HTTP 429")
+        raise RuntimeError("Client error '429 Too Many Requests' for url 'https://api.cloudflare.com/...'")
     monkeypatch.setattr(appmod.media, "restyle", down)
-    assert client.post("/photo/restyle", json={"photo": url}).status_code == 503
+    r = client.post("/photo/restyle", json={"photo": url})
+    assert r.status_code == 503 and "05:30" in r.json()["detail"]  # the daily free quota, said plainly
+
+    def broken(src, outfit, out):
+        raise RuntimeError("Server error '500 Internal Server Error'")
+    monkeypatch.setattr(appmod.media, "restyle", broken)
+    assert "05:30" not in client.post("/photo/restyle", json={"photo": url}).json()["detail"]
