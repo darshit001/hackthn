@@ -1,9 +1,12 @@
 """FastAPI front: job dict + one worker thread + static UI.
 ponytail: in-memory jobs (Redis/SQLite if history is ever needed); ephemeral out/ (HF persistent volume if videos must survive restarts)."""
+import base64
 import json
 import queue
 import secrets
 import shutil
+import subprocess
+import tempfile
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -96,6 +99,29 @@ class GenerateIn(BaseModel):
     style: str = "photo"
     all_languages: bool = False  # one job per language per topic; the siblings translate the first job's script and reuse its stills
     plan: dict | None = None  # a previewed plan (from POST /plan, hook possibly swapped); only used for a single topic
+    photo: str | None = Field(None, max_length=12_000_000)  # data URL of the user's photo: every video becomes a talking presenter
+    photo_consent: bool = False  # the user confirms the face is theirs or they may use it
+
+
+PHOTO_SIDE = 1024
+
+
+def _photo_png(data_url):
+    """Data URL -> PNG bytes, cropped to a PHOTO_SIDE square from the top third of a tall photo (where faces are).
+    ffmpeg doubles as the validator: anything it cannot decode as an image is refused."""
+    try:
+        raw = base64.b64decode(data_url.split(",", 1)[-1], validate=True)
+    except ValueError:
+        raise HTTPException(400, "photo is not base64")
+    with tempfile.TemporaryDirectory() as t:
+        src, dst = f"{t}/in", f"{t}/photo.png"
+        open(src, "wb").write(raw)
+        r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-frames:v", "1", "-vf",
+                            f"crop='min(iw,ih)':'min(iw,ih)':'(iw-ow)/2':'(ih-oh)/4',scale={PHOTO_SIDE}:{PHOTO_SIDE}", dst],
+                           capture_output=True, timeout=30)
+        if r.returncode:
+            raise HTTPException(400, "photo is not an image ffmpeg can read")
+        return open(dst, "rb").read()
 
 
 class PlanIn(BaseModel):
@@ -145,6 +171,11 @@ def generate(body: GenerateIn):
             llm.validate_plan(plan, (3, 9))
         except ValueError as e:
             raise HTTPException(400, f"bad plan: {e}")
+    photo = None
+    if body.photo:
+        if not body.photo_consent:
+            raise HTTPException(400, "confirm the photo is you, or that you may use this face")
+        photo = _photo_png(body.photo)
     langs = [body.language] + [k for k in LANGUAGES if k != body.language] if body.all_languages else [body.language]
     ids = []
     for t in topics:
@@ -154,7 +185,10 @@ def generate(body: GenerateIn):
             with LOCK:
                 JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": lang,
                              "duration": body.duration, "style": body.style, "status": "queued", "stage": None, "created": time.time(),
-                             "result": None, "error": None, "plan": None if source else plan, "source": source}
+                             "result": None, "error": None, "plan": None if source else plan, "source": source, "presenter": bool(photo)}
+            if photo:  # make_video finds it there and turns the video into a talking presenter
+                (pipeline.OUT / jid).mkdir(exist_ok=True)
+                (pipeline.OUT / jid / "photo.png").write_bytes(photo)
             Q.put((jid, None))
             ids.append(jid)
             source = source or jid  # the first language of a topic is the source the rest follow
@@ -168,7 +202,9 @@ def _live(j):
     if j["status"] != "running":
         return j
     d = pipeline.OUT / j["id"]
-    j = {**j, "stills": sorted(p.name for p in d.glob("gen*.png"))}
+    j = {**j, "stills": sorted(p.name for p in d.glob("gen*.png")) or (["photo.png"] if (d / "photo.png").exists() else [])}
+    if j.get("presenter"):
+        j["faces"] = len(list(d.glob("clip*.mp4")))  # talking scenes finished so far
     try:
         p = json.loads((d / "plan.json").read_text())
         j.update(hook=p["hook"], scenes=[sc.get("title") or sc["query"] for sc in p["scenes"]],

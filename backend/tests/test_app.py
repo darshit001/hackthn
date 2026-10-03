@@ -196,3 +196,23 @@ def test_stop_ends_a_running_job_and_keeps_its_card(monkeypatch, tmp_path):
     assert client.post(f"/jobs/{jid}/stop").status_code == 409  # already stopped
     assert client.delete(f"/jobs/{jid}").status_code == 200 and jid not in appmod.JOBS
     assert client.post(f"/jobs/{jid}/stop").status_code == 404
+
+
+def test_generate_with_a_photo_needs_consent_and_an_image(monkeypatch, tmp_path):
+    import base64
+    import subprocess
+    monkeypatch.setattr(appmod.Q, "put", lambda item: None)
+    monkeypatch.setattr(pipeline, "OUT", tmp_path)
+    png = tmp_path / "me.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=600x900", "-frames:v", "1", png], check=True)
+    url = "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode()
+    assert client.post("/generate", json={"topics": ["a"], "photo": url}).status_code == 400  # no consent
+    bad = "data:image/png;base64," + base64.b64encode(b"not an image").decode()
+    assert client.post("/generate", json={"topics": ["a"], "photo": bad, "photo_consent": True}).status_code == 400
+    r = client.post("/generate", json={"topics": ["a"], "photo": url, "photo_consent": True})
+    assert r.status_code == 200
+    jid = r.json()["job_ids"][0]
+    wh = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", tmp_path / jid / "photo.png"],
+                        capture_output=True, text=True).stdout.strip()
+    assert wh == f"{appmod.PHOTO_SIDE},{appmod.PHOTO_SIDE}"
+    assert client.get(f"/jobs/{jid}").json()["presenter"] is True

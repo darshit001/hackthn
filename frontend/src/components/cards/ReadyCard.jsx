@@ -12,6 +12,12 @@ function postText(m, kind) {
 const COPIED = { yt: "YouTube text copied", ig: "Instagram text copied", post: "Post text copied" };
 const PREVIEW = canHover() && !reducedMotion();  // hovering a thumbnail plays it silently, the way a feed does
 
+// a scene whose free GPU ran out shows the still photo; the count tells the user which videos a Redo scene would improve
+const talked = m => {
+  const n = m.scenes.filter(sc => sc.visual !== "photo").length;
+  return n === m.scenes.length ? "Your face, talking" : `Your face, talking in ${n} of ${m.scenes.length} scenes`;
+};
+
 export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {
   const m = job.result, v = m.updated || 0;
   const video = `${m.video}?v=${v}`, thumb = `${m.thumb}?v=${v}`;
@@ -33,7 +39,8 @@ export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {
         <h3>{job.topic}</h3>
         <p className="desc">{m.hook} {m.caption}</p>
         <Facts job={job} label={label}>
-          {m.style && m.style !== "photo" && <li><Icon name="image" />{label(m.style)} look</li>}
+          {m.presenter ? <li><Icon name="smile" />{talked(m)}</li>
+            : m.style && m.style !== "photo" && <li><Icon name="image" />{label(m.style)} look</li>}
         </Facts>
       </div>
       <div className="side">

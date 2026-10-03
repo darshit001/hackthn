@@ -112,6 +112,26 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .seg label:has(input:checked){border-color:var(--acc);background:var(--acc-bg);color:var(--acc-fg);font-weight:500}
 .check{display:flex;align-items:center;gap:8px;margin:-8px 0 16px;font-size:13px;color:var(--fg-2);cursor:pointer}
 .check input{accent-color:var(--acc);margin:0}
+/* on screen: AI pictures or the user's photo talking */
+.seg.two{grid-template-columns:repeat(2,1fr)}
+.seg.two span{display:flex;align-items:center;justify-content:center;gap:7px}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.dropzone{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border:1px dashed var(--border-2);border-radius:var(--r-md);background:var(--bg);color:var(--fg-2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.dropzone .i{width:22px;height:22px;margin-bottom:4px;color:var(--fg-3)}
+.dropzone strong{font-weight:500;font-size:13.5px;color:var(--fg)}
+.dropzone small{font-size:12.5px}
+.dropzone:hover,.presenter:has(#photo:focus-visible) .dropzone{border-color:var(--acc);background:var(--acc-bg)}
+.presenter:has(#photo:focus-visible) .dropzone{outline:2px solid var(--acc);outline-offset:2px}
+.face{display:flex;gap:14px;align-items:center}
+/* the real frame in miniature: 9:16, blurred photo behind, face square at 420/1920 from the top */
+.mini{position:relative;flex:none;width:72px;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:#000;box-shadow:0 0 0 1px var(--border)}
+.mini .bg{position:absolute;inset:-8px;width:calc(100% + 16px);height:calc(100% + 16px);object-fit:cover;filter:blur(6px) brightness(.85)}
+.mini .sq{position:absolute;left:0;top:21.9%;width:100%;aspect-ratio:1;object-fit:cover;object-position:50% 25%}
+.about p{margin:0 0 8px;font-size:13px;color:var(--fg-2)}
+.check.consent{margin:12px 0 0;align-items:flex-start}
+.check.consent input{margin-top:3px}
+.check abbr{color:var(--red);text-decoration:none}
+.presenter{margin-bottom:16px}
 .go{display:flex;gap:8px;margin-top:4px}
 .go .btn{padding:10px 12px;border-radius:var(--r-md)}
 .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:13px 16px;border:1px solid var(--fg);border-radius:var(--r-md);background:var(--fg);color:#fff;font-weight:500;font-size:15px}

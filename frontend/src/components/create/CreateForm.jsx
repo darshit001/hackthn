@@ -3,6 +3,7 @@ import { api } from "../../lib/api";
 import { GLYPH, ICON, MAX_TOPICS } from "../../lib/constants";
 import { reducedMotion } from "../../lib/format";
 import { Icon } from "../Icon";
+import { PresenterPhoto } from "./PresenterPhoto";
 import { ScriptPreview } from "./ScriptPreview";
 
 const HINT = "One topic per line, up to 10.";
@@ -21,6 +22,11 @@ export function CreateForm({ presets, onStarted }) {
   const [duration, setDuration] = useState(30);
   const [style, setStyle] = useState("photo");
   const [every, setEvery] = useState(false);  // also make it in every other language
+  const [talking, setTalking] = useState(false);  // the user's photo speaks the script instead of AI pictures
+  const [photo, setPhoto] = useState("");  // data URL, already shrunk
+  const [consent, setConsent] = useState(false);
+  const [consentError, setConsentError] = useState("");
+  const consentRef = useRef();
   const [status, setStatus] = useState(HINT);
   const [ideas, setIdeas] = useState([]);
   const [ideasNote, setIdeasNote] = useState("");  // where the ideas came from, or why there are none
@@ -31,6 +37,7 @@ export function CreateForm({ presets, onStarted }) {
   const options = { community, language, duration, style };
   const langs = presets.languages.length;
   const count = topics.length * (every ? langs : 1);
+  const face = talking && photo ? { photo, photo_consent: consent } : {};  // kept out of /plan: the script does not need the photo
 
   const changeText = value => { setText(value); setPreview(null); };
   const dropIdeas = () => { setIdeas([]); setIdeasNote(""); setPreview(null); };
@@ -42,7 +49,16 @@ export function CreateForm({ presets, onStarted }) {
     dropIdeas();
   };
 
+  // a talking video needs a photo and the consent tick; the problem is named next to the field that has it
+  const faceReady = () => {
+    if (!talking) return true;
+    if (!photo) { setConsentError("Add a photo first, or switch back to AI pictures."); return false; }
+    if (!consent) { setConsentError("Tick this to use the photo."); consentRef.current.focus(); return false; }
+    return true;
+  };
+
   const start = async (body, message) => {
+    if (!faceReady()) return false;
     try {
       await api.generate(body);
       onStarted(message);
@@ -83,7 +99,7 @@ export function CreateForm({ presets, onStarted }) {
     if (!topics.length) return;
     setBusy("start");
     const message = every ? `Generating ${count} videos in ${langs} languages` : count === 1 ? "Generating 1 video" : `Generating ${count} videos`;
-    await start({ topics, ...options, all_languages: every }, message);
+    await start({ topics, ...options, all_languages: every, ...face }, message);
     setBusy("");
   };
 
@@ -120,7 +136,7 @@ export function CreateForm({ presets, onStarted }) {
         <p className="hint">{status}</p>
         {preview && (
           <ScriptPreview key={preview.topic} {...preview} onClose={() => setPreview(null)}
-            onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan },
+            onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan, ...face },
               every ? `Generating ${langs} videos in ${langs} languages with your script` : "Generating 1 video with your script")} />
         )}
       </div>
@@ -159,15 +175,30 @@ export function CreateForm({ presets, onStarted }) {
           ))}
         </div>
       </div>
-      <div className="field"><span>5. Look</span>
-        <div className="seg" role="radiogroup" aria-label="Look">
-          {presets.styles.map(s => (
-            <label key={s.slug}>
-              <input type="radio" name="style" value={s.slug} checked={style === s.slug} onChange={() => setStyle(s.slug)} /><span>{s.label}</span>
-            </label>
-          ))}
+      <div className="field"><span>5. On screen</span>
+        <div className="seg two" role="radiogroup" aria-label="On screen">
+          <label>
+            <input type="radio" name="screen" checked={!talking} onChange={() => setTalking(false)} /><span><Icon name="image" />AI pictures</span>
+          </label>
+          <label>
+            <input type="radio" name="screen" checked={talking} onChange={() => setTalking(true)} /><span><Icon name="smile" />Me, talking</span>
+          </label>
         </div>
       </div>
+      {talking ? (
+        <PresenterPhoto photo={photo} setPhoto={p => { setPhoto(p); setConsentError(""); }} consent={consent}
+          setConsent={c => { setConsent(c); setConsentError(""); }} error={consentError} consentRef={consentRef} />
+      ) : (
+        <div className="field"><span>6. Look</span>
+          <div className="seg" role="radiogroup" aria-label="Look">
+            {presets.styles.map(s => (
+              <label key={s.slug}>
+                <input type="radio" name="style" value={s.slug} checked={style === s.slug} onChange={() => setStyle(s.slug)} /><span>{s.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="go">
         {/* a script preview is for one topic at a time */}
@@ -179,7 +210,7 @@ export function CreateForm({ presets, onStarted }) {
         </button>
       </div>
       <p className="after">
-        <span><Icon name="clock" />About a minute per video</span>
+        <span><Icon name="clock" />{talking ? "About 3 minutes per video" : "About a minute per video"}</span>
         <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> starts it</span>
       </p>
     </form>

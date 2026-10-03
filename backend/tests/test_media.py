@@ -108,3 +108,68 @@ def test_gen_image_leads_with_the_look_and_keeps_the_common_suffix(monkeypatch, 
     media.gen_image("Wide shot: a cat on a roof", tmp_path / "b.png")
     assert seen[0] == "Anime illustration, cel shading, vivid colours, clean line art. Wide shot: a cat on a roof" + media.IMAGE_SUFFIX
     assert seen[1].startswith("Photograph, cinematic soft light. Wide shot: a cat on a roof") and seen[1].endswith("no text, no watermark, no logo")
+
+
+def _ff(*args):
+    import subprocess
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *map(str, args)], check=True)
+
+
+def test_talking_head_falls_through_the_chain_and_frames_the_face(monkeypatch, tmp_path):
+    photo, face = tmp_path / "photo.png", tmp_path / "face.mp4"
+    _ff("-f", "lavfi", "-i", "color=c=orange:s=1024x1024", "-frames:v", "1", photo)
+    _ff("-f", "lavfi", "-i", "testsrc=s=512x512:r=25:d=1", "-pix_fmt", "yuv420p", face)
+    calls = []
+
+    def leap(p, w, sec):
+        calls.append("leap")
+        raise RuntimeError("You have exceeded your free ZeroGPU quota")
+
+    def moda(p, w, sec):
+        calls.append("moda")
+        return str(face)
+
+    monkeypatch.setattr(media, "FACE_CHAIN", [("leaptalk", "LeapTalk", leap), ("moda", "MoDA", moda)])
+    monkeypatch.setattr(media, "_face_down", {})
+    out = tmp_path / "clip0.mp4"
+    assert media.talking_head(photo, tmp_path / "v.wav", out, 1.0)["source"] == "moda"
+    assert media.duration(out) >= 1.0 + media.XFADE_SEC - 0.05  # the last frame holds through the crossfade tail
+    assert media.talking_head(photo, tmp_path / "v.wav", out, 1.0)["source"] == "moda"
+    assert calls == ["leap", "moda", "moda"]  # the out-of-quota Space rests
+
+    monkeypatch.setattr(media, "FACE_CHAIN", [("moda", "MoDA", leap)])
+    monkeypatch.setattr(media, "_face_down", {})
+    assert media.talking_head(photo, tmp_path / "v.wav", out, 1.0) == {"source": "photo", "credit": "Your photo"}
+    import subprocess
+    wh = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", out],
+                        capture_output=True, text=True).stdout.strip()
+    assert wh == f"{media.W},{media.H}"
+
+
+def test_space_call_rotates_tokens_on_quota_only(monkeypatch):
+    import gradio_client
+    seen = []
+
+    class FakeJob:
+        def __init__(self, token):
+            self.token = token
+
+        def result(self, timeout=None):
+            if self.token != "t2":
+                raise RuntimeError("You have exceeded your free ZeroGPU quota (180s requested vs. 87s left)")
+            return {"video": "/tmp/v.mp4"}
+
+    class FakeClient:
+        def __init__(self, space, token=None, verbose=True):
+            seen.append(token)
+            self.token = token
+
+        def submit(self, *args, api_name=None):
+            return FakeJob(self.token)
+
+    monkeypatch.setattr(gradio_client, "Client", FakeClient)
+    monkeypatch.setenv("HF_TOKEN", "t1")
+    monkeypatch.setenv("HF_TOKEN_2", "t2")
+    monkeypatch.delenv("HF_TOKEN_3", raising=False)
+    assert media._space_call("x/y", "/go", []) == "/tmp/v.mp4"
+    assert seen == ["t1", "t2"]

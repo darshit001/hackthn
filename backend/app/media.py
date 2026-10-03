@@ -2,6 +2,7 @@
 tts:        ElevenLabs -> edge-tts -> Gemini TTS, normalised to 44.1 kHz mono wav (+0.2 s pad)
 duration:   ffprobe seconds
 gen_image:  Cloudflare Workers AI FLUX (CF_ACCOUNT_ID, CF_API_TOKEN) -> Together AI -> Hugging Face Inference (HF_TOKEN) -> None
+talking_head: the user's photo speaking a scene: LeapTalk -> MoDA (free ZeroGPU Spaces, HF_TOKEN/_2/_3) -> Ken Burns on the photo
 stock_clip: AI image if given -> Pexels -> Pixabay -> Wikimedia Commons photo -> None; stills get a pan-zoom clip
 words:      Groq Whisper word timings"""
 import asyncio
@@ -305,6 +306,85 @@ def stock_clip(query, min_sec, out_mp4, image=None, credit=None, image_b=None):
             print(f"wikimedia {query!r} attempt {attempt + 1}: {type(e).__name__}: {str(e)[:120]}", file=sys.stderr)
             time.sleep(2)
     return None  # ponytail: Commons video derivatives would be the next source to add
+
+
+# ---------- talking presenter ----------
+# Free ZeroGPU Spaces, measured 3 Oct 2026 on 7.5 s of speech: LeapTalk 23 s wall / 3.8 GPU-s (512 px, <= 20 s of audio a call),
+# MoDA 36 s wall (input size, but reserves 180 s of quota a call). A free account gets ~3.5 GPU-minutes per rolling 24 h,
+# so HF_TOKEN, _2, _3 rotate on a quota error, then one anonymous try. Hands and body would need a paid GPU: not here.
+
+FACE_Y = 420  # the 1080 square face sits here: the hook above it, captions (presenter style) below the chin
+_face_down = {}  # Space -> time every token was out of quota or the Space was down; skipped for DOWN_FOR seconds
+
+
+def _hf_tokens():
+    return [t for t in (os.environ.get(n, "").strip() for n in ("HF_TOKEN", "HF_TOKEN_2", "HF_TOKEN_3")) if t] + [None]
+
+
+def _space_call(space, api_name, args):
+    """Call a Gradio Space with each token in turn; a quota error moves to the next token, anything else raises.
+    Returns the output video path."""
+    from gradio_client import Client
+    for token in _hf_tokens():
+        try:
+            out = Client(space, token=token, verbose=False).submit(*args, api_name=api_name).result(timeout=240)
+        except Exception as e:
+            if "quota" in str(e).lower():
+                print(f"face[{space}] token {'anon' if token is None else token[:6]}: out of quota", file=sys.stderr)
+                continue
+            raise
+        out = out[0] if isinstance(out, (list, tuple)) else out
+        return out["video"] if isinstance(out, dict) else out
+    raise RuntimeError(f"{space}: every token is out of ZeroGPU quota")
+
+
+def _leaptalk(photo, wav, sec):
+    if sec > 20:
+        raise ValueError("LeapTalk takes at most 20 s of audio")
+    from gradio_client import handle_file
+    return _space_call("hugging-apps/leaptalk-talking-head", "/generate",
+                       [handle_file(str(photo)), handle_file(str(wav)), min(20, int(sec) + 1), 1, 1.0, 42, True])
+
+
+def _moda(photo, wav, sec):
+    from gradio_client import handle_file
+    return _space_call("multimodalart/MoDA-fast-talking-head", "/generate_motion",
+                       [handle_file(str(photo)), handle_file(str(wav)), "Happiness", 1.2])
+
+
+FACE_CHAIN = [("leaptalk", "LeapTalk", _leaptalk), ("moda", "MoDA", _moda)]
+
+
+def presenter_still(photo, out_png):
+    """The presenter frame without motion: the photo blurred and darkened fills 9:16, the sharp square on top."""
+    _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-filter_complex",
+          f"[0]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},boxblur=40:2,eq=brightness=-0.12[bg];"
+          f"[0]scale={W}:{W}[fg];[bg][fg]overlay=0:{FACE_Y}", "-frames:v", "1", str(out_png)])
+    return Path(out_png)
+
+
+def talking_head(photo, wav, out_mp4, sec):
+    """Scene clip of the user's photo speaking `wav`: W x H, sec + the crossfade tail long, no audio.
+    LeapTalk -> MoDA -> a Ken Burns zoom on the still frame. Returns {'source', 'credit'}; raises only if ffmpeg does."""
+    out_mp4, need = Path(out_mp4), sec + XFADE_SEC
+    for name, label, fn in FACE_CHAIN:
+        if time.time() - _face_down.get(name, 0) < DOWN_FOR:
+            continue
+        try:
+            face = fn(photo, wav, sec)
+            # the face clip ends with the speech; its last frame holds through the crossfade tail instead of looping
+            _run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(face), "-i", str(photo), "-filter_complex",
+                  f"[1]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},boxblur=40:2,eq=brightness=-0.12[bg];"
+                  f"[0:v]scale={W}:{W},fps=30,tpad=stop_mode=clone:stop_duration={need:.3f}[fg];[bg][fg]overlay=0:{FACE_Y}",
+                  "-t", f"{need:.3f}", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", str(out_mp4)])
+            return {"source": name, "credit": f"Talking face: {label} via Hugging Face Spaces"}
+        except Exception as e:
+            msg = " ".join(str(e).split())
+            if "quota" in msg.lower() or "runtime_error" in msg.lower() or "paused" in msg.lower():
+                _face_down[name] = time.time()
+            print(f"face[{name}] {out_mp4.name}: {type(e).__name__}: {msg[:160]}", file=sys.stderr)
+    _still_to_clip(presenter_still(photo, out_mp4.with_suffix(".png")), need, out_mp4)
+    return {"source": "photo", "credit": "Your photo"}
 
 
 # ---------- captions ----------

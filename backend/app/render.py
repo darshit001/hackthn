@@ -100,10 +100,11 @@ def chunk(words, size=3, max_gap=0.6):
     return chunks
 
 
-def subtitles(words, community, out_ass, overlays=()):
+def subtitles(words, community, out_ass, overlays=(), low=False):
     """Write an ASS file: one Dialogue per caption chunk with karaoke \\k per word so the active word lights up in the
     accent colour, plus overlays [(start, end, ass_text, style)] on layer 1: Hook (top), Title (upper third), Outro (centre).
-    Everything on screen goes through libass so Devanagari shapes correctly and no extra ffmpeg pass is needed."""
+    Everything on screen goes through libass so Devanagari shapes correctly and no extra ffmpeg pass is needed.
+    low: captions near the bottom, under a talking presenter's chin instead of over the mouth."""
     accent = ass_color(COMMUNITIES[community]["accent"])
     fmt = ("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
            "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding")
@@ -111,7 +112,7 @@ def subtitles(words, community, out_ass, overlays=()):
     lines = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 0", "",
         "[V4+ Styles]", fmt,
-        f"Style: Cap,{FONT},88,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,5,2,2,60,60,{int(H * 0.32)},1",
+        f"Style: Cap,{FONT},88,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,5,2,2,60,60,{int(H * (0.12 if low else 0.32))},1",
         f"Style: Hook,{FONT},84,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.18)},1",
         f"Style: Title,{FONT},96,{accent},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,8,80,80,{int(H * 0.30)},1",
         f"Style: Outro,{FONT},64,{white},{white},{black},{shadow},-1,0,0,0,100,100,0,0,1,4,2,5,80,80,0,1",
