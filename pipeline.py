@@ -18,9 +18,10 @@ MUSIC_DIR = Path(__file__).parent / "assets" / "music"
 STAGES = ["plan", "images", "voice", "visuals", "captions", "render"]
 
 
-def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None):
+def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None, style="photo"):
     """Returns the meta dict that is also written to out/<id>/<id>.json. Raises on unrecoverable failure.
-    plan: a previewed plan from llm.plan (hook possibly swapped by the user); None plans from scratch."""
+    plan: a previewed plan from llm.plan (hook possibly swapped by the user); None plans from scratch.
+    style: a key of presets.STYLES, the look of the AI stills."""
     job_id = job_id or secrets.token_hex(4)
     d = OUT / job_id
     d.mkdir(parents=True, exist_ok=True)
@@ -37,7 +38,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     tasks += [(i, "b", sc["image_prompt_b"]) for i, sc in enumerate(scenes) if sc.get("image_prompt_b")]
     with ThreadPoolExecutor(2) as vpool, ThreadPoolExecutor(3) as ipool:
         voices = [vpool.submit(media.tts, sc["narration"], community, w, language) for sc, w in zip(scenes, wavs)]
-        got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png"), tasks))
+        got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png", style), tasks))
     images = {(i, sfx): (d / f"gen{i}{sfx}.png", cr) for (i, sfx, _), cr in zip(tasks, got) if cr}  # (scene, "" or "b") -> (png, credit)
 
     progress("voice")
@@ -91,6 +92,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     chosen = next((h for h in p["hooks"] if h["text"].strip() == p["hook"].strip()), {})
     meta = {
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
+        "style": style,
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),
         "caption": p["caption"], "hashtags": p["hashtags"], "posts": p.get("posts"),
         "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr)
@@ -112,12 +114,13 @@ def redo_scene(job_id, n, progress=lambda stage: None):
     meta = json.loads((d / f"{job_id}.json").read_text())
     scenes = meta["scenes"]
     sc = scenes[n]
+    style = meta.get("style", "photo")  # older metas were all photographic
     progress("images")
     take = secrets.token_hex(2)  # FLUX is deterministic per prompt on some providers, so a fresh suffix is what makes the picture different
     png, png_b = d / f"gen{n}.png", d / f"gen{n}b.png"
-    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {take})", png)
+    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {take})", png, style)
     split = sc.get("image_prompt_b") and sc["seconds"] >= media.SPLIT_MIN_SEC  # a short scene never cuts, so skip its second picture
-    cr_b = media.gen_image(f"{sc['image_prompt_b']} (take {take})", png_b) if split else None
+    cr_b = media.gen_image(f"{sc['image_prompt_b']} (take {take})", png_b, style) if split else None
     progress("visuals")
     clip = d / f"clip{n}.mp4"
     src = media.stock_clip(sc["query"], sc["seconds"], clip, image=png if cr else None, credit=cr or cr_b, image_b=png_b if cr_b else None)

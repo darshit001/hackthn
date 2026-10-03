@@ -38,6 +38,12 @@ MUSIC = {  # mood -> (file under assets/music, track title)
     "inspiring": ("Inspired.mp3", "Inspired"),
 }
 MUSIC_CREDIT = "Kevin MacLeod (incompetech.com), CC BY 4.0"
+STYLES = {  # slug -> (label, phrase that leads every image prompt: FLUX weights the first words most)
+    "photo": ("Photo", "Photograph, cinematic soft light"),
+    "anime": ("Anime", "Anime illustration, cel shading, vivid colours, clean line art"),
+    "infographic": ("Infographic", "Flat vector infographic illustration, bold simple shapes, limited palette"),
+    "cinematic": ("Cinematic", "Cinematic 35mm film still, dramatic lighting, shallow depth of field, moody colour grade"),
+}
 
 COMMUNITIES = {
     "general": dict(

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import llm
 import pipeline
-from presets import COMMUNITIES, DURATIONS, LANGUAGES
+from presets import COMMUNITIES, DURATIONS, LANGUAGES, STYLES
 
 ROOT = Path(__file__).parent
 pipeline.OUT.mkdir(exist_ok=True)
@@ -45,7 +45,8 @@ def _worker():
         try:
             if scene is None:
                 meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid,
-                                           language=job["language"], duration=job["duration"], plan=job.get("plan"))
+                                           language=job["language"], duration=job["duration"], plan=job.get("plan"),
+                                           style=job.get("style", "photo"))
             else:
                 meta = pipeline.redo_scene(jid, scene, progress)
             with LOCK:
@@ -71,7 +72,7 @@ def load_done_jobs():
             continue
         with LOCK:
             JOBS.setdefault(meta["id"], {"id": meta["id"], "topic": meta["topic"], "community": meta.get("community", "general"),
-                                         "language": meta.get("language", "en"), "duration": meta.get("target", 30),
+                                         "language": meta.get("language", "en"), "duration": meta.get("target", 30), "style": meta.get("style", "photo"),
                                          "status": "done", "stage": None, "created": f.stat().st_mtime, "result": meta, "error": None})
 
 
@@ -92,6 +93,7 @@ class GenerateIn(BaseModel):
     community: str = "general"
     language: str = "en"
     duration: int = 30
+    style: str = "photo"
     plan: dict | None = None  # a previewed plan (from POST /plan, hook possibly swapped); only used for a single topic
 
 
@@ -111,7 +113,8 @@ def index():
 def presets():
     return {"communities": [{"slug": k, "label": v["label"], "language": v["language"]} for k, v in COMMUNITIES.items()],
             "languages": [{"slug": k, "label": v["label"]} for k, v in LANGUAGES.items()],
-            "durations": DURATIONS}
+            "durations": DURATIONS,
+            "styles": [{"slug": k, "label": v[0]} for k, v in STYLES.items()]}
 
 
 @app.get("/suggest")
@@ -137,8 +140,8 @@ def plan(body: PlanIn):
 
 @app.post("/generate")
 def generate(body: GenerateIn):
-    if body.community not in COMMUNITIES or body.language not in LANGUAGES or body.duration not in DURATIONS:
-        raise HTTPException(400, "unknown community, language or duration")
+    if body.community not in COMMUNITIES or body.language not in LANGUAGES or body.duration not in DURATIONS or body.style not in STYLES:
+        raise HTTPException(400, "unknown community, language, duration or look")
     topics = [t.strip()[:200] for t in body.topics if t.strip()]
     plan = body.plan if len(topics) == 1 else None
     if plan is not None:
@@ -151,7 +154,7 @@ def generate(body: GenerateIn):
         jid = secrets.token_hex(4)
         with LOCK:
             JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": body.language,
-                         "duration": body.duration, "status": "queued", "stage": None, "created": time.time(),
+                         "duration": body.duration, "style": body.style, "status": "queued", "stage": None, "created": time.time(),
                          "result": None, "error": None, "plan": plan}
         Q.put((jid, None))
         ids.append(jid)

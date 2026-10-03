@@ -98,3 +98,13 @@ def test_stock_clip_uses_b_alone_when_a_failed(monkeypatch, tmp_path):
     monkeypatch.setattr(media, "_still_to_clip", lambda img, sec, out, zoom_in=True: made.append(Path(img).name))
     src = media.stock_clip("city night", 6.0, tmp_path / "clip0.mp4", image=None, credit="AI image, test", image_b=tmp_path / "b.png")
     assert src == {"source": "ai", "credit": "AI image, test", "split": False} and made == ["b.png"]
+
+
+def test_gen_image_leads_with_the_look_and_keeps_the_common_suffix(monkeypatch, tmp_path):
+    seen = []
+    monkeypatch.setattr(media, "IMAGE_CHAIN", [("ok", lambda prompt, out: seen.append(prompt) or "AI image, test")])
+    monkeypatch.setattr(media, "_image_down", {})
+    media.gen_image("Wide shot: a cat on a roof", tmp_path / "a.png", style="anime")
+    media.gen_image("Wide shot: a cat on a roof", tmp_path / "b.png")
+    assert seen[0] == "Anime illustration, cel shading, vivid colours, clean line art. Wide shot: a cat on a roof" + media.IMAGE_SUFFIX
+    assert seen[1].startswith("Photograph, cinematic soft light. Wide shot: a cat on a roof") and seen[1].endswith("no text, no watermark, no logo")

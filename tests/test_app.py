@@ -118,3 +118,17 @@ def test_delete_stops_a_job_on_the_line(monkeypatch, tmp_path):
     assert not reached and not (tmp_path / running).exists() and not (tmp_path / queued).exists()
     assert running not in appmod.JOBS and queued not in appmod.JOBS
     assert client.delete(f"/jobs/{running}").status_code == 404
+
+
+def test_presets_list_the_looks():
+    p = client.get("/presets").json()
+    assert [s["slug"] for s in p["styles"]] == ["photo", "anime", "infographic", "cinematic"] and p["styles"][1]["label"] == "Anime"
+
+
+def test_generate_takes_a_look_and_rejects_an_unknown_one(monkeypatch):
+    monkeypatch.setattr(appmod.Q, "put", lambda item: None)
+    assert client.post("/generate", json={"topics": ["x"], "style": "oil"}).status_code == 400
+    jid = client.post("/generate", json={"topics": ["x"], "style": "anime"}).json()["job_ids"][0]
+    assert appmod.JOBS.pop(jid)["style"] == "anime"
+    jid = client.post("/generate", json={"topics": ["x"]}).json()["job_ids"][0]
+    assert appmod.JOBS.pop(jid)["style"] == "photo"

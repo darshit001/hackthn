@@ -15,7 +15,7 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
-from presets import COMMUNITIES, LANGUAGES
+from presets import COMMUNITIES, LANGUAGES, STYLES
 from render import H, W, XFADE_SEC, _run, duration  # noqa: F401  (duration re-exported: pipeline calls media.duration)
 
 load_dotenv()
@@ -137,7 +137,7 @@ def _pixabay(query, min_sec):
 
 
 HF_IMAGE_MODEL = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
-IMAGE_SUFFIX = ". Vertical 9:16 composition, photographic, cinematic soft light, no text, no watermark, no logo"
+IMAGE_SUFFIX = ". Vertical 9:16 composition, no text, no watermark, no logo"  # the look (presets.STYLES) leads the prompt
 _image_down = {}  # provider -> time it answered 401/402/403; skipped for DOWN_FOR seconds, not for the whole demo day
 DOWN_FOR = 600
 
@@ -182,15 +182,17 @@ def _img_cloudflare(prompt, out_png):
 IMAGE_CHAIN = [("cloudflare", _img_cloudflare), ("together", _img_together), ("huggingface", _img_hf)]
 
 
-def gen_image(prompt, out_png):
-    """AI still for a scene. Cloudflare Workers AI FLUX first, then Together AI, then Hugging Face, and the whole chain
-    a second time after a pause: most failures seen are transient 500s. Returns a credit line, or None. Never raises."""
+def gen_image(prompt, out_png, style="photo"):
+    """AI still for a scene in the given look (presets.STYLES). Cloudflare Workers AI FLUX first, then Together AI, then
+    Hugging Face, and the whole chain a second time after a pause: most failures seen are transient 500s.
+    Returns a credit line, or None. Never raises."""
+    full = f"{STYLES[style][1]}. {prompt}{IMAGE_SUFFIX}"
     for attempt in range(2):
         for name, fn in IMAGE_CHAIN:
             if time.time() - _image_down.get(name, 0) < DOWN_FOR:
                 continue
             try:
-                return fn(prompt + IMAGE_SUFFIX, out_png)
+                return fn(full, out_png)
             except Exception as e:
                 msg = " ".join(str(e).split())
                 # auth/quota trouble: rest the provider; a 429 from parallel scenes is left for the second pass
