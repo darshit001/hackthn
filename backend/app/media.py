@@ -319,13 +319,14 @@ def stock_clip(query, min_sec, out_mp4, image=None, credit=None, image_b=None):
 
 
 # ---------- you in the video ----------
-# FLUX.2 klein on Cloudflare takes reference images under 512 px. Measured 3 Oct 2026: 4B ~10 s and ~160 neurons a 9:16
-# image (~60 a day on a free account); 9B keeps the face a touch closer but costs ~1,410 (7 a day), so 4B does both jobs:
-# restyling the user's photo and putting that person into the middle scenes' pictures.
+# FLUX.2 klein on Cloudflare takes reference images under 512 px. 4B is the cheapest model that takes one (9B ~1,410
+# neurons an image, dev more) and bills 26 neurons per 512x512 output tile, so it draws 512x1024: two tiles, ~57 neurons,
+# the price of a plain FLUX.1 still (~170 a day per free account). Measured 3 Oct 2026: ~10 s, face kept, framing tighter
+# than at 768x1344. It restyles the user's photo and puts that person into the middle scenes' pictures.
 # The talking face comes from free ZeroGPU Spaces (LeapTalk ~4 GPU-s a scene, then MoDA). A free account gets ~3.5
 # GPU-minutes per rolling 24 h, so HF_TOKEN, _2, _3 rotate on a quota error, then one anonymous try.
 
-FLUX2 = "flux-2-klein-4b"
+FLUX2, FLUX2_SIZE = "flux-2-klein-4b", (512, 1024)  # the API crops it to PORTRAIT; Ken Burns hides the upscale
 REF_SIDE = 512  # FLUX.2 refuses bigger references
 PORTRAIT = (768, 1344)  # the presenter photo is 9:16; its top square (HEAD) holds the head and is what talks
 FEATHER = 120  # px over which the talking square fades into the still portrait, so no seam shows
@@ -346,8 +347,8 @@ def head_png(portrait, out_png):
 
 
 def flux2(prompt, ref, out_png):
-    """FLUX.2 klein with `ref` as image 0, 9:16 out; Cloudflare keys rotate on a quota error. Returns the model."""
-    w, h = PORTRAIT
+    """FLUX.2 klein with `ref` as image 0, FLUX2_SIZE out; Cloudflare keys rotate on a quota error. Returns the model."""
+    w, h = FLUX2_SIZE
 
     def post(acct, token):
         r = httpx.post(f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/run/@cf/black-forest-labs/{FLUX2}",
