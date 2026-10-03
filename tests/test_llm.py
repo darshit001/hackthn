@@ -1,5 +1,6 @@
 import pytest
-from llm import validate_plan, _parse, budget, validate_topics, _suggest_prompt
+import llm
+from llm import validate_plan, _parse, budget, validate_topics, _suggest_prompt, validate_review, apply_review
 from presets import COMMUNITIES, LANGUAGES
 
 
@@ -129,3 +130,65 @@ def test_system_prompt_carries_the_retention_rules():
     text = SYSTEM.format(duration=30, scenes_lo=4, scenes_hi=6, words_lo=61, words_hi=83)
     assert all(f in text for f in FORMULAS) and all(b in text for b in BEATS)
     assert "Wide shot:" in text and "image_prompt_b" in text and "youtube_title" in text and "Did you know" in text
+
+
+def test_validate_review_accepts_the_three_verdicts():
+    validate_review({"verdict": "ok", "notes": [], "changes": []}, 5)
+    validate_review({"verdict": "fixed", "notes": ["scene 2: softened"], "changes": [{"scene": 2, "narration": "Studies suggest it helps."}]}, 5)
+    validate_review({"verdict": "blocked", "notes": ["incites hatred"], "changes": []}, 5)
+
+
+@pytest.mark.parametrize("r, msg", [
+    ({"verdict": "maybe", "notes": [], "changes": []}, "verdict"),
+    ({"verdict": "ok", "notes": "fine", "changes": []}, "notes"),
+    ({"verdict": "ok", "notes": [], "changes": "none"}, "changes"),
+    ({"verdict": "fixed", "notes": [], "changes": []}, "at least one change"),
+    ({"verdict": "fixed", "notes": [], "changes": [{"scene": 6, "narration": "x"}]}, "1 to 5"),
+    ({"verdict": "fixed", "notes": [], "changes": [{"scene": True, "narration": "x"}]}, "1 to 5"),
+    ({"verdict": "fixed", "notes": [], "changes": [{"scene": 2, "narration": " "}]}, "narration missing"),
+    ({"verdict": "fixed", "notes": [], "changes": [{"scene": 2, "narration": " ".join(["w"] * 26)}]}, "over 25 words"),
+    ({"verdict": "fixed", "notes": [], "changes": [{"scene": 1, "narration": " ".join(["w"] * 41)}]}, "over 40 words"),
+])
+def test_validate_review_rejects(r, msg):
+    with pytest.raises(ValueError, match=msg):
+        validate_review(r, 5)
+
+
+def test_apply_review_softens_the_listed_lines_and_stamps_the_plan():
+    out = apply_review(good(), {"verdict": "fixed", "notes": [" scene 2: dropped an invented number "], "changes": [{"scene": 2, "narration": " Studies suggest it helps. "}]})
+    assert out["scenes"][1]["narration"] == "Studies suggest it helps." and out["scenes"][0]["narration"] == "Sentence number 0 goes here."
+    assert out["review"] == {"verdict": "fixed", "notes": ["scene 2: dropped an invented number"]}
+    assert apply_review(good(), {"verdict": "ok", "notes": [], "changes": []})["review"] == {"verdict": "ok", "notes": []}
+    assert apply_review(good(), {"verdict": "ok", "notes": [], "changes": [{"scene": 3, "narration": "Softer."}]})["review"]["verdict"] == "fixed"  # ok with edits is an edit
+
+
+def test_apply_review_blocks_before_any_spend():
+    with pytest.raises(RuntimeError, match="blocked by the safety review: incites hatred"):
+        apply_review(good(), {"verdict": "blocked", "notes": ["incites hatred"], "changes": []})
+    with pytest.raises(RuntimeError, match="unsafe content"):
+        apply_review(good(), {"verdict": "blocked", "notes": [], "changes": []})
+
+
+def test_review_prompt_carries_the_script_and_runs_cold(monkeypatch):
+    seen = {}
+
+    def fake(base, validate, temperature=0.8):
+        seen.update(base=base, temperature=temperature)
+        r = {"verdict": "ok", "notes": [], "changes": []}
+        validate(r)
+        return r
+    monkeypatch.setattr(llm, "_ask", fake)
+    p = llm.review(good(), "hi")
+    user = seen["base"][1]["content"]
+    assert seen["temperature"] == 0.2 and "1. Sentence number 0 goes here." in user and "5. Sentence number 4" in user
+    assert "Devanagari" in user and "Hook: Ever wonder why you feel tired?" in user
+    assert p["review"] == {"verdict": "ok", "notes": []} and "publishing editor" in seen["base"][0]["content"]
+
+
+def test_review_is_skipped_when_every_model_is_down(monkeypatch):
+    def down(base, validate, temperature=0.8):
+        raise RuntimeError("every model failed: boom")
+    monkeypatch.setattr(llm, "_ask", down)
+    p = llm.review(good(), "en")
+    assert p["review"]["verdict"] == "skipped" and "boom" in p["review"]["notes"][0]
+    assert p["scenes"][1]["narration"] == "Sentence number 1 goes here."

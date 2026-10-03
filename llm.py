@@ -27,6 +27,22 @@ BANNED_OPENERS = ("did you know", "in this video", "today we", "have you ever wo
 # (?!\w) not \b: the Hindi openers end in combining vowel signs, which \w does not match, so \b never fires there
 _BANNED = re.compile("|".join(re.escape(o) + r"(?!\w)" for o in BANNED_OPENERS), re.I)
 
+VERDICTS = ("ok", "fixed", "blocked")
+
+REVIEW_SYSTEM = """You are the publishing editor for the Qoneqt Global Feed, an Indian community app. A short-video script is
+about to be produced. Review it and return ONLY a JSON object:
+{"verdict": "ok" | "fixed" | "blocked", "notes": ["..."], "changes": [{"scene": 1, "narration": "..."}]}
+Most scripts need no change: verdict "ok", notes [], changes [].
+"fixed": rewrite only the lines that need it. Soften a claim that is false or cannot be verified ("studies suggest",
+drop an invented number). Soften medical, legal or financial certainty into a suggestion. A rewritten narration keeps
+its language, its meaning and its length (within three words) and never changes the opening hook line of scene 1.
+notes: one short English line per change, at most five. changes: the full new narration of each changed scene, scenes
+numbered from 1.
+"blocked": only content no mainstream platform would publish: hate or harassment toward a group, sexual content,
+encouragement of self-harm, instructions for violence or crime, communal or political incitement, defamatory claims
+about a named real person. A false or risky claim alone is "fixed", never "blocked". notes: one line saying why. changes [].
+"""
+
 SYSTEM = """You write scripts for {duration} second vertical short videos for the Qoneqt Global Feed.
 Return ONLY a JSON object with exactly these keys:
 {{
@@ -164,6 +180,57 @@ def validate_topics(p):
     t = p.get("topics") if isinstance(p, dict) else None
     if not isinstance(t, list) or not 3 <= len(t) <= 8 or any(not isinstance(x, str) or not x.strip() for x in t):
         raise ValueError("need topics: a list of 3-8 non-empty strings")
+
+def validate_review(r, n):
+    """Raise ValueError unless r is a review of an n-scene plan. Pure; unit-tested."""
+    def bad(msg):
+        raise ValueError(msg)
+    if not isinstance(r, dict) or r.get("verdict") not in VERDICTS:
+        bad(f"verdict must be one of {', '.join(VERDICTS)}")
+    notes, changes = r.get("notes"), r.get("changes")
+    if not isinstance(notes, list) or len(notes) > 8 or any(not isinstance(x, str) for x in notes):
+        bad("notes must be a list of at most 8 strings")
+    if not isinstance(changes, list):
+        bad("changes must be a list")
+    for c in changes:
+        i = c.get("scene") if isinstance(c, dict) else None
+        if type(i) is not int or not 1 <= i <= n:  # type(), not isinstance: bool is an int
+            bad(f"change scene must be a number from 1 to {n}")
+        t = c.get("narration")
+        if not isinstance(t, str) or not t.strip():
+            bad(f"change {i}: narration missing")
+        cap = 40 if i == 1 else 25
+        if len(t.split()) > cap:
+            bad(f"change {i}: narration over {cap} words")
+    if r["verdict"] == "fixed" and not changes:
+        bad("verdict fixed needs at least one change")
+
+
+def apply_review(p, r):
+    """Fold a validated review into the plan: the listed narrations are replaced and p['review'] records the verdict and notes.
+    A blocked verdict raises, so the job fails at the plan stage before an image or a voice line is spent."""
+    notes = [x.strip() for x in r["notes"] if x.strip()]
+    if r["verdict"] == "blocked":
+        raise RuntimeError("blocked by the safety review: " + ("; ".join(notes) or "unsafe content"))
+    for c in r["changes"]:
+        p["scenes"][c["scene"] - 1]["narration"] = c["narration"].strip()
+    p["review"] = {"verdict": "fixed" if r["changes"] else "ok", "notes": notes}
+    return p
+
+
+def review(p, language="en"):
+    """Safety and claim review of a plan: one cold LLM call. Returns the plan with p['review'] and any softened narration;
+    raises RuntimeError when the script is blocked. A dead model chain never blocks a demo: the plan comes back marked 'skipped'."""
+    script = "\n".join(f"{i}. {sc['narration']}" for i, sc in enumerate(p["scenes"], 1))
+    base = [{"role": "system", "content": REVIEW_SYSTEM},
+            {"role": "user", "content": f"Language: {LANGUAGES[language]['instruction']}\nHook: {p['hook']}\nScript:\n{script}\nReturn the JSON now."}]
+    try:
+        r = _ask(base, lambda q: validate_review(q, len(p["scenes"])), temperature=0.2)
+    except RuntimeError as e:
+        print(f"review skipped: {str(e)[:120]}", file=sys.stderr)
+        p["review"] = {"verdict": "skipped", "notes": [str(e)[:80]]}
+        return p
+    return apply_review(p, r)
 
 
 def _parse(text):

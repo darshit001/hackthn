@@ -28,7 +28,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     t0 = time.time()
 
     progress("plan")
-    p = plan or llm.plan(topic, community, language, duration)
+    p = llm.review(plan or llm.plan(topic, community, language, duration), language)  # softened or blocked before an image or a voice line is spent
     scenes = p["scenes"]
 
     progress("images")  # AI stills 3 at a time, every scene's first picture before any second one, so a quota hit never leaves a scene bare;
@@ -93,6 +93,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     meta = {
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
         "style": style,
+        "review": p.get("review"),
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),
         "caption": p["caption"], "hashtags": p["hashtags"], "posts": p.get("posts"),
         "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr)
