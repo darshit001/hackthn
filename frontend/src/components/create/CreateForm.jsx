@@ -150,7 +150,7 @@ export function CreateForm({ presets, onStarted }) {
         <div className="seg" role="radiogroup" aria-label="Length">
           {presets.durations.map(d => (
             <label key={d}>
-              <input type="radio" name="duration" value={d} checked={duration === d} onChange={() => setDuration(d)} /><span>{d} s</span>
+              <input type="radio" name="duration" value={d} checked={duration === d} onChange={() => { setDuration(d); setPreview(null); }} /><span>{d} s</span>
             </label>
           ))}
         </div>

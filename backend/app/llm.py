@@ -370,11 +370,13 @@ def translate(src, language, duration=30):
         validate_plan(_merge(q, src), (n, n))
         if q["hook"].strip() != q["hooks"][k]["text"].strip():
             raise ValueError(f"hook must be your translation of hook {k + 1}, the same text as hooks[{k}].text")
-        texts = [("hook", q["hook"])] + [(f"scene {i} {k}", s[k]) for k in ("narration", "title") for i, s in enumerate(q["scenes"], 1)]
+        texts = [("hook", q["hook"])] + [(f"scene {i} {key}", s[key]) for key in ("narration", "title") for i, s in enumerate(q["scenes"], 1)]
         for where, t in texts:
             # models leave the hook in English: an Indic target needs its script in every line, a Roman one none at all
             if bool(script.search(t)) != bool(lang["script"]):
                 raise ValueError(f"{where} is not in {lang['label']}: write every hook, narration and title in {lang['instruction']}")
+        if not q["scenes"][0]["narration"].strip().startswith(q["hook"].strip()):  # the hook overlay and the first spoken line must agree
+            raise ValueError("scene 1 narration must begin with the hook, word for word")
     p = _ask(base, check, temperature=0.5)
     p["hook"] = p["hook"].strip()
     return p

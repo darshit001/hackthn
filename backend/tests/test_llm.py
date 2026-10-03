@@ -275,6 +275,9 @@ def test_translate_rejects_text_outside_the_target_script(monkeypatch):
     ret["q"] = q = good(); q["scenes"][2]["narration"] = "नमस्ते दुनिया"
     with pytest.raises(ValueError, match="scene 3 narration is not in English"):
         llm.translate(good(), "en", 30)
+    ret["q"] = q = hindi(); q["scenes"][0]["narration"] = "नमस्ते। " + q["scenes"][0]["narration"]  # the hook, but not first
+    with pytest.raises(ValueError, match="scene 1 narration must begin with the hook"):
+        llm.translate(good(), "hi", 30)
 
 
 def test_groq_asks_qwen_for_what_the_free_tier_allows(monkeypatch):

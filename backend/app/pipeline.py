@@ -24,6 +24,9 @@ def _source(job_id):
     if not job_id:
         return None
     sd = OUT / job_id
+    if (sd / "blocked.txt").exists():  # re-planning the topic in another language might slip past the review
+        raise RuntimeError("blocked by the safety review in the first language: "
+                           + (sd / "blocked.txt").read_text().removeprefix("blocked by the safety review: "))
     try:
         p = json.loads((sd / "plan.json").read_text())
     except (OSError, ValueError):
@@ -62,11 +65,17 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     t0 = time.time()
 
     progress("plan")
-    src = _source(source)
-    if src:
-        p = llm.translate(src[0], language, duration)  # the source's review comes along with it
+    sib = _source(source)
+    if sib:
+        p = llm.translate(sib[0], language, duration)  # the source's review comes along with it
     else:
-        p = llm.review(plan or llm.plan(topic, community, language, duration), language)  # softened or blocked before an image or a voice line is spent
+        p = plan or llm.plan(topic, community, language, duration)
+        try:
+            p = llm.review(p, language)  # softened or blocked before an image or a voice line is spent
+        except RuntimeError as e:
+            if str(e).startswith("blocked by the safety review"):
+                (d / "blocked.txt").write_text(str(e))  # siblings read it in _source and fail too
+            raise
     scenes = p["scenes"]
     (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))  # the page shows the script while the video is made; siblings in other languages translate it from here
 
@@ -77,8 +86,8 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     tasks += [(i, "b", sc["image_prompt_b"]) for i, sc in enumerate(scenes) if sc.get("image_prompt_b")]
     with ThreadPoolExecutor(2) as vpool, ThreadPoolExecutor(3) as ipool:
         voices = [vpool.submit(media.tts, sc["narration"], community, w, language) for sc, w in zip(scenes, wavs)]
-        if src:
-            got = _copy_stills(OUT / source, d, tasks, src[1].get("image_model"))
+        if sib:
+            got = _copy_stills(OUT / source, d, tasks, sib[1].get("image_model"))
         else:
             got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png", style), tasks))
     images = {(i, sfx): (d / f"gen{i}{sfx}.png", cr) for (i, sfx, _), cr in zip(tasks, got) if cr}  # (scene, "" or "b") -> (png, credit)
@@ -136,7 +145,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
         "style": style,
         "review": p.get("review"),
-        "source": source if src else None,
+        "source": source if sib else None,
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),
         "caption": p["caption"], "hashtags": p["hashtags"], "posts": p.get("posts"),
         "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr)

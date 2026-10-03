@@ -99,11 +99,6 @@ flowchart LR
 - 🛡️ **Safety and claim review**: an editor pass softens unverifiable or medical/financial certainty and blocks unsafe scripts before a single image or voice line is spent; the card says "Brand-safe" or how many lines were softened
 - ✏️ **Editable script**: every title and narration line in the preview can be edited, with a live word count, before generating
 - ⚡ **Voice records while the images generate**: a 15 s video in about 45 s
-
-<p align="center">
-  <img src="docs/screens/look-step.png" alt="The form with the Look step and the every-language box" width="420">
-  <img src="docs/screens/preview-edit.png" alt="The script preview with editable lines and word counts" width="420">
-</p>
 - 🌐 **4 languages**: English, हिन्दी (Devanagari), Hinglish (Roman script) and ગુજરાતી
 - 👥 **6 community presets**: General, Tech & AI, Fitness & Health, Motivation, Money & Finance, Hinglish Fun
 - ⏱️ **4 lengths**: 15 / 30 / 45 / 60 s; the scene count and word budget scale with the length
@@ -116,6 +111,11 @@ flowchart LR
 - 🛡️ **Fallbacks at every stage**: a flaky free API never kills a job
 - 🧾 **Credits recorded**: every scene's image or stock source is stored in the job JSON
 - 💰 **₹0 running cost**: every provider is on a free tier
+
+<p align="center">
+  <img src="docs/screens/look-step.png" alt="The form with the Look step and the every-language box" width="420">
+  <img src="docs/screens/preview-edit.png" alt="The script preview with editable lines and word counts" width="420">
+</p>
 
 <p align="center">
   <img src="docs/screens/frames/tech.png" alt="Tech frame" width="200">
