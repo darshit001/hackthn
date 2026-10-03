@@ -30,17 +30,18 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     p = plan or llm.plan(topic, community, language, duration)
     scenes = p["scenes"]
 
-    progress("images")  # AI stills, 3 at a time; every scene's first picture before any second one, so a quota hit never leaves a scene bare
+    progress("images")  # AI stills 3 at a time, every scene's first picture before any second one, so a quota hit never leaves a scene bare;
+    # the voice lines record meanwhile in their own 2-thread pool (the ElevenLabs free tier allows 2 concurrent): both waits are network, so they overlap
+    wavs = [d / f"voice{i}.wav" for i in range(len(scenes))]
     tasks = [(i, "", sc.get("image_prompt") or sc["query"]) for i, sc in enumerate(scenes)]
     tasks += [(i, "b", sc["image_prompt_b"]) for i, sc in enumerate(scenes) if sc.get("image_prompt_b")]
-    with ThreadPoolExecutor(3) as pool:
-        got = list(pool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png"), tasks))
+    with ThreadPoolExecutor(2) as vpool, ThreadPoolExecutor(3) as ipool:
+        voices = [vpool.submit(media.tts, sc["narration"], community, w, language) for sc, w in zip(scenes, wavs)]
+        got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png"), tasks))
     images = {(i, sfx): (d / f"gen{i}{sfx}.png", cr) for (i, sfx, _), cr in zip(tasks, got) if cr}  # (scene, "" or "b") -> (png, credit)
 
-    progress("voice")  # 2 at a time: the ElevenLabs free tier allows 2 concurrent; a third 429s into a second voice mid-video
-    wavs = [d / f"voice{i}.wav" for i in range(len(scenes))]
-    with ThreadPoolExecutor(2) as pool:
-        engines = list(pool.map(lambda a: media.tts(a[0]["narration"], community, a[1], language), zip(scenes, wavs)))
+    progress("voice")
+    engines = [f.result() for f in voices]  # a voice line that failed every engine surfaces here, at the voice stage
     secs = [media.duration(w) for w in wavs]
     (d / "voices.txt").write_text("".join(f"file '{w.name}'\n" for w in wavs))
     # silence under the end card keeps the voice track as long as the video, so -shortest cuts nothing
