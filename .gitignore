@@ -1,10 +1,14 @@
 .env
-out/
+backend/out
 __pycache__/
 *.pyc
 .venv/
 .playwright-mcp/
 .pytest_cache/
+
+# frontend
+node_modules/
+frontend/dist/
 
 # tool output, not part of the project
 .archify/

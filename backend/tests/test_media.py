@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import media
+from app import media
 
 
 def test_gen_image_rests_provider_on_auth_but_retries_on_429(monkeypatch, tmp_path):

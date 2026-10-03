@@ -7,18 +7,14 @@ import shutil
 import threading
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-import llm
-import pipeline
-from presets import COMMUNITIES, DURATIONS, LANGUAGES
+from . import llm, pipeline
+from .presets import COMMUNITIES, DURATIONS, LANGUAGES
 
-ROOT = Path(__file__).parent
 pipeline.OUT.mkdir(exist_ok=True)
 JOBS, LOCK, Q = {}, threading.Lock(), queue.Queue()
 
@@ -84,7 +80,6 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Qoneqt Video Factory", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.mount("/out", StaticFiles(directory=pipeline.OUT), name="out")
 
 
@@ -101,11 +96,6 @@ class PlanIn(BaseModel):
     community: str = "general"
     language: str = "en"
     duration: int = 30
-
-
-@app.get("/")
-def index():
-    return FileResponse(ROOT / "static" / "index.html")
 
 
 @app.get("/presets")
@@ -216,3 +206,10 @@ def delete_job(jid: str):
     if j["status"] not in ("queued", "running"):  # a job on the line is stopped and cleaned up by the worker
         shutil.rmtree(pipeline.OUT / jid, ignore_errors=True)
     return {"deleted": jid}
+
+
+# The React build (frontend/dist, from `npm run build`) is served last so it never shadows an API route.
+# In development Vite serves the UI on :5173 and proxies the API here, so the folder may not exist.
+WEB = pipeline.BACKEND.parent / "frontend" / "dist"
+if WEB.is_dir():
+    app.mount("/", StaticFiles(directory=WEB, html=True), name="web")
