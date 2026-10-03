@@ -21,12 +21,12 @@ AUTH_WORDS = ("authentication_error", "invalid_api_key", "api key")
 def with_keys(fn, *names):
     """Run fn(*keys) with each credential configured for `names`, newest failure moving to the next one.
 
-    Looks up NAME, then NAME_2, then NAME_3. Several names rotate together, because Cloudflare's account id
+    Looks up NAME, then NAME_2, NAME_3, NAME_4. Several names rotate together, because Cloudflare's account id
     and API token are one credential split over two variables: a set counts only when every name in it is set.
     Falls through to the next set when a key is rejected or out of quota, so a dead or exhausted key is skipped
     without taking the provider down; any other error raises, since a second key will not fix a bad request."""
     sets = []
-    for suffix in ("", "_2", "_3"):
+    for suffix in ("", "_2", "_3", "_4"):
         vals = [os.environ.get(n + suffix, "").strip() for n in names]
         if all(vals):
             sets.append(vals)
