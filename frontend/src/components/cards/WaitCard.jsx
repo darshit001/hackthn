@@ -8,7 +8,7 @@ import { Facts } from "./Facts";
 export function QueuedCard({ job, label, position, onDelete }) {
   const pos = nth(position);
   return (
-    <article className="card wait">
+    <article className="card wait tile">
       <div className="thumb screen dim"><span className="stage">{pos}</span></div>
       <div className="body">
         <div className="meta">
@@ -31,7 +31,7 @@ export function FailedCard({ job, label, onRetry, onDelete }) {
   const [ask, setAsk] = useState(null);
   const STEP = stepsFor(job)[1];
   return (
-    <article className={`card wait${job.stopped ? "" : " failed"}`}>
+    <article className={`card wait tile${job.stopped ? "" : " failed"}`}>
       <div className="thumb screen dim"><span className="stage"><small>Stopped at</small>{STEP[at] ? STEP[at][0] : at === "queue" ? "the queue" : at || "an unknown step"}</span></div>
       <div className="body">
         <div className="meta">
