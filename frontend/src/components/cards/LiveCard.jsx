@@ -24,7 +24,7 @@ export function LiveCard({ job, label, accent, onStop }) {
   const talking = job.presenter && job.stage === "visuals";  // the slow step of a talking video: one scene at a time on a free GPU
   const [word, verb] = talking ? ["Face", "Making your photo talk"] : STEP[job.stage] || [cap(job.stage || ""), cap(job.stage || "")];
   const [count, noun] = talking && job.scenes ? [`${job.faces || 0} of ${job.scenes.length}`, "scenes"]
-    : job.stage === "images" && job.shots && !job.presenter ? [`${stills.length} of ${job.shots}`, "stills"] : ["", ""];
+    : job.stage === "images" && job.shots ? [`${stills.filter(f => f.startsWith("gen")).length} of ${job.shots}`, "stills"] : ["", ""];
   const src = f => `/out/${job.id}/${f}?${job.stage}${stills.length}`;
   const started = job.started || job.created;
 

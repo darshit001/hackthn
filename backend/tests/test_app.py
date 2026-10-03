@@ -214,5 +214,28 @@ def test_generate_with_a_photo_needs_consent_and_an_image(monkeypatch, tmp_path)
     jid = r.json()["job_ids"][0]
     wh = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", tmp_path / jid / "photo.png"],
                         capture_output=True, text=True).stdout.strip()
-    assert wh == f"{appmod.PHOTO_SIDE},{appmod.PHOTO_SIDE}"
-    assert client.get(f"/jobs/{jid}").json()["presenter"] is True
+    assert wh == "%d,%d" % appmod.media.PORTRAIT
+    j = client.get(f"/jobs/{jid}").json()
+    assert (j["presenter"], j["layout"]) == (True, "both")
+    assert client.post("/generate", json={"topics": ["a"], "photo": url, "photo_consent": True, "layout": "x"}).status_code == 400
+
+
+def test_restyle_returns_a_photo_or_503(monkeypatch, tmp_path):
+    import base64
+    import subprocess
+    png = tmp_path / "me.png"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:s=640x480", "-frames:v", "1", png], check=True)
+    url = "data:image/png;base64," + base64.b64encode(png.read_bytes()).decode()
+
+    def fake(src, outfit, out):
+        open(out, "wb").write(b"jpeg!")
+        return __import__("pathlib").Path(out)
+    monkeypatch.setattr(appmod.media, "restyle", fake)
+    r = client.post("/photo/restyle", json={"photo": url, "outfit": "formal"})
+    assert r.json()["photo"] == "data:image/jpeg;base64," + base64.b64encode(b"jpeg!").decode()
+    assert client.post("/photo/restyle", json={"photo": url, "outfit": "pyjamas"}).status_code == 400
+
+    def down(src, outfit, out):
+        raise RuntimeError("HTTP 429")
+    monkeypatch.setattr(appmod.media, "restyle", down)
+    assert client.post("/photo/restyle", json={"photo": url}).status_code == 503

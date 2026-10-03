@@ -14,8 +14,8 @@ const PREVIEW = canHover() && !reducedMotion();  // hovering a thumbnail plays i
 
 // a scene whose free GPU ran out shows the still photo; the count tells the user which videos a Redo scene would improve
 const talked = m => {
-  const n = m.scenes.filter(sc => sc.visual !== "photo").length;
-  return n === m.scenes.length ? "Your face, talking" : `Your face, talking in ${n} of ${m.scenes.length} scenes`;
+  const faces = m.scenes.filter(sc => sc.face), n = faces.filter(sc => sc.face !== "photo").length;
+  return n === faces.length ? "You, talking" : `You, talking in ${n} of ${faces.length} scenes`;
 };
 
 export function ReadyCard({ job, label, onPlay, onCopy, onRedo, onDelete }) {

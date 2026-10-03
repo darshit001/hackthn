@@ -15,8 +15,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import llm, pipeline
-from .presets import COMMUNITIES, DURATIONS, LANGUAGES, STYLES
+from . import llm, media, pipeline
+from .presets import COMMUNITIES, DURATIONS, LANGUAGES, LAYOUTS, OUTFIT_FOR, OUTFITS, STYLES
 
 pipeline.OUT.mkdir(exist_ok=True)
 JOBS, LOCK, Q = {}, threading.Lock(), queue.Queue()
@@ -46,7 +46,7 @@ def _worker():
             if scene is None:
                 meta = pipeline.make_video(job["topic"], job["community"], progress, job_id=jid,
                                            language=job["language"], duration=job["duration"], plan=job.get("plan"),
-                                           style=job.get("style", "photo"), source=job.get("source"))
+                                           style=job.get("style", "photo"), source=job.get("source"), layout=job.get("layout", "both"))
             else:
                 meta = pipeline.redo_scene(jid, scene, progress)
             with LOCK:
@@ -99,16 +99,19 @@ class GenerateIn(BaseModel):
     style: str = "photo"
     all_languages: bool = False  # one job per language per topic; the siblings translate the first job's script and reuse its stills
     plan: dict | None = None  # a previewed plan (from POST /plan, hook possibly swapped); only used for a single topic
-    photo: str | None = Field(None, max_length=12_000_000)  # data URL of the user's photo: every video becomes a talking presenter
+    photo: str | None = Field(None, max_length=12_000_000)  # data URL of the user's photo (restyled or not): the user is in the video
     photo_consent: bool = False  # the user confirms the face is theirs or they may use it
+    layout: str = "both"  # presets.LAYOUTS: how the middle scenes mix the user with the AI pictures
 
 
-PHOTO_SIDE = 1024
+class RestyleIn(BaseModel):
+    photo: str = Field(max_length=12_000_000)
+    outfit: str = "smart"
 
 
 def _photo_png(data_url):
-    """Data URL -> PNG bytes, cropped to a PHOTO_SIDE square from the top third of a tall photo (where faces are).
-    ffmpeg doubles as the validator: anything it cannot decode as an image is refused."""
+    """Data URL -> PNG bytes of a 9:16 portrait (media.PORTRAIT), cropped from the top of a tall photo and the middle
+    of a wide one, where faces are. ffmpeg doubles as the validator: anything it cannot decode is refused."""
     try:
         raw = base64.b64decode(data_url.split(",", 1)[-1], validate=True)
     except ValueError:
@@ -117,7 +120,7 @@ def _photo_png(data_url):
         src, dst = f"{t}/in", f"{t}/photo.png"
         open(src, "wb").write(raw)
         r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-frames:v", "1", "-vf",
-                            f"crop='min(iw,ih)':'min(iw,ih)':'(iw-ow)/2':'(ih-oh)/4',scale={PHOTO_SIDE}:{PHOTO_SIDE}", dst],
+                            "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':'(iw-ow)/2':'(ih-oh)/4',scale=%d:%d" % media.PORTRAIT, dst],
                            capture_output=True, timeout=30)
         if r.returncode:
             raise HTTPException(400, "photo is not an image ffmpeg can read")
@@ -136,7 +139,9 @@ def presets():
     return {"communities": [{"slug": k, "label": v["label"], "language": v["language"], "accent": "#" + v["accent"]} for k, v in COMMUNITIES.items()],
             "languages": [{"slug": k, "label": v["label"]} for k, v in LANGUAGES.items()],
             "durations": DURATIONS,
-            "styles": [{"slug": k, "label": v[0]} for k, v in STYLES.items()]}
+            "styles": [{"slug": k, "label": v[0]} for k, v in STYLES.items()],
+            "outfits": [{"slug": k, "label": v[0]} for k, v in OUTFITS.items()], "outfit_for": OUTFIT_FOR,
+            "layouts": [{"slug": k, "label": v} for k, v in LAYOUTS.items()]}
 
 
 @app.get("/suggest")
@@ -160,10 +165,26 @@ def plan(body: PlanIn):
         raise HTTPException(503, f"script unavailable: {str(e)[:120]}")
 
 
+@app.post("/photo/restyle")
+def restyle(body: RestyleIn):
+    """The user's photo in better clothes, posture and light, same face (~10 s). The form shows it beside the original."""
+    if body.outfit not in OUTFITS:
+        raise HTTPException(400, "unknown outfit")
+    with tempfile.TemporaryDirectory() as t:
+        src = f"{t}/photo.png"
+        open(src, "wb").write(_photo_png(body.photo))
+        try:
+            out = media.restyle(src, body.outfit, f"{t}/restyled.png")
+        except Exception as e:
+            raise HTTPException(503, f"restyle unavailable: {str(e)[:120]}")
+        return {"photo": "data:image/jpeg;base64," + base64.b64encode(out.read_bytes()).decode()}
+
+
 @app.post("/generate")
 def generate(body: GenerateIn):
-    if body.community not in COMMUNITIES or body.language not in LANGUAGES or body.duration not in DURATIONS or body.style not in STYLES:
-        raise HTTPException(400, "unknown community, language, duration or look")
+    if body.community not in COMMUNITIES or body.language not in LANGUAGES or body.duration not in DURATIONS or body.style not in STYLES \
+            or body.layout not in LAYOUTS:
+        raise HTTPException(400, "unknown community, language, duration, look or layout")
     topics = [t.strip()[:200] for t in body.topics if t.strip()]
     plan = body.plan if len(topics) == 1 else None
     if plan is not None:
@@ -185,7 +206,7 @@ def generate(body: GenerateIn):
             with LOCK:
                 JOBS[jid] = {"id": jid, "topic": t, "community": body.community, "language": lang,
                              "duration": body.duration, "style": body.style, "status": "queued", "stage": None, "created": time.time(),
-                             "result": None, "error": None, "plan": None if source else plan, "source": source, "presenter": bool(photo)}
+                             "result": None, "error": None, "plan": None if source else plan, "source": source, "presenter": bool(photo), "layout": body.layout}
             if photo:  # make_video finds it there and turns the video into a talking presenter
                 (pipeline.OUT / jid).mkdir(exist_ok=True)
                 (pipeline.OUT / jid / "photo.png").write_bytes(photo)
@@ -207,8 +228,10 @@ def _live(j):
         j["faces"] = len(list(d.glob("clip*.mp4")))  # talking scenes finished so far
     try:
         p = json.loads((d / "plan.json").read_text())
+        shot = p["scenes"][1:-1] if j.get("presenter") else p["scenes"]  # the user talks over the first and last scene
+        one = j.get("presenter") and j.get("layout") != "bubble"  # the user inside the picture: one per scene
         j.update(hook=p["hook"], scenes=[sc.get("title") or sc["query"] for sc in p["scenes"]],
-                 shots=sum(1 + bool(sc.get("image_prompt_b")) for sc in p["scenes"]))
+                 shots=sum(1 + bool(sc.get("image_prompt_b") and not one) for sc in shot))
     except (OSError, ValueError, KeyError):
         pass  # not planned yet, or an older job: the page shows the stage alone
     return j

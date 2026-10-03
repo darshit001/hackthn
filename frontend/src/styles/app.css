@@ -122,12 +122,27 @@ h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01
 .dropzone small{font-size:12.5px}
 .dropzone:hover,.presenter:has(#photo:focus-visible) .dropzone{border-color:var(--acc);background:var(--acc-bg)}
 .presenter:has(#photo:focus-visible) .dropzone{outline:2px solid var(--acc);outline-offset:2px}
-.face{display:flex;gap:14px;align-items:center}
-/* the real frame in miniature: 9:16, blurred photo behind, face square at 420/1920 from the top */
-.mini{position:relative;flex:none;width:72px;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:#000;box-shadow:0 0 0 1px var(--border)}
-.mini .bg{position:absolute;inset:-8px;width:calc(100% + 16px);height:calc(100% + 16px);object-fit:cover;filter:blur(6px) brightness(.85)}
-.mini .sq{position:absolute;left:0;top:21.9%;width:100%;aspect-ratio:1;object-fit:cover;object-position:50% 25%}
-.about p{margin:0 0 8px;font-size:13px;color:var(--fg-2)}
+/* the photo before and after the AI restyle: two 9:16 cards, the chosen one ringed in blue */
+.versions{display:grid;grid-template-columns:96px 96px 1fr;gap:10px;align-items:start}
+.ver{position:relative;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.ver input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.ver input:disabled{cursor:default}
+.ver .pic{display:grid;place-items:center;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:var(--soft);color:var(--fg-3);box-shadow:0 0 0 1px var(--border);transition:box-shadow .15s}
+.ver .pic img{width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.ver .pic .i{width:22px;height:22px}
+.ver.busy .pic .i{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.ver .cap{display:flex;align-items:center;justify-content:center;gap:4px;font-size:12.5px;color:var(--fg-2)}
+.ver .cap .i{width:13px;height:13px}
+.ver:has(input:checked) .pic{box-shadow:0 0 0 2px var(--acc)}
+.ver:has(input:checked) .cap{color:var(--acc-fg);font-weight:500}
+.ver:has(input:focus-visible) .pic{outline:2px solid var(--acc);outline-offset:3px}
+.ver-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.seg.outfits{margin-top:12px}
+.seg.outfits span,.seg.three span{font-size:12.5px;padding:8px 2px}
+.seg.three{grid-template-columns:repeat(3,1fr)}
+.hint.below{margin-top:6px}
+@media (prefers-reduced-motion:reduce){.ver.busy .pic .i{animation:none}}
 .check.consent{margin:12px 0 0;align-items:flex-start}
 .check.consent input{margin-top:3px}
 .check abbr{color:var(--red);text-decoration:none}

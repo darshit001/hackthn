@@ -4,7 +4,7 @@ import { LABEL } from "../lib/constants";
 
 // Communities, languages, lengths and looks come from the backend; `label` and `accent` look a slug up in them.
 export function usePresets() {
-  const [presets, setPresets] = useState({ communities: [], languages: [], durations: [], styles: [], labels: {}, accents: {} });
+  const [presets, setPresets] = useState({ communities: [], languages: [], durations: [], styles: [], outfits: [], layouts: [], outfit_for: {}, labels: {}, accents: {} });
   useEffect(() => {
     api.presets().then(p => {
       const labels = {}, accents = {};

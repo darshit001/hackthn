@@ -54,19 +54,24 @@ def _copy_stills(sd, d, tasks, image_model):
     return got
 
 
-def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None, style="photo", source=None):
+def make_video(topic, community="general", progress=lambda stage: None, job_id=None, language="en", duration=30, plan=None, style="photo", source=None,
+               layout="both"):
     """Returns the meta dict that is also written to out/<id>/<id>.json. Raises on unrecoverable failure.
     plan: a previewed plan from llm.plan (hook possibly swapped by the user); None plans from scratch.
     style: a key of presets.STYLES, the look of the AI stills.
     source: id of a finished sibling job in another language; its script is translated and its stills reused.
-    A photo at out/<id>/photo.png (put there by the API) makes it a talking-presenter video: no AI stills, every
-    scene is the photo speaking its line."""
+    A photo at out/<id>/photo.png (a 9:16 portrait put there by the API) puts the user in the video: the first and last
+    scenes are that photo talking full-screen; layout (presets.LAYOUTS) says whether the middle scenes show the user
+    inside the AI picture, a talking bubble over it, or both."""
     job_id = job_id or secrets.token_hex(4)
     d = OUT / job_id
     d.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     photo = d / "photo.png"
     presenter = photo.exists()
+    if presenter:
+        head, ref = media.head_png(photo, d / "head.png"), media.ref_png(photo, d / "ref.png")
+        with_you, bubble = layout in ("both", "scenes"), layout in ("both", "bubble")
 
     progress("plan")
     sib = _source(source)
@@ -89,13 +94,16 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     tasks = [(i, "", sc.get("image_prompt") or sc["query"]) for i, sc in enumerate(scenes)]
     tasks += [(i, "b", sc["image_prompt_b"]) for i, sc in enumerate(scenes) if sc.get("image_prompt_b")]
     if presenter:
-        tasks = []  # the user's face is the visual: no image quota spent
+        ends = {0, len(scenes) - 1}  # the user talks full-screen there, so those scenes need no picture
+        # with the user inside the picture, one per scene: FLUX.2 edits cost more quota than the plain stills
+        tasks = [tk for tk in tasks if tk[0] not in ends and not (with_you and tk[1])]
+    you = ref if presenter and with_you else None
     with ThreadPoolExecutor(2) as vpool, ThreadPoolExecutor(3) as ipool:
         voices = [vpool.submit(media.tts, sc["narration"], community, w, language) for sc, w in zip(scenes, wavs)]
         if sib:
             got = _copy_stills(OUT / source, d, tasks, sib[1].get("image_model"))
         else:
-            got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png", style), tasks))
+            got = list(ipool.map(lambda tk: media.gen_image(tk[2], d / f"gen{tk[0]}{tk[1]}.png", style, you), tasks))
     images = {(i, sfx): (d / f"gen{i}{sfx}.png", cr) for (i, sfx, _), cr in zip(tasks, got) if cr}  # (scene, "" or "b") -> (png, credit)
 
     progress("voice")
@@ -107,15 +115,15 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
                 "-af", f"apad=pad_dur={render.OUTRO_SEC}", "-c:a", "pcm_s16le", "voice.wav"], cwd=d)
 
     progress("visuals")  # sequential: ffmpeg work on 2 vCPUs, more processes would only fight for cores and memory
-    clips, sources, splits, credits = [], [], [], []
-    for i, (sc, sec) in enumerate(zip(scenes, secs)):
+    clips, sources, splits, credits, faces = [], [], [], [], []
+    for i, (sc, sec) in enumerate(zip(scenes, secs)):  # ponytail: talking scenes one at a time, the free GPU queue is per user anyway
         c = d / f"clip{i}.mp4"
-        if presenter:
-            src = media.talking_head(photo, wavs[i], c, sec)  # ponytail: one scene at a time, the free GPU queue is per user anyway
+        if presenter and i in ends:
+            faces.append(media.presenter_clip(photo, head, wavs[i], c, sec) or "photo")
             clips.append((c, sec))
-            sources.append(src["source"])
+            sources.append("you")
             splits.append(False)
-            credits.append(src["credit"])
+            credits.append("")
             continue
         a, b = images.get((i, "")), images.get((i, "b"))
         credit = (a or b)[1] if (a or b) else None
@@ -124,6 +132,11 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
         sources.append(src["source"] if src else "card")
         splits.append(bool(src and src.get("split")))
         credits.append(src["credit"] if src else "")
+        # a title card is drawn later by compose, so it gets no bubble
+        faces.append((media.bubble_clip(c, head, wavs[i], sec) or "photo") if presenter and bubble and src else None)
+    if any(f in ("leaptalk", "moda") for f in faces):
+        credits += sorted({f"Talking face: {dict((n, l) for n, l, _ in media.FACE_CHAIN)[f]} via Hugging Face Spaces"
+                           for f in faces if f in ("leaptalk", "moda")})
 
     progress("captions")  # Whisper per scene with that scene's script as its prompt: exact spelling, no bleed across scenes
     bounds, t = [], 0.0
@@ -144,7 +157,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     overlays = [(0.0, min(2.5, bounds[0][1]), render.ass_text(p["hook"]), "Hook")]
     overlays += [(s, e, render.ass_text(sc["title"]), "Title") for sc, (s, e), (clip, _) in zip(scenes, bounds, clips) if clip is None]
     overlays.append((t, t + render.OUTRO_SEC, render.OUTRO, "Outro"))
-    ass = render.subtitles(words, community, d / "captions.ass", overlays, low=presenter)
+    ass = render.subtitles(words, community, d / "captions.ass", overlays, hook_low=presenter)  # scene 1 is the user's face
 
     progress("render")
     mfile, mtitle = MUSIC[COMMUNITIES[community]["mood"]]
@@ -156,13 +169,13 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     chosen = next((h for h in p["hooks"] if h["text"].strip() == p["hook"].strip()), {})
     meta = {
         "id": job_id, "topic": topic, "community": community, "language": language, "target": duration,
-        "style": style, "presenter": presenter,
+        "style": style, "presenter": presenter, "layout": layout if presenter else None,
         "review": p.get("review"),
         "source": source if sib else None,
         "hook": p["hook"], "hook_formula": chosen.get("formula"), "hook_score": chosen.get("score"), "hook_why": chosen.get("why"),
         "caption": p["caption"], "hashtags": p["hashtags"], "posts": p.get("posts"),
-        "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr)
-                   for sc, s, e, v, sp, cr in zip(scenes, secs, engines, sources, splits, credits)],
+        "scenes": [dict(sc, seconds=round(s, 2), voice=e, visual=v, split=sp, credit=cr, face=f)
+                   for sc, s, e, v, sp, cr, f in zip(scenes, secs, engines, sources, splits, credits, faces)],
         "credits": [cr for cr in credits if cr], "music": mtitle if track.exists() else None,
         "duration": round(sum(secs), 2), "llm": p.get("model", "preview"), "whisper_words": len(timed),
         "image_model": next((cr.split(", ", 1)[1] for _, cr in images.values()), None),
@@ -182,20 +195,24 @@ def redo_scene(job_id, n, progress=lambda stage: None):
     sc = scenes[n]
     style = meta.get("style", "photo")  # older metas were all photographic
     clip = d / f"clip{n}.mp4"
-    if meta.get("presenter"):  # a scene that fell back to the still photo gets another try at the talking face
+    layout = meta.get("layout") if meta.get("presenter") else None
+    voice, head = d / f"voice{n}.wav", d / "head.png"
+    if layout and n in (0, len(scenes) - 1):  # the user's full-screen scene: another try at the talking face
         progress("visuals")
-        src = media.talking_head(d / "photo.png", d / f"voice{n}.wav", clip, sc["seconds"])
-        sc["visual"], sc["credit"], sc["split"] = src["source"], src["credit"], False
+        sc["face"] = media.presenter_clip(d / "photo.png", head, voice, clip, sc["seconds"]) or "photo"
         return _rerender(d, meta, job_id, progress)
+    you = d / "ref.png" if layout in ("both", "scenes") else None
     progress("images")
     take = secrets.token_hex(2)  # FLUX is deterministic per prompt on some providers, so a fresh suffix is what makes the picture different
     png, png_b = d / f"gen{n}.png", d / f"gen{n}b.png"
-    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {take})", png, style)
-    split = sc.get("image_prompt_b") and sc["seconds"] >= media.SPLIT_MIN_SEC  # a short scene never cuts, so skip its second picture
+    cr = media.gen_image(f"{sc.get('image_prompt') or sc['query']} (take {take})", png, style, you)
+    split = sc.get("image_prompt_b") and sc["seconds"] >= media.SPLIT_MIN_SEC and not you  # a short scene never cuts, so skip its second picture
     cr_b = media.gen_image(f"{sc['image_prompt_b']} (take {take})", png_b, style) if split else None
     progress("visuals")
     src = media.stock_clip(sc["query"], sc["seconds"], clip, image=png if cr else None, credit=cr or cr_b, image_b=png_b if cr_b else None)
     sc["visual"], sc["credit"], sc["split"] = (src["source"], src["credit"], bool(src.get("split"))) if src else ("card", "", False)
+    if layout in ("both", "bubble") and src:
+        sc["face"] = media.bubble_clip(clip, head, voice, sc["seconds"]) or "photo"
     return _rerender(d, meta, job_id, progress)
 
 
