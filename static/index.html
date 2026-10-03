@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Cdefs%3E%3ClinearGradient id=%27g%27 x1=%270%27 y1=%270%27 x2=%271%27 y2=%271%27%3E%3Cstop stop-color=%27%237C3AED%27/%3E%3Cstop offset=%271%27 stop-color=%27%23EC4899%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27url(%23g)%27/%3E%3Cpath d=%27M12 9l10 7-10 7z%27 fill=%27%23fff%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#F4F5F7; --card:#FFFFFF; --border:#E4E4E7; --border-2:#CDCDD2; --soft:#F1F1F4;
@@ -15,6 +15,7 @@
   --acc:#2563EB; --acc-bg:#EEF3FF; --acc-fg:#1D4ED8;
   --amber:#B45309; --amber-bg:#FFF7ED; --green:#15803D; --green-bg:#F0FDF4; --red:#B91C1C; --red-bg:#FEF2F2;
   --font:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:"Bricolage Grotesque",var(--font); --amber-2:#F59E0B;
   --r:6px; --r-md:8px; --r-lg:12px;
 }
 *{box-sizing:border-box}
@@ -24,7 +25,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:var(--r)}
 a{color:var(--fg)}
-h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-.01em}
 .i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .i.fill{fill:currentColor;stroke:none}
 
@@ -44,8 +45,8 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 .videos{min-width:0}
 
 /* form */
-.new h1{font-size:18px}
-.new .sub{margin:2px 0 18px;color:var(--fg-2);font-size:13px}
+.new h1{font-size:22px}
+.new .sub{margin:2px 0 18px;color:var(--fg-2);font-size:14px}
 .field{display:block;margin-bottom:16px}
 .field > span{display:block;font-weight:500;font-size:13px;margin-bottom:8px}
 .ta{position:relative}
@@ -99,7 +100,7 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
 .seg label:has(input:checked){border-color:var(--acc);background:var(--acc-bg);color:var(--acc-fg);font-weight:500}
 .go{display:flex;gap:8px;margin-top:4px}
 .go .btn{padding:10px 12px;border-radius:var(--r-md)}
-.primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:11px 14px;border:1px solid var(--fg);border-radius:var(--r-md);background:var(--fg);color:#fff;font-weight:500;font-size:14px}
+.primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1;padding:13px 16px;border:1px solid var(--fg);border-radius:var(--r-md);background:var(--fg);color:#fff;font-weight:500;font-size:15px}
 .primary:hover{background:#000}
 .primary:disabled{background:var(--border);border-color:var(--border);color:var(--fg-3);cursor:default}
 .after{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;color:var(--fg-2);font-size:12.5px}
@@ -109,31 +110,58 @@ kbd{font:inherit;font-size:11px;border:1px solid var(--border-2);border-bottom-w
 
 /* videos */
 .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.head h2{font-size:22px}
-.head .sub{margin:2px 0 0;color:var(--fg-2);font-size:13px}
+.head h2{font-size:28px}
+.head .sub{margin:2px 0 0;color:var(--fg-2);font-size:14px}
 .search{position:relative}
 .search input{width:280px;max-width:100%;padding:8px 10px 8px 33px;border:1px solid var(--border-2);border-radius:var(--r);background:var(--card)}
 .search input::placeholder{color:var(--fg-3)}
 .search .i{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--fg-3);pointer-events:none}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:18px 0 16px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
-.tabs button{display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;border:0;background:none;font-size:13.5px;color:var(--fg-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:0}
+.tabs button{display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;border:0;background:none;font-size:14px;color:var(--fg-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:0}
 .tabs button span{font-size:12px;background:var(--soft);border-radius:999px;padding:0 7px;color:var(--fg-2)}
 .tabs button:hover{color:var(--fg)}
 .tabs button[aria-selected=true]{color:var(--fg);font-weight:500;border-bottom-color:var(--fg)}
 .tabs button[aria-selected=true] span{background:var(--fg);color:#fff}
 .empty{border:1px dashed var(--border-2);border-radius:var(--r-lg);padding:44px 20px;text-align:center;color:var(--fg-2);background:var(--card)}
-.empty b{display:block;color:var(--fg);font-weight:500;margin-bottom:2px}
-.card{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:18px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:12px}
+.empty::before{content:"";display:block;width:54px;aspect-ratio:9/16;border:2px dashed var(--border-2);border-radius:10px;margin:0 auto 16px}
+.empty b{display:block;color:var(--fg);font:600 17px var(--display);margin-bottom:2px}
+.card{display:grid;grid-template-columns:112px minmax(0,1fr) auto;gap:18px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:12px}
 .card.failed{border-color:#F3D4D4}
-.thumb{position:relative;width:96px;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:#E9E9EE;border:0;padding:0;display:block;color:#fff}
+.card.live{grid-template-columns:144px minmax(0,1fr) auto}
+.card.live .thumb{width:144px}
+.thumb{position:relative;width:112px;aspect-ratio:9/16;border-radius:var(--r-md);overflow:hidden;background:#E9E9EE;border:0;padding:0;display:block;color:#fff}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb .play{position:absolute;left:50%;top:50%;width:36px;height:36px;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);border-radius:50%;padding:9px 8px 9px 10px;transition:transform .15s,background .15s}
 button.thumb{cursor:pointer}
 button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50%) scale(1.08)}
 .thumb .dur{position:absolute;right:6px;bottom:6px;font-size:11px;font-weight:500;background:rgba(0,0,0,.72);padding:1px 6px;border-radius:4px;line-height:1.5}
-.thumb .fillbar{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:#D4D4DA;transition:height .8s ease}
-.thumb .stage{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:500;color:var(--fg-2);text-align:center;padding:6px}
+.thumb .peek{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* a video that is not ready yet is a dark phone screen; the fill rises in the colour its captions will have */
+.screen{background:var(--fg);color:#fff}
+.screen .still{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.screen .fill{position:absolute;left:0;right:0;bottom:0;height:var(--fill,0%);background:var(--accent,#FFE500);transition:height .8s ease}
+.screen .bar{position:absolute;left:0;bottom:0;height:4px;width:var(--fill,0%);background:var(--accent,#FFE500);transition:width .8s ease}
+.screen .stage{position:absolute;inset:0;display:grid;place-content:center;gap:3px;text-align:center;padding:8px;font:600 15px/1.2 var(--display);text-shadow:0 1px 10px rgba(0,0,0,.7)}
+.screen .stage small{font:500 11.5px/1.3 var(--font);opacity:.85}
+.screen:has(.still) .stage{place-content:end center;padding-bottom:12px;background:linear-gradient(transparent 50%,rgba(0,0,0,.75))}
+/* waiting and failed videos are quiet, compact rows; only the one being made is dark */
+.card.wait{grid-template-columns:72px minmax(0,1fr) auto}
+.card.wait .thumb{width:72px}
+.screen.dim{background:var(--soft);color:var(--fg-2)}
+.screen.dim .stage{font-size:13px;text-shadow:none;padding:6px}
+.screen.dim .stage small{font-size:11px;opacity:1}
+.card.failed .screen.dim{background:var(--red-bg);color:var(--red)}
+.steps{list-style:none;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:12px 0 0;padding:0;max-width:520px}
+.steps li{position:relative;padding-top:9px;font-size:11.5px;line-height:1.2;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steps li::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;border-radius:2px;background:var(--border)}
+.steps .done{color:var(--fg-2)}
+.steps .done::before{background:var(--fg)}
+.steps .now{color:var(--fg);font-weight:500}
+.steps .now::before{background:var(--amber-2);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.4}}
+.strip{display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap}
+.strip img{width:36px;aspect-ratio:9/16;object-fit:cover;border-radius:4px;background:var(--soft)}
 .body{min-width:0}
 .status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 9px 2px 8px;border-radius:999px;margin-bottom:7px}
 .status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
@@ -141,16 +169,16 @@ button.thumb:hover .play{background:rgba(0,0,0,.75);transform:translate(-50%,-50
 .status.queued{color:var(--fg-2);background:var(--soft)}
 .status.failed{color:var(--red);background:var(--red-bg)}
 .status.ready{color:var(--green);background:var(--green-bg)}
-.card h3{font-size:15px;line-height:1.35}
-.desc{margin:4px 0 0;color:var(--fg-2);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.facts{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--fg-2)}
+.card h3{font-size:17px;line-height:1.3}
+.desc{margin:4px 0 0;color:var(--fg-2);font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.facts{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--fg-2)}
 .facts li{display:inline-flex;align-items:center;gap:6px}
 .facts .i{width:14px;height:14px;color:var(--fg-3)}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
 .tag{font-size:12px;color:var(--fg-2);background:var(--soft);border-radius:999px;padding:2px 9px}
-.prog{height:4px;background:var(--soft);border-radius:2px;overflow:hidden;margin:12px 0 6px;max-width:420px}
-.prog i{display:block;height:100%;width:var(--w,0%);background:var(--fg);transition:width .8s ease}
-.step{margin:0;font-size:13px;color:var(--fg-2)}
+.step{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 0;font-size:14px;color:var(--fg-2)}
+.step .elapsed{display:inline-flex;align-items:center;gap:5px;color:var(--fg-3)}
+.step .i{width:14px;height:14px}
 .err{margin:6px 0 0;font-size:13px;color:var(--red)}
 .side{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .side time{font-size:12px;color:var(--fg-3);white-space:nowrap}
@@ -183,7 +211,9 @@ dialog .x:hover{background:rgba(255,255,255,.22)}
 dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;font-size:13px;text-align:center;opacity:.8}
 
 @media (max-width:1180px){
-  .card{grid-template-columns:96px minmax(0,1fr)}
+  .card{grid-template-columns:112px minmax(0,1fr)}
+  .card.live{grid-template-columns:144px minmax(0,1fr)}
+  .card.wait{grid-template-columns:72px minmax(0,1fr)}
   .side{grid-column:2;flex-direction:row;align-items:center;justify-content:space-between}
 }
 @media (max-width:960px){
@@ -196,13 +226,18 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
   .side{grid-column:1 / -1;flex-wrap:wrap;gap:8px}
   .actions{width:100%;justify-content:flex-start}
   .top nav .btn .w{display:none}
-  .card{grid-template-columns:80px minmax(0,1fr);gap:14px;padding:14px}
-  .thumb{width:80px}
+  .card{grid-template-columns:88px minmax(0,1fr);gap:14px;padding:14px}
+  .thumb{width:88px}
+  .card.live{grid-template-columns:104px minmax(0,1fr)}
+  .card.live .thumb{width:104px}
+  .card.wait{grid-template-columns:60px minmax(0,1fr)}
+  .card.wait .thumb{width:60px}
+  .steps li span{display:none}
   .search,.search input{width:100%}
   .seg{grid-template-columns:repeat(2,1fr)}
   dialog .x{right:0;top:-46px}
 }
-@media (prefers-reduced-motion:reduce){.thumb .fillbar,.prog i,.toast,.tile,.seg label,.thumb .play{transition:none}}
+@media (prefers-reduced-motion:reduce){.screen .fill,.screen .bar,.toast,.tile,.seg label,.thumb .play{transition:none}.steps .now::before{animation:none}}
 </style>
 </head>
 <body>
@@ -223,6 +258,7 @@ dialog .cap{position:absolute;left:0;right:0;top:calc(100% + 10px);color:#fff;fo
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
   <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6M12 2v3"/></symbol>
   <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
@@ -294,11 +330,13 @@ const STAGES = ["plan", "images", "voice", "visuals", "captions", "render"];
 const LABEL = {general: "General", tech: "Tech & AI", fitness: "Fitness", motivation: "Motivation", finance: "Finance", hinglish_fun: "Hinglish Fun"};
 const ICON = {general: "globe", tech: "cpu", fitness: "dumbbell", motivation: "flame", finance: "rupee", hinglish_fun: "smile"};
 const VOICE = {elevenlabs: "ElevenLabs", edge: "Microsoft", gemini: "Gemini"};
+const STEP = {plan: ["Script", "Writing the script"], images: ["Images", "Generating images"], voice: ["Voice", "Recording the voice"],
+  visuals: ["Scenes", "Building the scenes"], captions: ["Captions", "Timing the captions"], render: ["Render", "Rendering the video"]};
 const FORMULA = {question: "Question", bold_claim: "Bold claim", number: "Number", myth: "Myth", story: "Story", warning: "Warning"};
 const RTF = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
 const posts = {}, videos = {};
 const PER_PAGE = 10;
-let timer = null, labels = {}, listKey = "", tab = "all", q = "", page = 1, allJobs = [];
+let timer = null, labels = {}, accents = {}, qpos = new Map(), listKey = "", tab = "all", q = "", page = 1, allJobs = [];
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
 function lines() { return $("#topics").value.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 10); }
@@ -313,10 +351,11 @@ function ago(ts) {
   for (const [unit, sec] of [["day", 86400], ["hour", 3600], ["minute", 60]]) if (s >= sec) return RTF.format(-Math.floor(s / sec), unit);
   return "just now";
 }
-function mmss(sec) { sec = Math.round(sec); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }
+function mmss(sec) { sec = Math.max(0, Math.round(sec)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }
+function nth(i) { return ["Next up", "2nd in line", "3rd in line"][i] || `${i + 1}th in line`; }
 
 fetch("/presets").then(r => r.json()).then(p => {
-  p.communities.forEach(x => labels[x.slug] = LABEL[x.slug] || x.label);
+  p.communities.forEach(x => { labels[x.slug] = LABEL[x.slug] || x.label; accents[x.slug] = x.accent; });
   p.languages.forEach(x => labels[x.slug] = x.label);
   $("#community").innerHTML = p.communities.map((x, i) => `<label class="tile"><input type="radio" name="community" value="${x.slug}" data-language="${x.language}"${i === 0 ? " checked" : ""}>${icon(ICON[x.slug] || "folder")}<span>${esc(label(x.slug))}</span></label>`).join("");
   $("#language").innerHTML = p.languages.map(x => `<option value="${x.slug}"${x.slug === "en" ? " selected" : ""}>${esc(x.label)}</option>`).join("");
@@ -511,28 +550,45 @@ function facts(j, extra = "") {
 
 function card(j) {
   if (j.status === "done") return readyCard(j);
-  const idx = STAGES.indexOf(j.stage);
+  const idx = STAGES.indexOf(j.stage), accent = accents[j.community] || "#FFE500";
   if (j.status === "failed") {
-    const at = (j.error || "").split(":")[0] || "an unknown step", why = (j.error || "").split(":").slice(1).join(":").trim() || "Something went wrong.";
-    return `<article class="card failed"><div class="thumb"><span class="stage">Stopped at ${esc(at)}</span></div><div class="body">
+    const at = (j.error || "").split(":")[0], why = (j.error || "").split(":").slice(1).join(":").trim() || "Something went wrong.";
+    return `<article class="card failed wait"><div class="thumb screen dim"><span class="stage"><small>Stopped at</small>${esc(STEP[at] ? STEP[at][0] : at || "an unknown step")}</span></div><div class="body">
       <span class="status failed">Failed</span>
       <h3>${esc(j.topic)}</h3>
       <p class="err">${esc(why)}</p>
       ${facts(j)}
     </div><div class="side"><time>Started ${ago(j.created)}</time>
-      <div class="actions"><button type="button" class="btn" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button><button type="button" class="btn del" data-del="${j.id}" data-topic="${esc(j.topic)}">Delete</button></div>
+      <div class="actions"><button type="button" class="btn" data-retry='${esc(JSON.stringify({topics: [j.topic], community: j.community, language: j.language, duration: j.duration}))}'>Try again</button></div>
     </div></article>`;
   }
-  const running = j.status === "running", pct = running ? Math.round(((idx + 0.5) / STAGES.length) * 100) : 0;
-  return `<article class="card"><div class="thumb"><div class="fillbar" style="--fill:${pct}%"></div><span class="stage">${running ? esc(cap(j.stage)) : "Queued"}</span></div><div class="body">
-    <span class="status ${running ? "making" : "queued"}">${running ? "Generating" : "Queued"}</span>
+  if (j.status === "queued") {
+    const pos = nth(qpos.get(j.id) || 0);
+    return `<article class="card wait"><div class="thumb screen dim"><span class="stage">${pos}</span></div><div class="body">
+      <span class="status queued">Queued</span>
+      <h3>${esc(j.topic)}</h3>
+      <p class="step">${pos}, waiting for the video before it</p>
+      ${facts(j)}
+    </div><div class="side"><time>Added ${ago(j.created)}</time></div></article>`;
+  }
+  // running: the phone screen shows the newest still, the six bars show where the pipeline is, the strip collects every still
+  const pct = Math.round(((idx + 0.5) / STAGES.length) * 100), stills = j.stills || [], last = stills[stills.length - 1];
+  const [word, verb] = STEP[j.stage] || [cap(j.stage || ""), cap(j.stage || "")];
+  const count = j.stage === "images" && j.shots ? `${stills.length} of ${j.shots}` : "";
+  const bust = `?${j.stage}${stills.length}`;  // a still that failed to load half-written is fetched again on the next repaint
+  const started = j.started || j.created;
+  return `<article class="card live"><div class="thumb screen" style="--accent:${esc(accent)}">
+      ${last ? `<img class="still" src="/out/${j.id}/${last}${bust}" alt="" onerror="this.remove()"><i class="bar" style="--fill:${pct}%"></i>` : `<i class="fill" style="--fill:${pct}%"></i>`}
+      <span class="stage">${esc(word)}${count ? `<small>${count} stills</small>` : ""}</span>
+    </div><div class="body">
+    <span class="status making">Generating</span>
     <h3>${esc(j.topic)}</h3>
-    <div class="prog"><i style="--w:${pct}%"></i></div>
-    <p class="step">${running ? `${cap(j.stage)}, step ${idx + 1} of ${STAGES.length}` : "Waiting for the previous video to finish"}</p>
+    ${j.hook ? `<p class="desc">${esc(j.hook)}</p>` : ""}
+    <ol class="steps" aria-label="Steps">${STAGES.map((st, i) => `<li class="${i < idx ? "done" : i === idx ? "now" : ""}"><span>${STEP[st][0]}</span></li>`).join("")}</ol>
+    <p class="step"><span>${esc(verb)}${count ? `, ${count}` : ""}</span><span class="elapsed">${icon("timer")}<span data-start="${started}">${mmss(Date.now() / 1000 - started)}</span></span></p>
+    ${stills.length ? `<div class="strip">${stills.map(f => `<img src="/out/${j.id}/${f}${bust}" alt="" title="${esc((j.scenes || [])[parseInt(f.slice(3), 10)] || "")}" onerror="this.remove()">`).join("")}</div>` : ""}
     ${facts(j)}
-  </div><div class="side"><time>Started ${ago(j.created)}</time>
-    <div class="actions"><button type="button" class="btn del" data-del="${j.id}" data-busy data-topic="${esc(j.topic)}">${running ? "Stop and delete" : "Delete"}</button></div>
-  </div></article>`;
+  </div><div class="side"><time>Started ${ago(started)}</time></div></article>`;
 }
 
 function readyCard(j) {
@@ -550,7 +606,7 @@ function readyCard(j) {
       <span class="status ready">Ready</span>
       <h3>${esc(j.topic)}</h3>
       <p class="desc">${esc(m.hook)} ${esc(m.caption)}</p>
-      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>${m.hook_formula ? `<li>${icon("bolt")}${esc(FORMULA[m.hook_formula] || m.hook_formula)} hook, ${esc(m.hook_score)}/10</li>` : ""}`)}
+      ${facts(j, `<li>${icon("mic")}${esc(voice)} voice</li>${m.hook_formula ? `<li>${icon("bolt")}${esc(FORMULA[m.hook_formula] || m.hook_formula)} hook, ${esc(m.hook_score)}/10</li>` : ""}${m.seconds_to_make ? `<li>${icon("timer")}Made in ${mmss(m.seconds_to_make)}</li>` : ""}`)}
       <div class="tags">${m.hashtags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
     </div>
     <div class="side">
@@ -573,6 +629,7 @@ function render(jobs) {
   const making = jobs.filter(j => j.status === "queued" || j.status === "running").sort((a, b) => a.created - b.created);  // the line runs oldest first
   const failed = jobs.filter(j => j.status === "failed").sort((a, b) => b.created - a.created);
   const ready = jobs.filter(j => j.status === "done").sort((a, b) => b.created - a.created);
+  qpos = new Map(making.filter(j => j.status === "queued").map((j, i) => [j.id, i]));
   const counts = {all: jobs.length, ready: ready.length, making: making.length, failed: failed.length};
   document.querySelectorAll("#tabs button").forEach(b => b.querySelector("span").textContent = counts[b.dataset.tab]);
   $("#tally").innerHTML = `<i class="dot${making.length ? " on" : ""}" aria-hidden="true"></i><span>${making.length ? `${making.length} generating` : "Idle"}${ready.length ? `, ${ready.length} ready` : ""}</span>`;
@@ -589,7 +646,7 @@ function render(jobs) {
   $("#pager").innerHTML = pages < 2 ? "" : pager(pages, from, total);
 
   // repaint only when something visible changed: a repaint restarts transitions and closes an open menu
-  const key = JSON.stringify([tab, q, page, Math.floor(Date.now() / 60000), list.map(j => [j.id, j.status, j.stage, j.error, j.result && j.result.updated])]);
+  const key = JSON.stringify([tab, q, page, Math.floor(Date.now() / 60000), list.map(j => [j.id, j.status, j.stage, j.error, j.hook, (j.stills || []).length, j.result && j.result.updated])]);
   if (key !== listKey) $("#list").innerHTML = list.map(card).join("");
   listKey = key;
 }
@@ -602,6 +659,19 @@ function pager(pages, from, total) {
     <button type="button" class="btn icon" data-page="${page - 1}" aria-label="Previous page"${page === 1 ? " disabled" : ""}>${icon("left")}</button>
     ${btns}
     <button type="button" class="btn icon" data-page="${page + 1}" aria-label="Next page"${page === pages ? " disabled" : ""}>${icon("right")}</button></nav>`;
+}
+// a live clock on every running card; the list itself repaints only when a stage or a still changes
+setInterval(() => document.querySelectorAll(".elapsed [data-start]").forEach(el => el.textContent = mmss(Date.now() / 1000 - el.dataset.start)), 1000);
+
+// hovering a finished thumbnail plays it silently, the way a feed does
+if (matchMedia("(hover:hover)").matches && !matchMedia("(prefers-reduced-motion:reduce)").matches) {
+  $("#list").addEventListener("mouseover", e => {
+    const t = e.target.closest("button.thumb[data-play]");
+    if (!t || t.querySelector("video")) return;
+    const v = Object.assign(document.createElement("video"), {src: videos[t.dataset.play].video, muted: true, loop: true, playsInline: true, className: "peek"});
+    t.querySelector("img").after(v); v.play().catch(() => {});
+    t.addEventListener("mouseleave", () => v.remove(), {once: true});
+  });
 }
 poll();
 </script>

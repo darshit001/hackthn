@@ -132,3 +132,28 @@ The user brought a GPT-made mockup of the page and asked for its structure, minu
 **Kept** Instrument Sans only, tabular numerals, amber / grey / green / red status pills, brand purple-pink
 only in the 26 px mark, toast for copy/delete/start, reduced-motion switches transitions off. One shadow
 exists, on the floating ⋮ menu.
+
+## Revision 4, 3 Oct: the video being made is the show
+
+Finale polish for a projector demo. Structure of Revision 3 kept; API gains read-only live fields.
+
+- **Type:** Bricolage Grotesque (opsz 12–96, 500–700) for h1/h2, card titles, the stage word in a phone and the
+  empty-state title; Instrument Sans stays for every control and label. Sizes up one step: h2 28, h1 22, card
+  title 17, excerpt/meta 14/13, tabs 14, primary button 15 at 46 px tall.
+- **The one bold element: the live card.** 144 px dark phone screen; the community's own caption colour (from
+  `/presets` `accent`) rises inside it one sixth per stage until the first AI still lands, then the newest still
+  fills the screen with a thin accent progress line at its foot and the stage word on a bottom scrim. Six
+  story-style bars (Script, Images, Voice, Scenes, Captions, Render: done = ink, current = amber pulse) replace the
+  single progress bar; under them a plain verb ("Generating images, 3 of 8") with a live elapsed clock, the hook
+  once the script is written, and a filmstrip of every still so far (scene title on hover).
+- **Quiet rows for everything waiting:** queued and failed videos are 72 px compact rows on a light screen
+  ("Next up", "2nd in line"; "Stopped at Voice" on a red tint). Only the video being made is dark.
+- **Ready cards:** 112 px thumbnail, "Made in 1:22" from `seconds_to_make`, silent looping preview on hover
+  (pointer devices only, off under reduced motion). Empty state shows a dashed phone silhouette.
+- **Pagination:** 10 per page, "Showing 11–20 of 30", first/last/neighbours with gaps; tab or search resets to
+  page 1; a delete past the last page steps back.
+- **API:** `pipeline.make_video` writes `out/<id>/plan.json` after planning; `/jobs` adds `started` and, for a
+  running job, `hook`, `scenes` (titles), `shots` and `stills` (gen*.png present) read from that folder;
+  `/presets` adds `accent`. One test covers the live fields.
+- Motion inventory: fill/bar transitions, the pulse on the current step, the hover preview, the toast. Reduced
+  motion turns the first three off.

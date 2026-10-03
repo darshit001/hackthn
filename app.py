@@ -41,6 +41,7 @@ def _worker():
                 if jid not in JOBS:  # ponytail: deleted mid-run stops at the next stage boundary, not mid-ffmpeg
                     raise Cancelled
                 job["status"], job["stage"] = "running", stage
+                job.setdefault("started", time.time())
 
         try:
             if scene is None:
@@ -109,7 +110,7 @@ def index():
 
 @app.get("/presets")
 def presets():
-    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"]} for k, v in COMMUNITIES.items()],
+    return {"communities": [{"slug": k, "label": v["label"], "language": v["language"], "accent": "#" + v["accent"]} for k, v in COMMUNITIES.items()],
             "languages": [{"slug": k, "label": v["label"]} for k, v in LANGUAGES.items()],
             "durations": DURATIONS}
 
@@ -160,10 +161,26 @@ def generate(body: GenerateIn):
     return {"job_ids": ids}
 
 
+def _live(j):
+    """While a video is made the page shows its script and every still as it lands; both are read from out/<id>/."""
+    if j["status"] != "running":
+        return j
+    d = pipeline.OUT / j["id"]
+    j = {**j, "stills": sorted(p.name for p in d.glob("gen*.png"))}
+    try:
+        p = json.loads((d / "plan.json").read_text())
+        j.update(hook=p["hook"], scenes=[sc.get("title") or sc["query"] for sc in p["scenes"]],
+                 shots=sum(1 + bool(sc.get("image_prompt_b")) for sc in p["scenes"]))
+    except (OSError, ValueError, KeyError):
+        pass  # not planned yet, or an older job: the page shows the stage alone
+    return j
+
+
 @app.get("/jobs")
 def jobs():
     with LOCK:
-        return sorted(({k: v for k, v in j.items() if k != "plan"} for j in JOBS.values()), key=lambda j: -j["created"])
+        snap = [{k: v for k, v in j.items() if k != "plan"} for j in JOBS.values()]
+    return sorted(map(_live, snap), key=lambda j: -j["created"])
 
 
 @app.get("/jobs/{jid}")

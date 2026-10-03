@@ -29,6 +29,7 @@ def make_video(topic, community="general", progress=lambda stage: None, job_id=N
     progress("plan")
     p = plan or llm.plan(topic, community, language, duration)
     scenes = p["scenes"]
+    (d / "plan.json").write_text(json.dumps(p, ensure_ascii=False))  # the page shows the script while the video is made
 
     progress("images")  # AI stills, 3 at a time; every scene's first picture before any second one, so a quota hit never leaves a scene bare
     tasks = [(i, "", sc.get("image_prompt") or sc["query"]) for i, sc in enumerate(scenes)]

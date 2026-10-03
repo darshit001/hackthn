@@ -93,6 +93,21 @@ def test_redo_scene_queues_on_finished_job(monkeypatch):
     assert appmod.JOBS[jid]["status"] == "queued" and queued[-1] == (jid, 1)
 
 
+def test_jobs_shows_script_and_stills_while_running(monkeypatch, tmp_path):
+    monkeypatch.setattr(appmod.pipeline, "OUT", tmp_path)
+    monkeypatch.setattr(appmod.Q, "put", lambda item: None)
+    jid = client.post("/generate", json={"topics": ["chai vs coffee"]}).json()["job_ids"][0]
+    assert "stills" not in client.get("/jobs").json()[0]  # queued: nothing to show yet
+    appmod.JOBS[jid].update(status="running", stage="images")
+    (tmp_path / jid).mkdir()
+    (tmp_path / jid / "plan.json").write_text(json.dumps({"hook": "Chai wins.", "scenes": [
+        {"title": "Morning", "query": "chai", "image_prompt_b": "cup"}, {"query": "coffee beans"}]}))
+    (tmp_path / jid / "gen0.png").write_bytes(b"")
+    j = next(j for j in client.get("/jobs").json() if j["id"] == jid)
+    assert (j["hook"], j["scenes"], j["shots"], j["stills"]) == ("Chai wins.", ["Morning", "coffee beans"], 3, ["gen0.png"])
+    appmod.JOBS.pop(jid)
+
+
 def test_delete_stops_a_job_on_the_line(monkeypatch, tmp_path):
     import queue, threading, time
     monkeypatch.setattr(appmod.pipeline, "OUT", tmp_path)

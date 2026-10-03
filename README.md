@@ -24,7 +24,7 @@ Built for **Qoneqt × CTRL FREAK 2026**, challenge: *"Build an LLM-Powered Conte
 | 📱 Published on Qoneqt | _coming soon_ |
 
 <p align="center">
-  <img src="docs/screens/ui-v8-desktop.png" alt="Video Factory UI: create form on the left, video cards on the right" width="720">
+  <img src="docs/screens/ui-v9-desktop.png" alt="Video Factory UI: create form on the left; on the right a video being made shows its stills arriving and the six pipeline steps, above the finished videos" width="720">
 </p>
 
 ---
@@ -456,12 +456,12 @@ flowchart LR
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | `GET` | `/` | | Studio UI |
-| `GET` | `/presets` | | communities, languages, durations |
+| `GET` | `/presets` | | communities (with each one's caption accent colour), languages, durations |
 | `GET` | `/suggest` | `?community=tech&language=hi&trends_only=1` | 6 topic ideas (trend-aware; `trends_only` makes them all trend-led) |
 | `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks with formula and why, scenes with beats, caption, hashtags, YouTube and Instagram post text |
 | `POST` | `/generate` | `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "plan": {...}}` (1–10 topics; `plan` optional, from `/plan`) | `{"job_ids": [...]}` |
 | `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual and re-renders |
-| `GET` | `/jobs` | | every job with status and stage |
+| `GET` | `/jobs` | | every job with status and stage; a running job also carries `started`, and once planned its `hook`, scene titles, `shots` and the `stills` painted so far |
 | `GET` | `/jobs/{id}` | | one job + result meta |
 | `DELETE` | `/jobs/{id}` | | removes the job and its files |
 | `GET` | `/out/{id}/{id}.mp4` | | the video (also `.jpg`, `.json`) |
