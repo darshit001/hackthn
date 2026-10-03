@@ -46,7 +46,7 @@ export default function App() {
       refresh();
     },
   }), [refresh, say, patch]);
-  const open = playing && jobs.find(j => j.id === playing.id);  // the player's Save follows the live job
+  const open = playing && jobs.find(j => j.id === playing && j.result);  // follows the live job: a save or redo shows at once, a delete closes it
 
   return (
     <>
@@ -57,8 +57,7 @@ export default function App() {
         <Resizer />
         <VideoList jobs={jobs} presets={presets} actions={actions} />
       </main>
-      <PlayerDialog video={playing} onClose={() => setPlaying(null)} saved={!!open?.saved}
-        onSave={open?.result ? () => actions.onSave(open.id, !open.saved) : null} />
+      <PlayerDialog job={open} jobs={jobs} label={presets.label} actions={actions} onOpen={setPlaying} onClose={() => setPlaying(null)} />
       <Toast {...toast} />
     </>
   );

@@ -14,7 +14,14 @@ export function mmss(sec) {
 export const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 export const nth = i => ["Next up", "2nd in line", "3rd in line"][i] || `${i + 1}th in line`;
 
-export const fileName = topic => topic.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".mp4";
-
 export const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const canHover = () => matchMedia("(hover: hover)").matches;
+
+// The post text the Copy buttons put on the clipboard
+export const postText = m => [m.hook, m.caption, m.hashtags.join(" ")].filter(Boolean).join("\n\n");  // an image post has no hook: its headline is on the picture
+
+// a scene whose free GPU ran out shows the still photo; the count tells the user which videos a Redo scene would improve
+export const talked = m => {
+  const faces = m.scenes.filter(sc => sc.face), n = faces.filter(sc => sc.face !== "photo").length;
+  return n === faces.length ? "You, talking" : `You, talking in ${n} of ${faces.length} scenes`;
+};

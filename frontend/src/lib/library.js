@@ -33,3 +33,11 @@ export function sortJobs(list, by) {
   }[by];
   return [...list.filter(making), ...list.filter(j => !making(j)).sort(cmp)];
 }
+
+// "More videos" beside the player: other finished videos, same community and language first, then same community,
+// then same language, newest first within each
+export function related(jobs, job, n = 6) {
+  const score = j => (j.community === job.community) * 2 + (j.language === job.language);
+  return jobs.filter(j => j.result && j.status === "done" && j.id !== job.id)
+    .sort((a, b) => score(b) - score(a) || b.created - a.created).slice(0, n);
+}

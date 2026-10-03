@@ -103,23 +103,21 @@ export function VideoList({ jobs, presets, actions }) {
               {!options.length && <p className="none">Make videos in more than one community, language, look or length to filter them.</p>}
             </div>
           </details>
+          <label className="sort">
+            <Icon name="sort" />
+            <select aria-label="Sort videos" value={sort} onChange={e => { setSort(e.target.value); setPage(1); }}>
+              {SORTS.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+            </select>
+            <Icon name="chevron" />
+          </label>
         </div>
       </div>
-      <div className="tabrow">
-        <div className="tabs" role="tablist">
-          {TABS.map(([key, name]) => (
-            <button type="button" role="tab" key={key} aria-selected={tab === key} onClick={() => { setTab(key); setPage(1); }}>
-              {name} <span>{groups[key].length}</span>
-            </button>
-          ))}
-        </div>
-        <label className="sort">
-          <Icon name="sort" />
-          <select aria-label="Sort videos" value={sort} onChange={e => { setSort(e.target.value); setPage(1); }}>
-            {SORTS.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
-          </select>
-          <Icon name="chevron" />
-        </label>
+      <div className="tabs" role="tablist">
+        {TABS.map(([key, name]) => (
+          <button type="button" role="tab" key={key} aria-selected={tab === key} onClick={() => { setTab(key); setPage(1); }}>
+            {name} <span>{groups[key].length}</span>
+          </button>
+        ))}
       </div>
       <div aria-live="polite">{shown.map(card)}</div>
       <Pager page={current} pages={pages} total={list.length} onPage={goTo} />

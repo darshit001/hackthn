@@ -1,7 +1,7 @@
 // node --test src/lib/library.test.js   (from frontend/)
 import assert from "node:assert/strict";
 import test from "node:test";
-import { matches, sortJobs } from "./library.js";
+import { matches, related, sortJobs } from "./library.js";
 
 const label = s => ({ finance: "Finance", tech: "Tech & AI" })[s] || s;
 const done = (id, o) => ({ id, status: "done", community: "tech", language: "en", duration: 30, created: id, topic: `t${id}`, ...o });
@@ -40,4 +40,14 @@ test("Type filter: jobs without a kind are videos; an image post sorts as the sh
   assert.deepEqual(ids(all.filter(j => matches(j, "", { kind: new Set(["image"]) }, label))), [5]);
   assert.deepEqual(ids(all.filter(j => matches(j, "", { kind: new Set(["video"]) }, label))), [1, 2, 3, 4]);
   assert.deepEqual(ids(sortJobs(all, "shortest")).slice(2), [5, 2, 1]);
+});
+
+test("related ranks community and language, skips itself and unfinished videos", () => {
+  const me = done(9, { result: {} });
+  const list = [me, ...jobs,
+    done(5, { community: "finance", language: "en", result: {} }),
+    done(6, { result: {} }),
+    done(7, { language: "hi", result: {} })];
+  assert.deepEqual(ids(related(list, me)), [6, 2, 7, 5, 1]);
+  assert.deepEqual(ids(related(list, me, 2)), [6, 2]);
 });
