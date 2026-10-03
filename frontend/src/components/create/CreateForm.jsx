@@ -19,7 +19,6 @@ export function CreateForm({ presets, onStarted }) {
   const [language, setLanguage] = useState("en");
   const [duration, setDuration] = useState(30);
   const [style, setStyle] = useState("photo");
-  const [every, setEvery] = useState(false);  // also make it in every other language
   const [status, setStatus] = useState(HINT);
   const [ideas, setIdeas] = useState([]);
   const [ideasNote, setIdeasNote] = useState("");  // where the ideas came from, or why there are none
@@ -28,8 +27,7 @@ export function CreateForm({ presets, onStarted }) {
   const form = useRef();
   const topics = toLines(text);
   const options = { community, language, duration, style };
-  const langs = presets.languages.length;
-  const count = topics.length * (every ? langs : 1);
+  const count = topics.length;
 
   const changeText = value => { setText(value); setPreview(null); };
   const dropIdeas = () => { setIdeas([]); setIdeasNote(""); setPreview(null); };
@@ -46,7 +44,6 @@ export function CreateForm({ presets, onStarted }) {
       await api.generate(body);
       onStarted(message);
       changeText("");
-      setEvery(false);  // a forgotten tick would silently make the next batch one per language
       return true;
     } catch (e) {
       setStatus("Could not start: " + e.message);
@@ -81,8 +78,7 @@ export function CreateForm({ presets, onStarted }) {
     e.preventDefault();
     if (!topics.length) return;
     setBusy("start");
-    const message = every ? `Generating ${count} videos in ${langs} languages` : count === 1 ? "Generating 1 video" : `Generating ${count} videos`;
-    await start({ topics, ...options, all_languages: every }, message);
+    await start({ topics, ...options }, count === 1 ? "Generating 1 video" : `Generating ${count} videos`);
     setBusy("");
   };
 
@@ -114,9 +110,6 @@ export function CreateForm({ presets, onStarted }) {
             </label>
           ))}
         </div>
-        <label className="check">
-          <input type="checkbox" checked={every} onChange={e => setEvery(e.target.checked)} />Also make it in the other {langs - 1} languages, same visuals
-        </label>
       </div>
 
       <div className="field topic">
@@ -179,8 +172,7 @@ export function CreateForm({ presets, onStarted }) {
       </p>
       {preview && (
         <ScriptPreview key={preview.topic} {...preview} onClose={() => setPreview(null)}
-          onMake={plan => start({ topics: [preview.topic], ...options, all_languages: every, plan },
-            every ? `Generating ${langs} videos in ${langs} languages with your script` : "Generating 1 video with your script")} />
+          onMake={plan => start({ topics: [preview.topic], ...options, plan }, "Generating 1 video with your script")} />
       )}
     </form>
   );
