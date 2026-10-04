@@ -27,8 +27,6 @@ Built for **Qoneqt × CTRL FREAK 2026**: *"Build an LLM-Powered Content Pipeline
 3. [How it works](#-3-how-it-works)
 4. [Tools and APIs](#-4-tools-and-apis)
 5. [Run it locally](#-5-run-it-locally)
-6. [Deploy](#-6-deploy)
-7. [Repo layout](#-7-repo-layout)
 
 ---
 
@@ -157,36 +155,6 @@ cd ../backend && uvicorn app.main:app --port 9000   # open http://localhost:9000
 | `PEXELS_API_KEY`, `PIXABAY_API_KEY` | [pexels.com/api](https://www.pexels.com/api/), [pixabay.com/api/docs](https://pixabay.com/api/docs/) | optional |
 
 Spare keys: add `_2`, `_3`, `_4` to any key name (`GROQ_API_KEY_2`, …). Used when the first runs out.
-
----
-
-## ☁️ 6. Deploy
-
-```bash
-docker build -t qoneqt-video-factory .
-docker run --env-file backend/.env -p 7860:7860 qoneqt-video-factory
-```
-
-- **Railway**: deploy from the GitHub repo, add keys under Variables, mount a volume at `/app/backend/out`
-- **Hugging Face Spaces**: Docker SDK, free CPU, add keys as secrets, `git push` to the Space
-- **Publish to Qoneqt**: download the ZIP → upload the video → paste the post text (no public posting API yet)
-
----
-
-## 🗂️ 7. Repo layout
-
-```
-backend/app/
-  main.py        API, job queues, serves the UI
-  pipeline.py    video and image pipelines
-  llm.py         plans, safety review, topic ideas
-  media.py       voice, images, talking face, stock, Whisper
-  render.py      captions, overlays, ffmpeg
-  presets.py     communities, languages, looks, keys
-backend/tests/   pytest
-frontend/src/    React UI
-Dockerfile       builds UI, runs FastAPI + ffmpeg
-```
 
 ---
 
