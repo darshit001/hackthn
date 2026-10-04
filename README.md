@@ -128,32 +128,26 @@ flowchart TD
 
 | # | Stage | What happens | Output |
 |---|---|---|---|
-| 1 | **Plan** | The LLM returns strict JSON: three hooks, each with a formula, a score and a one-line why; scenes sized to the length (word budget = length × the language's measured speaking pace), each with a beat and two image prompts from different shots; the Qoneqt caption and hashtags; YouTube and Instagram post text. The JSON is validated (banned openers, beat order, every field), and a bad plan gets one guided retry before the next model is tried. A safety and claim review then softens or blocks the script. A version in another language translates the source video's plan instead: beats, visuals and hashtags are copied, only the words change, and the text must be in the target script. | `plan` dict |
-| 2 | **Images** | Two FLUX stills per scene (`image_prompt`, then `image_prompt_b`), 3 at a time, every scene's first picture before any second one. The look (photo, anime, infographic, cinematic) leads every prompt. The voice lines record in parallel. A version in another language copies the source's stills instead. If every provider is down this stage is skipped and stage 4 uses stock. | `gen<i>.png` |
-| 3 | **Voice** | Each scene's narration becomes speech. The voice is chosen by community (gender) and language, then normalised. | `voice<i>.wav`, `voice.wav` |
-| 4 | **Visuals** | Each scene becomes a clip as long as its voice line plus a 0.35 s tail for the crossfade: a Ken Burns zoom on the AI still, else real stock footage, else a CC-licensed photo. Scenes of 4 s or more cut from shot A to shot B halfway. | `clip<i>.mp4` |
-| 5 | **Captions** | Whisper runs once per scene with that scene's narration as its prompt, so timings land on the right words. They become ASS karaoke lines with the active word in the community's accent colour. | `captions.ass` |
-| 6 | **Render** | ffmpeg crossfades the clips into each other and the end card, mixes voice and the ducked music bed, burns captions and the hook title, and writes the thumbnail. | `<id>.mp4`, `<id>.jpg`, `<id>.json` |
+| 1 | **Plan** | LLM writes 3 scored hooks, scenes sized to the length, caption, hashtags and post text. Checked and safety-reviewed. | `plan` dict |
+| 2 | **Images** | Two FLUX stills per scene in the chosen look; voice records at the same time. | `gen<i>.png` |
+| 3 | **Voice** | Narration to speech, voice picked by community and language. | `voice.wav` |
+| 4 | **Visuals** | Zoom on each still (stock video or photo if images fail); long scenes cut between two shots. | `clip<i>.mp4` |
+| 5 | **Captions** | Whisper times every word for karaoke captions. | `captions.ass` |
+| 6 | **Render** | ffmpeg joins clips with crossfades, adds music, captions, title and end card. | `<id>.mp4`, `<id>.jpg` |
 
 ### With your photo ("You, talking")
 
-The photo is cropped and, if you press **Restyle with AI**, redrawn by FLUX.2 klein 4B on Cloudflare (512×1024,
-~57 neurons, about the price of a FLUX.1 still). Scene 1 and the last scene are the head square talking (LeapTalk,
-then MoDA), laid back onto the portrait with a feathered edge so the outfit stays; the hook title moves to the
-chest. Middle scenes are FLUX.2 pictures with the portrait as reference. Every Space or FLUX.2 failure falls back
-to a still portrait or a plain picture, so the video still finishes. Hands and body stay still: no free model
-animates a whole body.
+- Upload a photo; **Restyle with AI** gives it a better outfit and light, same face.
+- First and last scenes: your face talks. Middle scenes: AI pictures with you in them.
+- If any step fails, a still portrait is used, so the video always finishes.
 
 ### Image posts
 
-`plan → image → poster` on its own queue and worker, so a picture never waits behind a video render (~10 s each).
-The LLM writes the headline, slide texts, caption, hashtags and alt text; the same safety review runs over every
-line. FLUX draws each slide (3 at a time, every prompt led by one shared look) unless you uploaded your own;
-ffmpeg cover-crops to 1080×1350 and burns the headline, page mark, Qoneqt mark and call to action with libass.
-A carousel also gets `<id>.zip`. Any slide can be redrawn alone.
+- One 4:5 picture or a 2–4 slide carousel, made in about 10 s each, on its own queue.
+- LLM writes the headline, slide texts, caption, hashtags and alt text; same safety review.
+- Use your own pictures or let FLUX draw them; redraw any slide alone.
 
 ---
-
 
 ## 🧰 5. Tools, models and APIs
 
