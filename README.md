@@ -33,9 +33,7 @@ Built for **Qoneqt × CTRL FREAK 2026**, challenge: *"Build an LLM-Powered Conte
 7. [How we built it](#-7-how-we-built-it)
 8. [Run it locally](#-8-run-it-locally)
 9. [Deploy](#-9-deploy-hugging-face-spaces--docker)
-10. [API reference](#-10-api-reference)
 11. [Repo layout](#-11-repo-layout)
-12. [Known limits](#-12-known-limits)
 
 ---
 
@@ -83,43 +81,21 @@ flowchart LR
 
 **Key features**
 
-- 🧠 **Hook formulas**: 3 openers (question, bold claim, number, myth, story, warning), each scored with a one-line "why it works"; the video is built on the best
-- 🎬 **Retention beats**: hook → context → rehook → twist → payoff; openers like "Did you know" are rejected by the validator before anything is rendered
-- ✂️ **Crossfades and mid-scene cuts**: scenes crossfade into each other and the end card; scenes over 4 s cut between two AI shots halfway through the sentence
-- 📷 **A different shot per scene**: wide, close-up, portrait, action, aftermath, so AI stills never look alike
-- 📋 **Post text for three platforms**: Qoneqt caption, YouTube Shorts title + description, Instagram caption
-- 🙋 **You in the video**: upload a photo (with a consent tick) and pick an outfit; FLUX.2 klein restyles it (same face, better clothes and light) on a button press. The first and last scenes are that portrait **talking** (LeapTalk → MoDA on free Hugging Face ZeroGPU Spaces), and the middle scenes are AI pictures with you in them
-- 🖼️ **Image posts and carousels**: one 4:5 picture with its headline, or 2–4 slides whose texts read as one story, each with a page mark; caption, hashtags and alt text included, and the last slide points readers to the caption. Bring your own pictures, or have AI redraw them in the chosen look
-- 📚 **Your library**: a grid of tiles with search (hook, caption, hashtags), Filter by type, community, language, look and length, sort, an Instagram-style **Saved** tab, and a watch view with Post, Details, Script (redo any scene) and More videos
-- 📦 **Download as ZIP**: video, cover JPG and post text in one file, straight from a tile
-- ⏹️ **Stop and confirm**: stop a video mid-make; deleting or stopping asks first, with the thumbnail
-- 🌍 **One topic, every language** (API: `all_languages`): the video is also made in the other three languages; those versions translate the script (keeping your chosen hook) and reuse the first video's stills, so they cost no image quota and finish faster
-- 🎨 **Four looks**: Photo, Anime, Infographic or Cinematic stills, picked in the form
-- 🛡️ **Safety and claim review**: an editor pass softens unverifiable or medical/financial certainty and blocks unsafe scripts before a single image or voice line is spent; the card says "Brand-safe" or how many lines were softened
-- ✏️ **Editable script**: every title and narration line in the preview can be edited, with a live word count, before generating
-- ⚡ **Voice records while the images generate**: a 15 s video in about 45 s
-- 🌐 **4 languages**: English, हिन्दी (Devanagari), Hinglish (Roman script) and ગુજરાતી
-- 👥 **6 community presets**: General, Tech & AI, Fitness & Health, Motivation, Money & Finance, Hinglish Fun
-- ⏱️ **4 lengths**: 15 / 30 / 45 / 60 s; the scene count and word budget scale with the length
-- 📈 **Trend-aware ideas**: Google Trends India → LLM → 6 topic ideas that fit the community
-- 👀 **Script preview**: see the 3 scored hooks and every scene before rendering, pick the opening line, then make the video
-- 🎵 **Music bed**: a mood-matched track per community, ducked under the narration with `sidechaincompress`
-- 🔁 **Redo a scene**: regenerate one scene's visual on a finished video and re-render in under a minute
-- 🗣️ **Word-pop karaoke captions**: each word lights up as it is spoken (Whisper per scene, with the script as its prompt)
-- 📦 **Batch mode**: queue up to 10 topics in one click
-- 🛡️ **Fallbacks at every stage**: a flaky free API never kills a job
-- 🧾 **Credits recorded**: every scene's image or stock source is stored in the job JSON
-- 💰 **₹0 running cost**: every provider is on a free tier
+- 🧠 **Strong hooks**: 3 scored openers per topic; the video uses the best one
+- 🙋 **You in the video**: upload a photo and you present it, talking
+- 🖼️ **Image posts and carousels**: a 4:5 picture or 2–4 slides from the same topic
+- 🌐 **4 languages, 6 communities**: English, Hindi, Hinglish, Gujarati; each community has its own tone and hashtags
+- 🎨 **4 looks, 4 lengths**: Photo, Anime, Infographic, Cinematic; 15 / 30 / 45 / 60 s
+- 📈 **Trending ideas**: topic suggestions from Google Trends India
+- ✏️ **Preview and edit**: check and change the script before rendering, redo any scene after
+- 🗣️ **Karaoke captions and music**: word-by-word captions, music that ducks under the voice
+- 🛡️ **Brand-safe**: risky claims are softened or blocked before rendering
+- 📚 **Library and batch**: search, filter, save, download as ZIP; queue up to 10 topics
+- 💰 **₹0 to run**: every provider is on a free tier, with fallbacks at each stage
 
 <p align="center">
   <img src="docs/screens/look-step.png" alt="The form with the Look step and the every-language box" width="420">
   <img src="docs/screens/preview-edit.png" alt="The script preview with editable lines and word counts" width="420">
-</p>
-
-<p align="center">
-  <img src="docs/screens/frames/tech.png" alt="Tech frame" width="200">
-  <img src="docs/screens/frames/motivation.png" alt="Motivation frame" width="200">
-  <img src="docs/screens/frames/hinglish.png" alt="Hinglish frame" width="200">
 </p>
 
 ---
@@ -207,30 +183,6 @@ A carousel also gets `<id>.zip`. Any slide can be redrawn alone.
 | Tests | **pytest** (137 tests) + `node --test` for the library search, filter and sort |
 | Container | **Docker**, two stages: `node:22-slim` builds the UI, `python:3.11-slim-bookworm` + ffmpeg 5.1 + fonts runs it |
 | Hosting | **Railway** or **Hugging Face Spaces** (Docker, 1 GB box) |
-
-### Where each provider is used
-
-```mermaid
-flowchart LR
-    subgraph Stages
-        S1[Plan]
-        S2[Images]
-        S3[Voice]
-        S4[Visuals]
-        S5[Captions]
-        S0[Suggest topics]
-    end
-    S0 --> GT[Google Trends] & G1[Groq LLM]
-    S1 --> G1
-    S1 -.fallback.-> GM[Gemini LLM]
-    S2 --> PO[Cloudflare FLUX]
-    S2 -.fallback.-> HF[HF FLUX]
-    S3 --> EL[ElevenLabs]
-    S3 -.fallback.-> ED[edge-tts] -.fallback.-> GT2[Gemini TTS]
-    S4 --> PX[Pexels / Pixabay]
-    S4 -.fallback.-> WM[Wikimedia]
-    S5 --> WH[Groq Whisper]
-```
 
 ---
 
@@ -381,35 +333,6 @@ flowchart LR
 
 ---
 
-## 📡 10. API reference
-
-| Method | Path | Body / query | Returns |
-|---|---|---|---|
-| `GET` | `/` | | Studio UI |
-| `GET` | `/presets` | | communities (accent colour, examples), languages, durations, looks, outfits (+ the default per community), layouts |
-| `GET` | `/suggest` | `?community=tech&language=hi&trends_only=1` | 6 topic ideas (trend-aware; `trends_only` makes them all trend-led) |
-| `POST` | `/plan` | `{"topic": "...", "community": "tech", "language": "en", "duration": 30}` | the script: scored hooks with formula and why, scenes with beats, caption, hashtags, YouTube and Instagram post text |
-| `POST` | `/photo/restyle` | `{"photo": "data:image/...", "outfit": "smart"}` | `{"photo": data URL}`: same face, chosen outfit and light (~10 s) |
-| `POST` | `/image/reimagine` | `{"picture": "data:image/...", "topic": "...", "style": "anime"}` | `{"picture": data URL}`: your picture redrawn in the look |
-| `POST` | `/generate` | video: `{"topics": ["..."], "community": "tech", "language": "en", "duration": 30, "style": "photo", "plan": {...}, "photo": "data:...", "photo_consent": true, "all_languages": false}`<br/>image: `{"kind": "image", "topics": ["..."], "slides": 1-4, "headline": true, "pictures": ["data:..."], ...}` (1–10 topics; `plan` from `/plan`, single topic only; `photo` needs `photo_consent`; `pictures` one per slide) | `{"job_ids": [...]}` |
-| `POST` | `/jobs/{id}/redo/{scene}` | | regenerates that scene's visual (or slide) and re-renders |
-| `POST` | `/jobs/{id}/stop` | | stops a queued or running job; it stays as a stopped card |
-| `POST` / `DELETE` | `/jobs/{id}/save` | | saves or unsaves a finished job (kept as `out/<id>/saved`) |
-| `GET` | `/jobs` | | every job with status and stage; a running job also carries `started`, and once planned its `hook`, scene titles, `shots`, the `stills` painted so far and, for a presenter video, `faces` done |
-| `GET` | `/jobs/{id}` | | one job + result meta |
-| `GET` | `/jobs/{id}/download` | | ZIP of the video, cover JPG and post text |
-| `DELETE` | `/jobs/{id}` | | removes the job and its files |
-| `GET` | `/out/{id}/{id}.mp4` | | the video (also `.jpg`, `.json`; image posts `<id>.png` or `<id>-n.png`) |
-
-Example:
-
-```bash
-curl -X POST localhost:9000/generate -H 'content-type: application/json' \
-  -d '{"topics":["UPI tips nobody tells you"],"community":"finance","language":"hinglish","duration":30}'
-```
-
----
-
 ## 🗂️ 11. Repo layout
 
 ```
@@ -442,20 +365,6 @@ curl -X POST localhost:9000/generate -H 'content-type: application/json' \
 ├── docs/                     challenge brief, deck, screenshots
 └── Dockerfile                builds the UI with Node, then runs FastAPI + ffmpeg on python:3.11-slim
 ```
-
----
-
-## ⚠️ 12. Known limits
-
-| Limit | Why | Upgrade path |
-|---|---|---|
-| Job *state* is in memory; finished videos are rebuilt from `out/*/*.json` at startup | Simple and enough for a demo | Redis / SQLite for queue state |
-| `out/` is ephemeral on free hosting | Free hosting | Mount a volume at `/app/backend/out` (Railway) or object storage |
-| One video worker (plus one for image posts) | 2 vCPU / 1 GB container; ffmpeg is the bottleneck | More workers on bigger hardware |
-| ElevenLabs free tier ≈ 20 videos / month | Free quota | edge-tts takes over automatically |
-| Cloudflare 10k neurons a day per account (~170 FLUX.2 pictures) | Free quota; resets 05:30 IST | Spare accounts (`_2`…`_4`); FLUX.1 / stock fallback |
-| Talking face needs free ZeroGPU time, and only the head moves | Free Spaces; no free model animates a whole body | Spare `HF_TOKEN`s; a paid lip-sync API |
-| Manual publish to Qoneqt | No public posting API | Direct upload once an API exists |
 
 ---
 
