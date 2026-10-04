@@ -1,13 +1,3 @@
----
-title: Qoneqt Video Factory
-emoji: 🎬
-colorFrom: purple
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 <p align="center"><img src="docs/logo.png" alt="Qoneqt Video Factory" width="320"></p>
 
 # Qoneqt Video Factory
@@ -22,8 +12,8 @@ Built for **Qoneqt × CTRL FREAK 2026**, challenge: *"Build an LLM-Powered Conte
 
 | | |
 |---|---|
-| 🌐 Live app | _coming soon_ |
-| 🎥 Demo video | _coming soon_ |
+| 🌐 Live app | https://qoneqt-video-factory-ai.up.railway.app/ |
+| 🎥 Demo video | https://canva.link/104yrj69lmkva1x |
 | 📱 Published on Qoneqt | _coming soon_ |
 
 <p align="center">
