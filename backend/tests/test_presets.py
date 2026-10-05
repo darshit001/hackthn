@@ -76,3 +76,19 @@ def test_no_key_configured_names_the_variable(monkeypatch):
     monkeypatch.delenv("K_2", raising=False)
     with pytest.raises(RuntimeError, match="no K"):
         with_keys(lambda k: None, "K")
+
+
+def test_a_hung_account_moves_on_only_when_asked(monkeypatch):
+    """FLUX.2 hangs on one Cloudflare account while another answers (3 Oct 2026); elsewhere a timeout means the
+    provider is slow, and the next engine is a better bet than the next key."""
+    monkeypatch.setenv("K", "hung")
+    monkeypatch.setenv("K_2", "good")
+
+    def call(key):
+        if key == "hung":
+            raise httpx.ReadTimeout("The read operation timed out")
+        return "ok"
+
+    assert with_keys(call, "K", rotate_on_timeout=True) == "ok"
+    with pytest.raises(httpx.ReadTimeout):
+        with_keys(call, "K")

@@ -360,7 +360,7 @@ def flux2(prompt, ref, out_png, size=FLUX2_SIZE):
         r.raise_for_status()
         return base64.b64decode(r.json()["result"]["image"])
     try:
-        Path(out_png).write_bytes(with_keys(post, "CF_ACCOUNT_ID", "CF_API_TOKEN"))
+        Path(out_png).write_bytes(with_keys(post, "CF_ACCOUNT_ID", "CF_API_TOKEN", rotate_on_timeout=True))
     except Exception as e:
         print(f"flux2: {type(e).__name__}: {' '.join(str(e).split())[:140]}", file=sys.stderr)
         raise

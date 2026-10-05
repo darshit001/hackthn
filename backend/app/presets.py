@@ -18,13 +18,14 @@ KEY_RETRY = (401, 402, 403, 429)
 AUTH_WORDS = ("authentication_error", "invalid_api_key", "api key")
 
 
-def with_keys(fn, *names):
+def with_keys(fn, *names, rotate_on_timeout=False):
     """Run fn(*keys) with each credential configured for `names`, newest failure moving to the next one.
 
     Looks up NAME, then NAME_2, NAME_3, NAME_4. Several names rotate together, because Cloudflare's account id
     and API token are one credential split over two variables: a set counts only when every name in it is set.
     Falls through to the next set when a key is rejected or out of quota, so a dead or exhausted key is skipped
-    without taking the provider down; any other error raises, since a second key will not fix a bad request."""
+    without taking the provider down; any other error raises, since a second key will not fix a bad request.
+    rotate_on_timeout: a hang is that account's alone (Cloudflare FLUX.2), so the next set gets a try too."""
     sets = []
     for suffix in ("", "_2", "_3", "_4"):
         vals = [os.environ.get(n + suffix, "").strip() for n in names]
@@ -39,6 +40,9 @@ def with_keys(fn, *names):
             code = e.response.status_code
             bad_key = code in KEY_RETRY or (code == 400 and any(w in e.response.text.lower() for w in AUTH_WORDS))
             if i == len(sets) - 1 or not bad_key:
+                raise
+        except httpx.TimeoutException:
+            if i == len(sets) - 1 or not rotate_on_timeout:
                 raise
 
 

@@ -23,3 +23,7 @@ graphify-out/
 Thumbs.db
 *.log
 *.swp
+
+assets/
+video-out
+promo
