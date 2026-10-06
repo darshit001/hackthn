@@ -10,9 +10,8 @@ Built for **Qoneqt × CTRL FREAK 2026**: *"Build an LLM-Powered Content Pipeline
 
 | | |
 |---|---|
-| 🌐 Live app | https://qoneqt-video-factory-ai.up.railway.app/ |
-| 🎥 Demo video | https://canva.link/104yrj69lmkva1x |
-| 📱 Published on Qoneqt | _coming soon_ |
+| 🌐 Live app | DM me  |
+| 🎥 Demo video | https://drive.google.com/file/d/1Zj5Py7XpOxMoz6BCOSqxu-jTnlLcZo4S/view |
 
 <p align="center">
   <img src="docs/screens/ui-v9-desktop.png" alt="Video Factory UI: create form on the left; on the right a video being made shows its stills arriving and the six pipeline steps, above the finished videos" width="720">
